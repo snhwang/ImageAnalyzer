@@ -14,6 +14,60 @@ class ImageViewer {
         this.lastMouseY = 0;
         this.currentLabel = state ? state.currentLabel : "";
 
+        // Initialize UI elements
+        this.fileInput = container.querySelector(".hidden-file-input");
+        this.uploadBtn = container.querySelector(".upload-btn");
+        this.browseBtn = container.querySelector(".browse-btn");
+        this.rotateLeftBtn = container.querySelector(".rotate-left-btn");
+        this.rotateRightBtn = container.querySelector(".rotate-right-btn");
+        this.optimizeWindowBtn = container.querySelector(".optimize-window-btn");
+        this.windowLevelBtn = container.querySelector(".window-level-btn");
+        this.toolbar = container.querySelector(".toolbar");
+
+        // Initialize image-related properties
+        this.slices = state ? state.slices : [];
+        this.rotation = state ? state.rotation : 0;
+        this.mode = "window-level"; // 'window-level' or 'roi'
+        this.isDrawingROI = false;
+        this.roiPoints = [];
+
+        // Create and set up canvases
+        this.canvas = document.createElement("canvas");
+        this.canvas.style.width = "100%";
+        this.canvas.style.height = "100%";
+        this.canvas.style.display = "none";
+        this.ctx = this.canvas.getContext("2d", { willReadFrequently: true });
+        this.imageContainer.appendChild(this.canvas);
+
+        // Create ROI canvas
+        this.roiCanvas = document.createElement("canvas");
+        this.roiCanvas.className = "roi-canvas";
+        this.roiCtx = this.roiCanvas.getContext("2d");
+        this.imageContainer.appendChild(this.roiCanvas);
+
+        // Create and set up image element
+        this.img = this.imageContainer.querySelector("img");
+        if (!this.img) {
+            this.img = document.createElement("img");
+            this.imageContainer.querySelector(".canvas-container").appendChild(this.img);
+        }
+        this.img.style.display = "none";
+        this.img.onload = () => {
+            this.canvas.width = this.img.width;
+            this.canvas.height = this.img.height;
+            this.roiCanvas.width = this.canvas.width;
+            this.roiCanvas.height = this.canvas.height;
+            this.applyWindowLevel();
+        };
+
+        // Add resize handler
+        this.resizeHandler = () => {
+            if (this.img.complete && this.img.src) {
+                this.applyWindowLevel();
+            }
+        };
+        window.addEventListener("resize", this.resizeHandler);
+
         // Track image bit depth and range
         this.dataMin = 0;
         this.dataMax = 255;
@@ -21,7 +75,16 @@ class ImageViewer {
         this.maxValue = Math.pow(2, this.bitDepth) - 1;
         this.isWindowLevelDrag = false;
 
+        // Set up event listeners after initializing all elements
         this.setupEventListeners();
+
+        // Restore state if provided
+        if (state && state.imageId) {
+            this.container.classList.add("has-image");
+            this.addImageLabelDropdown();
+            this.loadSlice(this.currentSlice);
+            this.updateWindowingInfo();
+        }
     }
 
     getState() {
@@ -199,16 +262,9 @@ class ImageViewer {
             const deltaX = e.clientX - this.lastMouseX;
             const deltaY = this.lastMouseY - e.clientY;
 
-            // Simple sensitivity calculation
-            const sensitivity = 2.0;
-
-            // Update window width, ensuring it stays positive
-            const newWidth = this.windowWidth + (deltaX * sensitivity);
-            this.windowWidth = Math.max(1, newWidth);  // Never let W go below 1
-
-            // Update window center
-            const newCenter = this.windowCenter + (deltaY * sensitivity);
-            this.windowCenter = Math.min(this.dataMax, Math.max(this.dataMin, newCenter));
+            // Simple direct adjustment of window width and center
+            this.windowWidth = Math.max(1, this.windowWidth + deltaX);  // Never let W go below 1
+            this.windowCenter += deltaY;
 
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
@@ -471,7 +527,7 @@ class ImageViewer {
     }
 
     applyWindow(value) {
-        // Ensure window width is at least 1
+        // Ensure window width is at least 1 to prevent division by zero
         this.windowWidth = Math.max(1, this.windowWidth);
 
         // Calculate window bounds
@@ -841,7 +897,7 @@ class ImageViewer {
         // Add directories
         directories.forEach(dir => {
             html += `
-                <div class="directory-item" data-path="${dir.url}">
+                <div class="directoryitem" data-path="${dir.url}">
                     <span class="directory-icon">📁</span>
                     <span class="directory-name">${dir.name}</span>
                 </div>
