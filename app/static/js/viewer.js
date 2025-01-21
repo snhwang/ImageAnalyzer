@@ -270,7 +270,6 @@ class ImageViewer {
             // Ensure we still have the left button pressed
             if (!(e.buttons & 1)) {
                 this.isWindowLevelDrag = false;
-                // cursor handled by CSS
                 return;
             }
 
@@ -462,17 +461,113 @@ class ImageViewer {
         });
     }
 
+    applyWindowLevel() {
+        if (!this.img.complete || !this.img.src) return;
+
+        try {
+            // Calculate canvas size based on rotation
+            const useWidth = this.rotation % 180 === 0 ? this.img.width : this.img.height;
+            const useHeight = this.rotation % 180 === 0 ? this.img.height : this.img.width;
+
+            if (!useWidth || !useHeight) return; // Skip if dimensions are invalid
+
+            // Set canvas dimensions to match image
+            this.canvas.width = useWidth;
+            this.canvas.height = useHeight;
+
+            // Clear canvas and save context
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.save();
+
+            // Move to center and rotate
+            this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+            this.ctx.rotate((this.rotation * Math.PI) / 180);
+
+            // Draw image centered
+            this.ctx.drawImage(
+                this.img,
+                -this.img.width / 2,
+                -this.img.height / 2
+            );
+
+            // Restore context
+            this.ctx.restore();
+
+            // Get image data
+            const imageData = this.ctx.getImageData(
+                0,
+                0,
+                this.canvas.width,
+                this.canvas.height
+            );
+            const data = imageData.data;
+
+            // Apply window/level to each pixel
+            for (let i = 0; i < data.length; i += 4) {
+                const value = data[i]; // Assuming grayscale, so just use red channel
+                const normalized = this.applyWindow(value);
+                data[i] = normalized;     // R
+                data[i + 1] = normalized; // G
+                data[i + 2] = normalized; // B
+                // Keep alpha channel (i + 3) unchanged
+            }
+
+            // Put the modified image data back
+            this.ctx.putImageData(imageData, 0, 0);
+            this.canvas.style.display = "block";
+
+            // Calculate container dimensions
+            const containerRect = this.imageContainer.getBoundingClientRect();
+            if (!containerRect.width || !containerRect.height) return;
+
+            const containerAspect = containerRect.width / containerRect.height;
+            const imageAspect = useWidth / useHeight;
+
+            // Calculate dimensions to fit container while maintaining aspect ratio
+            let displayWidth, displayHeight;
+            if (imageAspect > containerAspect) {
+                displayWidth = containerRect.width;
+                displayHeight = containerRect.width / imageAspect;
+            } else {
+                displayHeight = containerRect.height;
+                displayWidth = containerRect.height * imageAspect;
+            }
+
+            // Center the canvas in the container
+            const leftOffset = (containerRect.width - displayWidth) / 2;
+            this.canvas.style.position = "absolute";
+            this.canvas.style.left = `${leftOffset}px`;
+            this.canvas.style.width = `${displayWidth}px`;
+            this.canvas.style.height = `${displayHeight}px`;
+
+            // Update ROI canvas dimensions and position to match main canvas
+            this.roiCanvas.width = this.canvas.width;
+            this.roiCanvas.height = this.canvas.height;
+            this.roiCanvas.style.position = "absolute";
+            this.roiCanvas.style.left = this.canvas.style.left;
+            this.roiCanvas.style.width = this.canvas.style.width;
+            this.roiCanvas.style.height = this.canvas.style.height;
+
+        } catch (error) {
+            console.error("Error applying window level:", error);
+        }
+    }
+
     applyWindow(value) {
+        // Ensure windowWidth is positive and non-zero
+        if (this.windowWidth <= 0) {
+            this.windowWidth = 1;
+        }
+
         const windowMin = this.windowCenter - this.windowWidth / 2;
         const windowMax = this.windowCenter + this.windowWidth / 2;
 
-        // If value is outside the window, clamp to window edges
+        // Clamp value to window range
         if (value <= windowMin) return 0;
         if (value >= windowMax) return 255;
 
-        // Normalize within window range to 0-1, then scale to 0-255
-        const normalized = (value - windowMin) / (this.windowWidth);
-        return Math.round(normalized * 255);
+        // Linear scaling from window range to display range
+        return Math.round(((value - windowMin) / this.windowWidth) * 255);
     }
 
     async uploadFile(file) {
@@ -801,8 +896,7 @@ class ImageViewer {
 
             throw new Error("Invalid directory listing response");
 
-        } catch (error) {
-            console.error("Error importing from URL:", error);
+        } catch (error) {            console.error("Error importing from URL:", error);
             directoryList.innerHTML = `<div class="error">${error.message}</div>`;
         }
     }
