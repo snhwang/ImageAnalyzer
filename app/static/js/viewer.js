@@ -276,22 +276,18 @@ class ImageViewer {
             const deltaX = e.clientX - this.lastMouseX;
             const deltaY = this.lastMouseY - e.clientY;
 
-            // Calculate window adjustments based on data range
-            const sensitivity = (this.dataMax - this.dataMin) / 1000;
-            const windowDelta = deltaX * sensitivity;
-            const centerDelta = deltaY * sensitivity;
+            // Calculate sensitivity based on data range
+            const dataRange = Math.max(1, this.dataMax - this.dataMin);
+            const sensitivity = dataRange / 500;  // Reduced sensitivity for finer control
 
             // Update window width (horizontal movement)
-            // Ensure minimum window width is 1% of data range
-            const minWidth = (this.dataMax - this.dataMin) / 100;
-            this.windowWidth = Math.max(minWidth, this.windowWidth + windowDelta);
+            const newWidth = this.windowWidth + (deltaX * sensitivity);
+            this.windowWidth = Math.max(dataRange / 100, newWidth); // Minimum 1% of data range
 
             // Update window center (vertical movement)
-            // Keep center within data range
-            this.windowCenter = Math.min(
-                this.dataMax,
-                Math.max(this.dataMin, this.windowCenter + centerDelta)
-            );
+            const centerDelta = deltaY * sensitivity;
+            const newCenter = this.windowCenter + centerDelta;
+            this.windowCenter = Math.min(this.dataMax, Math.max(this.dataMin, newCenter));
 
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
@@ -554,10 +550,8 @@ class ImageViewer {
     }
 
     applyWindow(value) {
-        // Ensure windowWidth is positive and non-zero
-        if (this.windowWidth <= 0) {
-            this.windowWidth = 1;
-        }
+        // Ensure window width is always positive
+        this.windowWidth = Math.max(1, this.windowWidth);
 
         const windowMin = this.windowCenter - this.windowWidth / 2;
         const windowMax = this.windowCenter + this.windowWidth / 2;
@@ -567,7 +561,8 @@ class ImageViewer {
         if (value >= windowMax) return 255;
 
         // Linear scaling from window range to display range
-        return Math.round(((value - windowMin) / this.windowWidth) * 255);
+        const normalized = (value - windowMin) / this.windowWidth;
+        return Math.round(normalized * 255);
     }
 
     async uploadFile(file) {
