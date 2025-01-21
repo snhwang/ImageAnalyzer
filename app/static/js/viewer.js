@@ -227,13 +227,13 @@ class ImageViewer {
         const minVal = this.minVal;
         const maxVal = this.maxVal;
         const center = this.windowCenter || (maxVal + minVal) / 2;
-        const width = this.windowWidth || (maxVal - minVal);
-        const low = center - width / 2;
-        const high = center + width / 2;
+        const windowWidth = this.windowWidth || (maxVal - minVal);
+        const low = center - windowWidth / 2;
+        const high = center + windowWidth / 2;
 
-        const width = this.width;
-        const height = this.height;
-        const rgbData = new Float32Array(width * height * 3);
+        const imgWidth = this.width;
+        const imgHeight = this.height;
+        const rgbData = new Float32Array(imgWidth * imgHeight * 3);
 
         for (let i = 0; i < pixels.length; i++) {
             let normalizedValue = (pixels[i] - low) / (high - low);
