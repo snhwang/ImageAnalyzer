@@ -1,0 +1,41 @@
+GET
+https://unpkg.com/@babylonjs/loaders@7.44.0/babylonjs.loaders.min.js
+NS_ERROR_CORRUPTED_CONTENT
+
+GET
+https://unpkg.com/@babylonjs/core@7.44.0/babylon.js
+NS_ERROR_CORRUPTED_CONTENT
+
+The resource from “https://unpkg.com/@babylonjs/loaders@7.44.0/babylonjs.loaders.min.js” was blocked due to MIME type (“text/plain”) mismatch (X-Content-Type-Options: nosniff).
+c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev
+The resource from “https://unpkg.com/@babylonjs/core@7.44.0/babylon.js” was blocked due to MIME type (“text/plain”) mismatch (X-Content-Type-Options: nosniff).
+c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev
+Loading failed for the <script> with source “https://unpkg.com/@babylonjs/core/babylon.js”. c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev:19:68
+GET
+https://unpkg.com/@babylonjs/loaders/babylonjs.loaders.min.js
+[HTTP/2 302  0ms]
+
+GET
+https://unpkg.com/@babylonjs/loaders@7.44.0/babylonjs.loaders.min.js
+NS_ERROR_CORRUPTED_CONTENT
+
+The resource from “https://unpkg.com/@babylonjs/loaders@7.44.0/babylonjs.loaders.min.js” was blocked due to MIME type (“text/plain”) mismatch (X-Content-Type-Options: nosniff).
+c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev
+Loading failed for the <script> with source “https://unpkg.com/@babylonjs/loaders/babylonjs.loaders.min.js”. c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev:20:85
+GET
+https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/favicon.ico
+[HTTP/1.1 200 OK 0ms]
+
+BABYLON is not loaded viewer.js:25:21
+TypeError: this.renderCanvas is undefined
+    setupEventListeners https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:149
+    ImageViewer https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:29
+    updateGrid https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:493
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:501
+    Async* <anonymous code>:1
+    apply <anonymous code>:1
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:499
+lockdown-install.js:1:97687
+GET
+https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/favicon.ico
+[HTTP/1.1 200 OK 0ms]
