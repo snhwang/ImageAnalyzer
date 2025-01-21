@@ -13,13 +13,13 @@ class ImageViewer {
         this.lastMouseX = 0;
         this.lastMouseY = 0;
         this.currentLabel = state ? state.currentLabel : "";
-        
+
         // Debug logs for file input
         console.log("Container:", container);
         console.log("Hidden file inputs in container:", container.querySelectorAll(".hidden-file-input"));
         this.fileInput = container.querySelector(".hidden-file-input");
         console.log("Selected file input:", this.fileInput);
-        
+
         this.uploadBtn = container.querySelector(".upload-btn");
         this.browseBtn = container.querySelector(".browse-btn");
         this.rotateLeftBtn = container.querySelector(".rotate-left-btn");
@@ -48,7 +48,7 @@ class ImageViewer {
             this.imageContainer.querySelector(".canvas-container").appendChild(this.img);
         }
         this.img.style.display = "none";
-        
+
         // Set up image onload handler
         this.img.onload = () => {
             this.canvas.width = this.img.width;
@@ -137,7 +137,7 @@ class ImageViewer {
         // Menu button click
         const menuBtn = this.container.querySelector(".menu-btn");
         const menuContainer = this.container.querySelector(".menu-container");
-        
+
         menuBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             menuContainer.classList.toggle("show");
@@ -155,8 +155,8 @@ class ImageViewer {
                 e.stopPropagation();
                 const action = item.dataset.action;
                 menuContainer.classList.remove("show");  // Close menu after selection
-                
-                switch(action) {
+
+                switch (action) {
                     case "upload":
                         this.fileInput.click();
                         break;
@@ -248,7 +248,7 @@ class ImageViewer {
             if (e.target.closest('.image-label')) {
                 return;
             }
-            
+
             if (
                 this.mode === "window-level" &&
                 (e.button === 0 || e.buttons === 1) &&
@@ -557,14 +557,14 @@ class ImageViewer {
         try {
             // Read file as binary data
             const binaryData = await file.arrayBuffer();
-            
+
             // Create a new Blob with the binary data
             const blob = new Blob([binaryData], { type: file.type || 'application/octet-stream' });
-            
+
             // Create FormData and append the blob as a file
             const formData = new FormData();
             formData.append('file', blob, file.name);
-            
+
             const response = await fetch(`${BASE_URL}/upload`, {
                 method: "POST",
                 body: formData
@@ -588,7 +588,7 @@ class ImageViewer {
                 this.loadSlice(this.currentSlice);
                 this.updateWindowingInfo();
                 this.container.classList.add("has-image");
-                
+
                 // Add the dropdown after successful upload
                 this.addImageLabelDropdown();
             } else {
@@ -654,7 +654,7 @@ class ImageViewer {
     async loadSlice(sliceNumber) {
         if (!this.slices || !this.slices.length) return;
         this.currentSlice = sliceNumber;
-        
+
         try {
             let sliceUrl;
             // Check if the slice is a full URL or just a base64 string
@@ -669,25 +669,25 @@ class ImageViewer {
                 // Construct URL for slice endpoint
                 sliceUrl = `${BASE_URL}/slice/${this.imageId}/${sliceNumber}`;
             }
-            
+
             const response = await fetch(sliceUrl, {
                 headers: {
                     'Accept': 'image/*'
                 }
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             // Create a blob URL from the binary data
             const blob = await response.blob();
             const imageUrl = URL.createObjectURL(blob);
-            
+
             // Load the image
             this.img.src = imageUrl;
             this.updateWindowingInfo();
-            
+
             // Clean up the old URL
             URL.revokeObjectURL(this.img.src);
         } catch (error) {
@@ -817,85 +817,74 @@ class ImageViewer {
 
         try {
             console.log("Requesting path:", currentPath);
-            
+
+            // First try to list the directory
+            const listResponse = await fetch(`${BASE_URL}/list-directory`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: currentPath || 'images' })
+            });
+
+            if (!listResponse.ok) {
+                const errorText = await listResponse.text();
+                console.error('Server error response:', errorText);
+                throw new Error(`Failed to list directory: ${errorText}`);
+            }
+
+            const listData = await listResponse.json();
+            console.log("Directory listing response:", listData);
+
+            if (listData.status === "success") {
+                this.updateDirectoryList(listData.files || [], listData.directories || []);
+                return;
+            }
+
+            // If it's not a directory listing response, try to import the file
             const formData = new FormData();
             formData.append("path", currentPath);
-            
+
             const response = await fetch(`${BASE_URL}/import-from-url`, {
                 method: "POST",
                 body: formData
             });
 
-            let errorMessage;
-            try {
-                const contentType = response.headers.get("content-type");
-                if (contentType && contentType.includes("application/json")) {
-                    const data = await response.json();
-                    console.log("Server response:", data);
-
-                    if (!response.ok) {
-                        errorMessage = data.detail || "Server error";
-                        throw new Error(errorMessage);
-                    }
-
-                    if (data.status === "directory") {
-                        // Update directory listing
-                        this.updateDirectoryList(
-                            data.files || [],
-                            data.directories || [],
-                        );
-                    } else if (
-                        data.status === "success" &&
-                        data.slices &&
-                        data.slices.length > 0
-                    ) {
-                        // Store current image path
-                        this.currentImagePath = currentPath;
-
-                        // Hide modal
-                        document
-                            .getElementById("urlImportModal")
-                            .classList.remove("show");
-
-                        // Process image data
-                        this.slices = data.slices;
-                        this.totalSlices = data.total_slices;
-                        this.currentSlice = 0;
-                        this.imageId = data.image_id;
-                        this.windowWidth = data.window_width;
-                        this.windowCenter = data.window_center;
-                        
-                        // For remote images, store the full slice URLs
-                        if (data.slice_urls) {
-                            this.slices = data.slice_urls;
-                        }
-                        
-                        this.loadSlice(this.currentSlice);
-                        this.updateWindowingInfo();
-                        this.container.classList.add("has-image");
-                        
-                        // Add the dropdown after successful remote import
-                        this.addImageLabelDropdown();
-                    } else {
-                        throw new Error("Invalid response format from server");
-                    }
-                } else {
-                    const text = await response.text();
-                    console.error("Non-JSON response:", text);
-                    throw new Error("Invalid response format from server");
-                }
-            } catch (parseError) {
-                console.error("Error parsing response:", parseError);
-                if (!errorMessage) {
-                    errorMessage = response.ok
-                        ? "Invalid response from server"
-                        : `Server error: ${response.status}`;
-                }
-                throw new Error(errorMessage);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server error response:', errorText);
+                throw new Error(`Failed to import file: ${errorText}`);
             }
+
+            const data = await response.json();
+            console.log("File import response:", data);
+
+            if (data.status === "success" && data.slices && data.slices.length > 0) {
+                // Store current image path
+                this.currentImagePath = currentPath;
+
+                // Hide modal
+                document.getElementById("urlImportModal").classList.remove("show");
+
+                // Process image data
+                this.slices = data.slices;
+                this.totalSlices = data.total_slices;
+                this.currentSlice = 0;
+                this.imageId = data.image_id;
+                this.windowWidth = data.window_width;
+                this.windowCenter = data.window_center;
+
+                // Load the first slice
+                this.loadSlice(0);
+                this.updateWindowingInfo();
+                this.container.classList.add("has-image");
+
+                // Add the dropdown
+                this.addImageLabelDropdown();
+            }
+
         } catch (error) {
             console.error("Error importing from URL:", error);
-            this.showError(`Import failed: ${error.message}`);
             directoryList.innerHTML = `<div class="error">Error: ${error.message}</div>`;
         }
     }
@@ -975,10 +964,10 @@ class ImageViewer {
         if (existingDropdown) {
             existingDropdown.remove();
         }
-        
+
         const dropdown = document.createElement("select");
         dropdown.className = "image-label";
-        
+
         const options = [
             { value: "", text: "Select image type..." },
             { value: "T1", text: "T1" },
@@ -988,14 +977,14 @@ class ImageViewer {
             { value: "MPRAGE", text: "MPRAGE" },
             { value: "PostMPRAGE", text: "PostMPRAGE" }
         ];
-        
+
         options.forEach(option => {
             const opt = document.createElement("option");
             opt.value = option.value;
             opt.textContent = option.text;
             dropdown.appendChild(opt);
         });
-        
+
         dropdown.addEventListener("change", (e) => {
             e.stopPropagation();
             console.log("Dropdown change event fired");
@@ -1003,11 +992,11 @@ class ImageViewer {
             console.log(`Image labeled as: ${selectedLabel}`);
             this.currentLabel = selectedLabel;
         });
-        
+
         dropdown.addEventListener("click", (e) => {
             e.stopPropagation();
         });
-        
+
         // Insert dropdown before the menu container
         const menuContainer = this.toolbar.querySelector(".menu-container");
         if (menuContainer) {
@@ -1016,10 +1005,10 @@ class ImageViewer {
             // Add to toolbar if menu container not found
             this.toolbar.appendChild(dropdown);
         }
-        
+
         // Store reference to the dropdown
         this.imageLabel = dropdown;
-        
+
         // Reset the dropdown value
         dropdown.value = "";
         this.currentLabel = "";
