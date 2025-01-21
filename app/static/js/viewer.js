@@ -116,51 +116,60 @@ class ImageViewer {
             }
 
             const result = await response.json();
-            if (result.success) {
+            console.log("Upload response:", result);  // Debug log
+
+            if (result.success && result.data) {
                 console.log("Upload successful, creating texture...");
 
-                // Create a temporary canvas to draw the image
-                const tempCanvas = document.createElement('canvas');
-                const tempContext = tempCanvas.getContext('2d');
-                const img = new Image();
+                // Get the first slice of data (for 2D view)
+                const base64Data = result.data[0];
+                console.log("Using base64 data length:", base64Data.length);  // Debug log
 
-                img.onload = () => {
-                    // Set canvas size to match image
-                    tempCanvas.width = img.width;
-                    tempCanvas.height = img.height;
+                // Create an array buffer from the base64 data
+                const binaryString = atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Float32Array(len / 4);  // 4 bytes per float
 
-                    // Draw image to canvas
-                    tempContext.drawImage(img, 0, 0);
+                // Convert binary string to Float32Array
+                for (let i = 0; i < len; i += 4) {
+                    const value = 
+                        binaryString.charCodeAt(i) |
+                        (binaryString.charCodeAt(i + 1) << 8) |
+                        (binaryString.charCodeAt(i + 2) << 16) |
+                        (binaryString.charCodeAt(i + 3) << 24);
+                    bytes[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+                }
 
-                    // Create dynamic texture from canvas
-                    const texture = new BABYLON.DynamicTexture(
-                        "imageTexture",
-                        {width: img.width, height: img.height},
-                        this.scene,
-                        true,
-                        BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-                    );
+                // Create a raw texture from the float data
+                const width = result.metadata.dimensions[0];
+                const height = result.metadata.dimensions[1];
+                console.log("Creating texture with dimensions:", width, "x", height);  // Debug log
 
-                    // Update texture with canvas content
-                    texture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
-                    texture.update(false, false);
-                    texture.getContext().drawImage(img, 0, 0);
+                const texture = new BABYLON.RawTexture(
+                    bytes,
+                    width,
+                    height,
+                    BABYLON.Engine.TEXTUREFORMAT_R,
+                    this.scene,
+                    false,
+                    false,
+                    BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+                    BABYLON.Engine.TEXTURETYPE_FLOAT
+                );
 
-                    // Create new material with the texture
-                    const material = new BABYLON.StandardMaterial("texturedMaterial", this.scene);
-                    material.diffuseTexture = texture;
-                    material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-                    material.useFloatValues = true;
+                // Create new material with the texture
+                const material = new BABYLON.StandardMaterial("texturedMaterial", this.scene);
+                material.diffuseTexture = texture;
+                material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                material.useFloatValues = true;
 
-                    // Apply material to cube
-                    this.cube.material = material;
+                // Apply material to cube
+                this.cube.material = material;
 
-                    // Mark viewer as having image
-                    this.container.classList.add("has-image");
-                };
+                // Mark viewer as having image
+                this.container.classList.add("has-image");
 
-                // Set image source to file
-                img.src = URL.createObjectURL(file);
+                console.log("Texture creation complete");  // Debug log
             } else {
                 console.error("Upload failed:", result.message);
             }
