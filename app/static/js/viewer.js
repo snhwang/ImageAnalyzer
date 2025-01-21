@@ -128,7 +128,7 @@ class ImageViewer {
                 // Create an array buffer from the base64 data
                 const binaryString = atob(base64Data);
                 const len = binaryString.length;
-                const bytes = new Float32Array(len / 4);  // 4 bytes per float
+                const pixels = new Float32Array(len / 4);  // 4 bytes per float
 
                 // Convert binary string to Float32Array
                 for (let i = 0; i < len; i += 4) {
@@ -137,19 +137,33 @@ class ImageViewer {
                         (binaryString.charCodeAt(i + 1) << 8) |
                         (binaryString.charCodeAt(i + 2) << 16) |
                         (binaryString.charCodeAt(i + 3) << 24);
-                    bytes[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+                    pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
                 }
 
-                // Create a raw texture from the float data
+                // Normalize values to [0,1] range
+                const minVal = result.metadata.min_value;
+                const maxVal = result.metadata.max_value;
+                const range = maxVal - minVal;
+
                 const width = result.metadata.dimensions[0];
                 const height = result.metadata.dimensions[1];
+                const rgbData = new Float32Array(width * height * 3);  // RGB format
+
+                // Convert grayscale to RGB, maintaining high precision
+                for (let i = 0; i < pixels.length; i++) {
+                    const normalizedValue = (pixels[i] - minVal) / range;
+                    rgbData[i * 3] = normalizedValue;     // R
+                    rgbData[i * 3 + 1] = normalizedValue; // G
+                    rgbData[i * 3 + 2] = normalizedValue; // B
+                }
+
                 console.log("Creating texture with dimensions:", width, "x", height);  // Debug log
 
                 const texture = new BABYLON.RawTexture(
-                    bytes,
+                    rgbData,
                     width,
                     height,
-                    BABYLON.Engine.TEXTUREFORMAT_R,
+                    BABYLON.Engine.TEXTUREFORMAT_RGB,
                     this.scene,
                     false,
                     false,
