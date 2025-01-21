@@ -122,7 +122,17 @@ class ImageViewer {
 
             void main() {
                 float value = texture2D(textureSampler, vUV).r;
-                gl_FragColor = vec4(value, value, value, 1.0);
+
+                // Normalize the value to [0,1] range using data range
+                float normalizedValue = (value - minValue) / (maxValue - minValue);
+
+                // Apply window/level adjustment
+                float windowMin = (windowCenter - windowWidth/2.0 - minValue) / (maxValue - minValue);
+                float windowMax = (windowCenter + windowWidth/2.0 - minValue) / (maxValue - minValue);
+                float displayValue = (normalizedValue - windowMin) / (windowMax - windowMin);
+                displayValue = clamp(displayValue, 0.0, 1.0);
+
+                gl_FragColor = vec4(displayValue, displayValue, displayValue, 1.0);
             }
         `;
 
@@ -301,6 +311,18 @@ class ImageViewer {
         const width = this.dimensions[0];
         const height = this.dimensions[1];
         const data = this.volumeData[this.currentSlice];
+
+        // Initialize window/level based on data range if not already set
+        if (this.windowCenter === 128 && this.windowWidth === 255) {
+            this.windowCenter = (this.maxValue + this.minValue) / 2;
+            this.windowWidth = this.maxValue - this.minValue;
+            console.log("Setting initial window/level:", {
+                center: this.windowCenter,
+                width: this.windowWidth,
+                min: this.minValue,
+                max: this.maxValue
+            });
+        }
 
         if (this.texture) {
             this.texture.dispose();
