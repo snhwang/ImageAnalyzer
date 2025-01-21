@@ -1,4 +1,4 @@
-const BASE_URL = "https://viewer.quantitativetech.com";
+const BASE_URL = "";
 
 class ImageViewer {
     constructor(container, state = null) {
@@ -910,7 +910,7 @@ class ImageViewer {
                 const pathParts = currentPath.textContent
                     .split("/")
                     .filter(Boolean);
-                pathParts.pop();
+                                pathParts.pop();
                 const newPath = pathParts.length ? pathParts.join("/") : ".";
                 currentPath.textContent = newPath;
                 this.importFromUrl();
