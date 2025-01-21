@@ -14,6 +14,7 @@ class ImageViewer {
         this.imageId = state ? state.imageId : null;
         this.lastMouseX = 0;
         this.lastMouseY = 0;
+        this.isDragging = false;
         this.currentLabel = state ? state.currentLabel : "";
         this.rotation = 0;
 
@@ -41,6 +42,8 @@ class ImageViewer {
         this.optimizeWindowBtn = this.container.querySelector(".optimize-window-btn");
         this.windowLevelBtn = this.container.querySelector(".window-level-btn");
         this.toolbar = this.container.querySelector(".toolbar");
+        this.canvas = this.container.querySelector("canvas") || document.createElement("canvas");
+        this.ctx = this.canvas.getContext("2d");
     }
 
     setupEventListeners() {
@@ -54,6 +57,55 @@ class ImageViewer {
             if (file) {
                 this.uploadFile(file);
             }
+        });
+
+        // Mouse events for window/level adjustment
+        this.imageContainer?.addEventListener("mousedown", (e) => {
+            if (!this.container.classList.contains("has-image")) return;
+            this.isDragging = true;
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!this.isDragging) return;
+
+            const deltaX = e.clientX - this.lastMouseX;
+            const deltaY = e.clientY - this.lastMouseY;
+
+            // Adjust window width with horizontal movement
+            this.windowWidth = Math.max(1, this.windowWidth + deltaX);
+
+            // Adjust window center with vertical movement
+            this.windowCenter = this.windowCenter - deltaY;
+
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+
+            this.updateWindowingInfo();
+        });
+
+        document.addEventListener("mouseup", () => {
+            this.isDragging = false;
+        });
+
+        // Mouse wheel for slice navigation
+        this.imageContainer?.addEventListener("wheel", (e) => {
+            if (!this.container.classList.contains("has-image")) return;
+            e.preventDefault();
+            if (this.totalSlices <= 1) return;
+
+            if (e.deltaY < 0) {
+                this.currentSlice = Math.min(
+                    this.currentSlice + 1,
+                    this.totalSlices - 1
+                );
+            } else {
+                this.currentSlice = Math.max(this.currentSlice - 1, 0);
+            }
+
+            this.updateWindowingInfo();
+            this.loadSlice(this.currentSlice);
         });
 
         // Rotation buttons
@@ -191,7 +243,9 @@ class ImageViewer {
                 ` | ${this.dimensions[0]}x${this.dimensions[1]}` : 
                 "";
 
-            this.imageInfo.textContent = `${this.imageType.toUpperCase()} | ${sliceInfo}${dimensionsInfo}`;
+            const windowInfo = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)}`;
+
+            this.imageInfo.textContent = `${this.imageType?.toUpperCase() || 'IMAGE'} | ${windowInfo} | ${sliceInfo}${dimensionsInfo}`;
         }
     }
 
@@ -208,14 +262,14 @@ class ImageViewer {
             dimensions: this.dimensions
         };
     }
+
     loadSlice(sliceNumber) {
         // Implementation will be added when slice handling is needed
         console.log("Load slice:", sliceNumber);
     }
 
     updateSliceInfo() {
-        // Implementation will be added when slice handling is needed
-        console.log("Update slice info");
+        this.updateWindowingInfo();
     }
 }
 
