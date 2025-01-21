@@ -841,7 +841,7 @@ class ImageViewer {
                 return;
             }
 
-            // If it's not a directory listing response, try to import the file
+            // If it's not a directory, try to import the file
             const formData = new FormData();
             formData.append("path", currentPath);
 
@@ -875,15 +875,12 @@ class ImageViewer {
                 this.windowCenter = data.window_center;
 
                 // Load the first slice
-                this.loadSlice(0);
+                await this.loadSlice(0);
                 this.updateWindowingInfo();
                 this.container.classList.add("has-image");
 
                 // Add the dropdown
                 this.addImageLabelDropdown();
-            } else if (data.status === "directory") {
-                // Update directory listing
-                this.updateDirectoryList(data.files || [], data.directories || []);
             } else {
                 throw new Error("Invalid response format from server");
             }
@@ -920,7 +917,7 @@ class ImageViewer {
             `;
         });
 
-        // Add files
+        //        // Add files
         files.forEach(file => {
             html += `
                 <div class="file-item" data-path="${file.url}">
