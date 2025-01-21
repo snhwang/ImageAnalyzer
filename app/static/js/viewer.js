@@ -5,7 +5,7 @@ class ImageViewer {
         this.container = container;
         this.imageContainer = container.querySelector(".image-container");
 
-        // Initialize canvas
+        // Initialize canvas with high precision
         this.canvas = document.createElement("canvas");
         this.canvas.style.width = "100%";
         this.canvas.style.height = "100%";
@@ -17,9 +17,20 @@ class ImageViewer {
     }
 
     initializeBabylonScene() {
-        // Initialize engine and scene
-        this.engine = new BABYLON.Engine(this.canvas, true);
+        // Initialize engine with high precision options
+        const engineOptions = {
+            preserveDrawingBuffer: true,
+            stencil: true,
+            antialias: true,
+            depth: true,
+            powerPreference: "high-performance"
+        };
+        this.engine = new BABYLON.Engine(this.canvas, true, engineOptions, true);
+
+        // Create scene with high precision
         this.scene = new BABYLON.Scene(this.engine);
+        this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+        this.scene.useRightHandedSystem = true;
 
         // Create camera
         this.camera = new BABYLON.ArcRotateCamera(
@@ -31,22 +42,32 @@ class ImageViewer {
             this.scene
         );
         this.camera.setTarget(BABYLON.Vector3.Zero());
+        this.camera.attachControl(this.canvas, true);
 
-        // Create green material
-        const material = new BABYLON.StandardMaterial("greenMaterial", this.scene);
-        material.diffuseColor = new BABYLON.Color3(0, 1, 0);
+        // Create 16-bit gray material
+        const material = new BABYLON.StandardMaterial("grayMaterial", this.scene);
+        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);  // mid-gray
         material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+        material.useFloatValues = true;  // Enable high precision values
 
         // Create a cube
         const cube = BABYLON.MeshBuilder.CreateBox("cube", {size: 2}, this.scene);
         cube.material = material;
 
-        // Add a light
-        const light = new BABYLON.HemisphericLight(
+        // Add lights for proper visibility
+        const hemisphericLight = new BABYLON.HemisphericLight(
             "light",
             new BABYLON.Vector3(0, 1, 0),
             this.scene
         );
+        hemisphericLight.intensity = 0.7;
+
+        const pointLight = new BABYLON.PointLight(
+            "pointLight",
+            new BABYLON.Vector3(0, 4, 0),
+            this.scene
+        );
+        pointLight.intensity = 0.5;
 
         // Start rendering loop
         this.engine.runRenderLoop(() => {
