@@ -103,14 +103,10 @@ async def import_from_url(path: str = Form(...)):
         # Get absolute paths
         base_path = os.path.abspath(os.getcwd())
 
-        # Ensure the path starts with 'images'
+        # Clean and validate path
+        path = path.replace('\\', '/')
         if not path.startswith('images/'):
             path = f'images/{path}'
-
-        # Normalize path and prevent directory traversal
-        path = os.path.normpath(path).replace('\\', '/')
-        if '..' in path:
-            path = 'images'
 
         full_path = os.path.join(base_path, path)
         logger.info(f"Processing file: {full_path}")
@@ -123,7 +119,7 @@ async def import_from_url(path: str = Form(...)):
             logger.error(f"Not a file: {full_path}")
             raise HTTPException(status_code=400, detail="Not a file")
 
-        # Check file extension
+        # Get file extension
         file_ext = os.path.splitext(full_path)[1].lower()
         if file_ext == '.gz' and full_path.lower().endswith('.nii.gz'):
             file_ext = '.nii.gz'
@@ -143,26 +139,39 @@ async def import_from_url(path: str = Form(...)):
             # Process different file types
             if file_ext in ['.nii', '.nii.gz']:
                 logger.info("Loading NIfTI file")
-                img = nib.load(full_path)
-                data = img.get_fdata()
-                data = np.array(data, dtype=np.float32)
-                if len(data.shape) == 3:
-                    total_slices = data.shape[2]
-                img.uncache()
-                del img
+                try:
+                    img = nib.load(full_path)
+                    data = img.get_fdata()
+                    data = np.array(data, dtype=np.float32)
+                    if len(data.shape) == 3:
+                        total_slices = data.shape[2]
+                    elif len(data.shape) == 4:
+                        data = data[..., 0]  # Take first time point for 4D data
+                        total_slices = data.shape[2]
+                    img.uncache()
+                except Exception as e:
+                    logger.error(f"Error loading NIfTI file: {str(e)}", exc_info=True)
+                    raise HTTPException(status_code=400, detail=f"Error loading NIfTI file: {str(e)}")
 
             elif file_ext == '.dcm':
                 logger.info("Loading DICOM file")
-                dcm = pydicom.dcmread(full_path)
-                data = dcm.pixel_array.astype(np.float32)
-                del dcm
+                try:
+                    dcm = pydicom.dcmread(full_path)
+                    data = dcm.pixel_array.astype(np.float32)
+                except Exception as e:
+                    logger.error(f"Error loading DICOM file: {str(e)}", exc_info=True)
+                    raise HTTPException(status_code=400, detail=f"Error loading DICOM file: {str(e)}")
 
-            else:
+            else:  # Standard image formats (PNG, JPG, etc.)
                 logger.info("Loading standard image file")
-                with Image.open(full_path) as img:
-                    data = np.array(img, dtype=np.float32)
-                    if len(data.shape) == 3 and data.shape[2] in [3, 4]:
-                        data = np.mean(data, axis=2)
+                try:
+                    with Image.open(full_path) as img:
+                        data = np.array(img, dtype=np.float32)
+                        if len(data.shape) == 3 and data.shape[2] in [3, 4]:
+                            data = np.mean(data, axis=2)
+                except Exception as e:
+                    logger.error(f"Error loading image file: {str(e)}", exc_info=True)
+                    raise HTTPException(status_code=400, detail=f"Error loading image file: {str(e)}")
 
             if data is None:
                 raise HTTPException(status_code=400, detail="Failed to load image data")
@@ -206,6 +215,8 @@ async def import_from_url(path: str = Form(...)):
                 "window_center": float(window_center)
             }
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error processing image: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
