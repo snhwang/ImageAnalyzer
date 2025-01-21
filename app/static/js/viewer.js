@@ -316,6 +316,13 @@ class ImageViewer {
         const material = this.scene.getMaterialByName("shader");
         if (material) {
             material.setTexture("textureSampler", this.texture);
+
+            // Set initial window/level based on data range
+            if (this.windowCenter === 128 && this.windowWidth === 255) {
+                this.windowCenter = (this.maxValue + this.minValue) / 2;
+                this.windowWidth = this.maxValue - this.minValue;
+            }
+
             this.updateShaderParameters();
         }
     }
