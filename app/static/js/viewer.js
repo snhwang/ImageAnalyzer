@@ -1,4 +1,4 @@
-const BASE_URL = window.location.protocol + "//" + window.location.hostname + ":5001";
+const BASE_URL = window.location.protocol + "//" + window.location.hostname + ":5000";
 
 class ImageViewer {
     constructor(container, state = null) {
