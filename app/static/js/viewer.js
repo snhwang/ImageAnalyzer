@@ -811,13 +811,54 @@ class ImageViewer {
         directoryList.innerHTML = '<div class="loading">Loading...</div>';
 
         try {
-            // First try to list the directory
+            // For image files, directly try to import
+            if (currentPath.match(/\.(nii|nii\.gz|dcm|jpg|jpeg|png|bmp)$/i)) {
+                const formData = new FormData();
+                formData.append("path", currentPath);
+
+                const response = await fetch(`${BASE_URL}/import-from-url`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to import file: ${errorText}`);
+                }
+
+                const data = await response.json();
+
+                if (data.status === "success" && data.slices && data.slices.length > 0) {
+                    // Process image data
+                    this.slices = data.slices;
+                    this.totalSlices = data.total_slices;
+                    this.currentSlice = 0;
+                    this.imageId = data.image_id;
+                    this.windowWidth = data.window_width;
+                    this.windowCenter = data.window_center;
+
+                    // Load first slice
+                    await this.loadSlice(0);
+                    this.updateWindowingInfo();
+                    this.container.classList.add("has-image");
+
+                    // Hide modal
+                    document.getElementById("urlImportModal").classList.remove("show");
+
+                    // Update image label dropdown
+                    this.addImageLabelDropdown();
+                    return;
+                }
+                throw new Error("Invalid response format from server");
+            }
+
+            // Otherwise, list directory contents
             const listResponse = await fetch(`${BASE_URL}/list-directory`, {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ url: currentPath || 'images' })
+                body: JSON.stringify({ url: currentPath })
             });
 
             if (!listResponse.ok) {
@@ -832,44 +873,7 @@ class ImageViewer {
                 return;
             }
 
-            // If not a directory, try to import as file
-            const formData = new FormData();
-            formData.append("path", currentPath);
-
-            const response = await fetch(`${BASE_URL}/import-from-url`, {
-                method: "POST",
-                body: formData
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Failed to import file: ${errorText}`);
-            }
-
-            const data = await response.json();
-
-            if (data.status === "success" && data.slices && data.slices.length > 0) {
-                // Process image data
-                this.slices = data.slices;
-                this.totalSlices = data.total_slices;
-                this.currentSlice = 0;
-                this.imageId = data.image_id;
-                this.windowWidth = data.window_width;
-                this.windowCenter = data.window_center;
-
-                // Load first slice
-                await this.loadSlice(0);
-                this.updateWindowingInfo();
-                this.container.classList.add("has-image");
-
-                // Hide modal
-                document.getElementById("urlImportModal").classList.remove("show");
-
-                // Update image label dropdown
-                this.addImageLabelDropdown();
-            } else {
-                throw new Error("Invalid response format from server");
-            }
+            throw new Error("Invalid directory listing response");
 
         } catch (error) {
             console.error("Error importing from URL:", error);
@@ -907,7 +911,7 @@ class ImageViewer {
         files.forEach(file => {
             html += `
                 <div class="file-item" data-path="${file.url}">
-                    <span class="file-icon">📄</span>
+                    <spanclass="file-icon">📄</span>
                     <span class="file-name">${file.name}</span>
                 </div>
             `;
