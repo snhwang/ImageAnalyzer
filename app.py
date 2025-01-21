@@ -1,6 +1,9 @@
 import streamlit as st
 import os
 from pathlib import Path
+import json
+from PIL import Image
+import io
 
 # Set page config
 st.set_page_config(
@@ -17,28 +20,58 @@ os.makedirs("app/static/uploads", exist_ok=True)
 if 'uploaded_files' not in st.session_state:
     st.session_state.uploaded_files = {}
 
-# File upload endpoint
 def handle_file_upload():
-    uploaded_file = st.file_uploader("Choose a file", type=['nii', 'nii.gz', 'dcm', 'jpg', 'png', 'bmp'], key='file_uploader')
-    if uploaded_file is not None:
+    """Handle file upload and return the file path"""
+    uploaded_file = st.file_uploader(
+        "Choose a file",
+        type=['nii', 'nii.gz', 'dcm', 'jpg', 'png', 'bmp'],
+        key='file_uploader'
+    )
+
+    if uploaded_file:
+        # Create a unique filename
+        file_path = Path("app/static/uploads") / uploaded_file.name
+
         # Save the file
-        save_path = Path("app/static/uploads") / uploaded_file.name
-        with open(save_path, "wb") as f:
+        with open(file_path, "wb") as f:
             f.write(uploaded_file.getvalue())
-        st.session_state.uploaded_files[uploaded_file.name] = str(save_path)
-        return str(save_path)
+
+        # Store in session state
+        st.session_state.uploaded_files[uploaded_file.name] = str(file_path)
+
+        # Return success response
+        return {
+            "success": True,
+            "url": f"/static/uploads/{uploaded_file.name}",
+            "filename": uploaded_file.name
+        }
+
     return None
 
-# Load and inject custom JavaScript
+# Create the layout
+st.title("Medical Image Viewer")
+
+# Add file uploader widget
+upload_response = handle_file_upload()
+
+# Load and inject viewer.js
 with open("app/static/js/viewer.js", "r") as js_file:
     js_code = js_file.read()
 
-# Render the HTML template with injected JavaScript
+# Load the HTML template
 with open("app/templates/index.html", "r") as f:
     html_content = f.read()
-    # Inject the JavaScript code directly into a script tag
-    html_content = html_content.replace('</body>', f'<script>{js_code}</script></body>')
-    st.components.v1.html(html_content, height=1000)
 
-# Handle file uploads
-handle_file_upload()
+    # Inject the JavaScript code
+    html_content = html_content.replace('</body>', f'<script>{js_code}</script></body>')
+
+    # Render the page
+    st.components.v1.html(
+        html_content,
+        height=800,
+        scrolling=True
+    )
+
+# If there's an upload response, convert it to JSON
+if upload_response:
+    st.json(upload_response)

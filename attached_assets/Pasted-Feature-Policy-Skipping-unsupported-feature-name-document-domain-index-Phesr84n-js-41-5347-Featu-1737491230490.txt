@@ -1,0 +1,114 @@
+Feature Policy: Skipping unsupported feature name “document-domain”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “encrypted-media”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “gyroscope”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “layout-animations”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “legacy-image-formats”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “magnetometer”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “midi”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “oversized-images”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “payment”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “picture-in-picture”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “sync-xhr”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “usb”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “vr”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “wake-lock”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “xr-spatial-tracking”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “accelerometer”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “ambient-light-sensor”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “autoplay”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “battery”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “clipboard-write”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “document-domain”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “encrypted-media”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “gyroscope”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “layout-animations”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “legacy-image-formats”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “magnetometer”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “midi”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “oversized-images”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “payment”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “picture-in-picture”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “sync-xhr”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “usb”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “vr”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “wake-lock”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “xr-spatial-tracking”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “accelerometer”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “ambient-light-sensor”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “autoplay”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “battery”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “clipboard-write”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “document-domain”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “encrypted-media”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “gyroscope”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “layout-animations”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “legacy-image-formats”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “magnetometer”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “midi”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “oversized-images”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “payment”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “picture-in-picture”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “sync-xhr”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “usb”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “vr”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “wake-lock”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “xr-spatial-tracking”. index.Phesr84n.js:41:5347
+Feature Policy: Skipping unsupported feature name “accelerometer”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “ambient-light-sensor”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “autoplay”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “battery”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “clipboard-write”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “document-domain”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “encrypted-media”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “gyroscope”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “layout-animations”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “legacy-image-formats”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “magnetometer”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “midi”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “oversized-images”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “payment”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “picture-in-picture”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “sync-xhr”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “usb”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “vr”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “wake-lock”. index.Phesr84n.js:48:28179
+Feature Policy: Skipping unsupported feature name “xr-spatial-tracking”. index.Phesr84n.js:48:28179
+An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can remove its sandboxing. c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev
+Layout was forced before the page was fully loaded. If stylesheets are not yet loaded this may cause a flash of unstyled content. srcdoc
+GET
+https://preview.babylonjs.com/babylon.js
+[HTTP/2 200  0ms]
+
+GET
+https://preview.babylonjs.com/loaders/babylonjs.loaders.min.js
+[HTTP/2 200  0ms]
+
+GET
+https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js
+[HTTP/2 200  0ms]
+
+Content-Security-Policy: Couldn’t parse invalid host 'sha256-*' srcdoc
+GET
+https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3e5.png
+[HTTP/2 200  0ms]
+
+GET
+https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js
+CSP
+
+Loading failed for the <script> with source “https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js”. srcdoc:757:44
+Content-Security-Policy: The page’s settings blocked a script (script-src-elem) at https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js from being executed because it violates the following directive: “script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net/ https://cdnjs.cloudflare.com/ https://preview.babylonjs.com/” srcdoc
+WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER. thinEngine.ts:568:43
+BJS - [15:26:31]: Babylon.js v7.44.0 - WebGL2 logger.ts:107:36
+Source map error: Error: URL constructor:  is not a valid URL.
+Stack in the worker:resolveSourceMapURL@resource://devtools/client/shared/source-map-loader/utils/fetchSourceMap.js:56:22
+getOriginalURLs@resource://devtools/client/shared/source-map-loader/source-map.js:73:24
+workerHandler/</<@resource://devtools/client/shared/worker-utils.js:115:52
+workerHandler/<@resource://devtools/client/shared/worker-utils.js:113:13
+
+Resource URL: about:srcdoc
+Source Map URL: 
+
+The resource at “https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/media/SourceSansPro-Regular.DZLUzqI4.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev
+The resource at “https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/media/SourceSansPro-SemiBold.sKQIyTMz.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev
+The resource at “https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/media/SourceSansPro-Bold.-6c9oR8J.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly.
