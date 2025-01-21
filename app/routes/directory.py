@@ -19,25 +19,29 @@ logger = logging.getLogger(__name__)
 async def list_directory(request: Request):
     """List the contents of a given directory."""
     try:
-        data = await request.json()
-        url = data.get('url', '')
+        # Parse request body
+        try:
+            data = await request.json()
+            url = data.get('url', '')
+            logger.info(f"Received list directory request for URL: {url}")
+        except Exception as e:
+            logger.error(f"Error parsing request JSON: {str(e)}")
+            url = ''
 
         # Default to images directory if no URL provided
         if not url:
             url = 'images'
+            logger.info("Using default images directory")
 
-        # Ensure the directory path starts with 'images'
+        # Clean and normalize path
+        url = url.replace('\\', '/')
         if not url.startswith('images'):
             url = 'images'
-
-        # Validate the directory path
-        if '..' in url:  # Prevent directory traversal
-            raise HTTPException(status_code=400, detail="Invalid directory path")
 
         # Get absolute paths
         base_path = os.path.abspath(os.getcwd())
         path = os.path.join(base_path, url)
-        logger.info(f"Listing directory at path: {path}")
+        logger.info(f"Resolved path: {path}")
 
         # Create images directory if it doesn't exist
         images_dir = os.path.join(base_path, 'images')
@@ -45,13 +49,10 @@ async def list_directory(request: Request):
             os.makedirs(images_dir)
             logger.info(f"Created images directory at: {images_dir}")
 
-        # If requested path doesn't exist, default to images directory
-        if not os.path.exists(path):
+        # If requested path doesn't exist or isn't a directory, default to images directory
+        if not os.path.exists(path) or not os.path.isdir(path):
             path = images_dir
-            logger.info(f"Path not found, defaulting to: {path}")
-
-        if not os.path.isdir(path):
-            raise HTTPException(status_code=400, detail="Path is not a directory")
+            logger.info(f"Using default images directory: {path}")
 
         # List directory contents
         files = []
@@ -71,6 +72,7 @@ async def list_directory(request: Request):
                         "name": item,
                         "url": relative_path.replace("\\", "/")
                     })
+                    logger.info(f"Added directory: {item}")
                 else:
                     # Only include supported image formats
                     if any(item.lower().endswith(ext) for ext in ['.nii', '.nii.gz', '.dcm', '.jpg', '.jpeg', '.png', '.bmp']):
@@ -78,6 +80,7 @@ async def list_directory(request: Request):
                             "name": item,
                             "url": relative_path.replace("\\", "/")
                         })
+                        logger.info(f"Added file: {item}")
 
             logger.info(f"Listed directory {path}: {len(files)} files, {len(directories)} directories")
             return {
@@ -86,51 +89,59 @@ async def list_directory(request: Request):
                 "directories": directories,
                 "current_path": url
             }
-
         except Exception as e:
-            logger.error(f"Error listing directory contents: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error listing directory contents: {str(e)}")
+            logger.error(f"Error listing directory contents: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error listing directory contents: {str(e)}"
+            )
 
     except Exception as e:
-        logger.error(f"Error in list_directory: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error in list_directory: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in list_directory: {str(e)}"
+        )
 
 @router.post("/import-from-url")
 async def import_from_url(path: str = Form(...)):
+    """Import an image from a URL path."""
     try:
         logger.info(f"Received import request for path: {path}")
 
-        # Get absolute paths
+        # Get absolute paths and clean the path
         base_path = os.path.abspath(os.getcwd())
-
-        # Clean and validate path
         path = path.replace('\\', '/')
+
+        # Ensure path starts with images/
         if not path.startswith('images/'):
             path = f'images/{path}'
 
+        # Construct full path
         full_path = os.path.join(base_path, path)
-        logger.info(f"Processing file: {full_path}")
+        logger.info(f"Full path resolved to: {full_path}")
 
+        # Verify file exists and is a file
         if not os.path.exists(full_path):
-            logger.error(f"File not found: {full_path}")
-            raise HTTPException(status_code=404, detail=f"File not found: {path}")
+            msg = f"File not found: {path}"
+            logger.error(msg)
+            raise HTTPException(status_code=404, detail=msg)
 
         if not os.path.isfile(full_path):
-            logger.error(f"Not a file: {full_path}")
-            raise HTTPException(status_code=400, detail="Not a file")
+            msg = "Path is not a file"
+            logger.error(msg)
+            raise HTTPException(status_code=400, detail=msg)
 
-        # Get file extension
+        # Process file based on extension
         file_ext = os.path.splitext(full_path)[1].lower()
         if file_ext == '.gz' and full_path.lower().endswith('.nii.gz'):
             file_ext = '.nii.gz'
 
         supported_extensions = {'.nii', '.nii.gz', '.dcm', '.jpg', '.jpeg', '.png', '.bmp'}
         if not any(full_path.lower().endswith(ext) for ext in supported_extensions):
-            logger.error(f"Unsupported file type: {file_ext}")
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported file type. Supported extensions: {', '.join(supported_extensions)}"
-            )
+            msg = f"Unsupported file type. Supported extensions: {', '.join(supported_extensions)}"
+            logger.error(msg)
+            raise HTTPException(status_code=400, detail=msg)
 
         try:
             data = None
@@ -138,7 +149,7 @@ async def import_from_url(path: str = Form(...)):
 
             # Process different file types
             if file_ext in ['.nii', '.nii.gz']:
-                logger.info("Loading NIfTI file")
+                logger.info("Processing NIfTI file")
                 try:
                     img = nib.load(full_path)
                     data = img.get_fdata()
@@ -150,33 +161,39 @@ async def import_from_url(path: str = Form(...)):
                         total_slices = data.shape[2]
                     img.uncache()
                 except Exception as e:
-                    logger.error(f"Error loading NIfTI file: {str(e)}", exc_info=True)
-                    raise HTTPException(status_code=400, detail=f"Error loading NIfTI file: {str(e)}")
+                    msg = f"Error loading NIfTI file: {str(e)}"
+                    logger.error(msg, exc_info=True)
+                    raise HTTPException(status_code=400, detail=msg)
 
             elif file_ext == '.dcm':
-                logger.info("Loading DICOM file")
+                logger.info("Processing DICOM file")
                 try:
                     dcm = pydicom.dcmread(full_path)
                     data = dcm.pixel_array.astype(np.float32)
                 except Exception as e:
-                    logger.error(f"Error loading DICOM file: {str(e)}", exc_info=True)
-                    raise HTTPException(status_code=400, detail=f"Error loading DICOM file: {str(e)}")
+                    msg = f"Error loading DICOM file: {str(e)}"
+                    logger.error(msg, exc_info=True)
+                    raise HTTPException(status_code=400, detail=msg)
 
             else:  # Standard image formats (PNG, JPG, etc.)
-                logger.info("Loading standard image file")
+                logger.info("Processing standard image file")
                 try:
                     with Image.open(full_path) as img:
+                        # Convert to grayscale if needed
+                        if img.mode in ['RGB', 'RGBA']:
+                            img = img.convert('L')
                         data = np.array(img, dtype=np.float32)
-                        if len(data.shape) == 3 and data.shape[2] in [3, 4]:
-                            data = np.mean(data, axis=2)
                 except Exception as e:
-                    logger.error(f"Error loading image file: {str(e)}", exc_info=True)
-                    raise HTTPException(status_code=400, detail=f"Error loading image file: {str(e)}")
+                    msg = f"Error loading image file: {str(e)}"
+                    logger.error(msg, exc_info=True)
+                    raise HTTPException(status_code=400, detail=msg)
 
             if data is None:
-                raise HTTPException(status_code=400, detail="Failed to load image data")
+                msg = "Failed to load image data"
+                logger.error(msg)
+                raise HTTPException(status_code=400, detail=msg)
 
-            logger.info(f"Image loaded successfully. Shape: {data.shape}, Type: {data.dtype}")
+            logger.info(f"Successfully loaded image. Shape: {data.shape}, Type: {data.dtype}")
 
             # Calculate window settings
             window_width, window_center = calculate_optimal_window_settings(data)
@@ -218,11 +235,13 @@ async def import_from_url(path: str = Form(...)):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error processing image: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
+            msg = f"Error processing image: {str(e)}"
+            logger.error(msg, exc_info=True)
+            raise HTTPException(status_code=500, detail=msg)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        msg = f"Unexpected error: {str(e)}"
+        logger.error(msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=msg)

@@ -807,17 +807,10 @@ class ImageViewer {
         const currentPath = document.getElementById("currentPath").textContent;
         const directoryList = document.getElementById("directoryList");
 
-        // Skip if trying to load the same image file again
-        if (currentPath === this.currentImagePath && this.container.classList.contains("has-image")) {
-            return;
-        }
-
         // Show loading state
         directoryList.innerHTML = '<div class="loading">Loading...</div>';
 
         try {
-            console.log("Requesting path:", currentPath);
-
             // First try to list the directory
             const listResponse = await fetch(`${BASE_URL}/list-directory`, {
                 method: "POST",
@@ -829,19 +822,17 @@ class ImageViewer {
 
             if (!listResponse.ok) {
                 const errorText = await listResponse.text();
-                console.error('Server error response:', errorText);
                 throw new Error(`Failed to list directory: ${errorText}`);
             }
 
             const listData = await listResponse.json();
-            console.log("Directory listing response:", listData);
 
             if (listData.status === "success") {
                 this.updateDirectoryList(listData.files || [], listData.directories || []);
                 return;
             }
 
-            // If it's not a directory, try to import the file
+            // If not a directory, try to import as file
             const formData = new FormData();
             formData.append("path", currentPath);
 
@@ -852,20 +843,12 @@ class ImageViewer {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Server error response:', errorText);
                 throw new Error(`Failed to import file: ${errorText}`);
             }
 
             const data = await response.json();
-            console.log("File import response:", data);
 
             if (data.status === "success" && data.slices && data.slices.length > 0) {
-                // Store current image path
-                this.currentImagePath = currentPath;
-
-                // Hide modal
-                document.getElementById("urlImportModal").classList.remove("show");
-
                 // Process image data
                 this.slices = data.slices;
                 this.totalSlices = data.total_slices;
@@ -874,12 +857,15 @@ class ImageViewer {
                 this.windowWidth = data.window_width;
                 this.windowCenter = data.window_center;
 
-                // Load the first slice
+                // Load first slice
                 await this.loadSlice(0);
                 this.updateWindowingInfo();
                 this.container.classList.add("has-image");
 
-                // Add the dropdown
+                // Hide modal
+                document.getElementById("urlImportModal").classList.remove("show");
+
+                // Update image label dropdown
                 this.addImageLabelDropdown();
             } else {
                 throw new Error("Invalid response format from server");
@@ -887,7 +873,7 @@ class ImageViewer {
 
         } catch (error) {
             console.error("Error importing from URL:", error);
-            directoryList.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            directoryList.innerHTML = `<div class="error">${error.message}</div>`;
         }
     }
 
@@ -917,7 +903,7 @@ class ImageViewer {
             `;
         });
 
-        //        // Add files
+        // Add files
         files.forEach(file => {
             html += `
                 <div class="file-item" data-path="${file.url}">
