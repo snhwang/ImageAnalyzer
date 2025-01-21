@@ -4,6 +4,9 @@ class ImageViewer {
     constructor(container) {
         this.container = container;
         this.imageContainer = container.querySelector(".image-container");
+        this.is3DMode = true;
+        this.currentSlice = 0;
+        this.totalSlices = 1;
 
         // Initialize canvas with high precision
         this.canvas = document.createElement("canvas");
@@ -12,14 +15,14 @@ class ImageViewer {
         this.canvas.style.outline = "none";
         this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas);
 
-        // Initialize file input
+        // Initialize file input and buttons
         this.fileInput = container.querySelector(".hidden-file-input");
         this.uploadBtn = container.querySelector(".upload-btn");
+        this.viewModeBtn = container.querySelector(".view-mode-btn");
+        this.windowLevelBtn = container.querySelector(".window-level-btn");
 
-        // Setup upload event listeners
+        // Setup event listeners
         this.setupEventListeners();
-
-        // Initialize Babylon.js scene
         this.initializeBabylonScene();
     }
 
@@ -33,6 +36,21 @@ class ImageViewer {
             const file = e.target.files[0];
             if (file) {
                 this.uploadFile(file);
+            }
+        });
+
+        // Add view mode toggle
+        this.viewModeBtn?.addEventListener("click", () => {
+            this.toggleViewMode();
+        });
+
+        // Handle mouse wheel for slice navigation in 2D mode
+        this.canvas.addEventListener("wheel", (e) => {
+            if (!this.is3DMode && this.totalSlices > 1) {
+                e.preventDefault();
+                const delta = Math.sign(e.deltaY);
+                this.currentSlice = Math.max(0, Math.min(this.totalSlices - 1, this.currentSlice + delta));
+                this.updateSlice();
             }
         });
     }
@@ -101,6 +119,73 @@ class ImageViewer {
         });
     }
 
+    toggleViewMode() {
+        this.is3DMode = !this.is3DMode;
+        this.viewModeBtn.classList.toggle("active");
+
+        if (this.is3DMode) {
+            // Enable camera controls for 3D mode
+            this.camera.attachControl(this.canvas, true);
+            // Reset camera position
+            this.camera.alpha = 0;
+            this.camera.beta = Math.PI / 3;
+            this.camera.radius = 10;
+        } else {
+            // Disable camera controls for 2D mode
+            this.camera.detachControl();
+            // Set camera to front view
+            this.camera.alpha = 0;
+            this.camera.beta = 0;
+            this.camera.radius = 5;
+        }
+    }
+
+    updateSlice() {
+        if (!this.imageData || !this.imageData.length) return;
+
+        // Update the texture with the current slice data
+        const currentSliceData = this.imageData[this.currentSlice];
+        const binaryString = atob(currentSliceData);
+        const len = binaryString.length;
+        const pixels = new Float32Array(len / 4);
+
+        // Convert binary string to Float32Array
+        for (let i = 0; i < len; i += 4) {
+            const value =
+                binaryString.charCodeAt(i) |
+                (binaryString.charCodeAt(i + 1) << 8) |
+                (binaryString.charCodeAt(i + 2) << 16) |
+                (binaryString.charCodeAt(i + 3) << 24);
+            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+        }
+
+        // Normalize values to [0,1] range
+        const minVal = this.minVal;
+        const maxVal = this.maxVal;
+        const range = maxVal - minVal;
+
+        const width = this.width;
+        const height = this.height;
+        const rgbData = new Float32Array(width * height * 3);
+
+        // Convert grayscale to RGB, maintaining high precision
+        for (let i = 0; i < pixels.length; i++) {
+            const normalizedValue = (pixels[i] - minVal) / range;
+            rgbData[i * 3] = normalizedValue;
+            rgbData[i * 3 + 1] = normalizedValue;
+            rgbData[i * 3 + 2] = normalizedValue;
+        }
+
+
+        this.texture.update(rgbData);
+
+        // Update info display
+        const infoElement = this.container.querySelector(".image-info");
+        if (infoElement) {
+            infoElement.textContent = `Slice: ${this.currentSlice + 1}/${this.totalSlices}`;
+        }
+    }
+
     async uploadFile(file) {
         try {
             const formData = new FormData();
@@ -116,23 +201,31 @@ class ImageViewer {
             }
 
             const result = await response.json();
-            console.log("Upload response:", result);  // Debug log
+            console.log("Upload response:", result);
 
             if (result.success && result.data) {
                 console.log("Upload successful, creating texture...");
 
-                // Get the first slice of data (for 2D view)
+                this.imageData = result.data;
+                this.totalSlices = this.imageData.length;
+                this.currentSlice = 0;
+                this.minVal = result.metadata.min_value;
+                this.maxVal = result.metadata.max_value;
+                this.width = result.metadata.dimensions[0];
+                this.height = result.metadata.dimensions[1];
+
+                // Get the first slice of data
                 const base64Data = result.data[0];
-                console.log("Using base64 data length:", base64Data.length);  // Debug log
+                console.log("Using base64 data length:", base64Data.length);
 
                 // Create an array buffer from the base64 data
                 const binaryString = atob(base64Data);
                 const len = binaryString.length;
-                const pixels = new Float32Array(len / 4);  // 4 bytes per float
+                const pixels = new Float32Array(len / 4);
 
                 // Convert binary string to Float32Array
                 for (let i = 0; i < len; i += 4) {
-                    const value = 
+                    const value =
                         binaryString.charCodeAt(i) |
                         (binaryString.charCodeAt(i + 1) << 8) |
                         (binaryString.charCodeAt(i + 2) << 16) |
@@ -141,25 +234,25 @@ class ImageViewer {
                 }
 
                 // Normalize values to [0,1] range
-                const minVal = result.metadata.min_value;
-                const maxVal = result.metadata.max_value;
+                const minVal = this.minVal;
+                const maxVal = this.maxVal;
                 const range = maxVal - minVal;
 
-                const width = result.metadata.dimensions[0];
-                const height = result.metadata.dimensions[1];
-                const rgbData = new Float32Array(width * height * 3);  // RGB format
+                const width = this.width;
+                const height = this.height;
+                const rgbData = new Float32Array(width * height * 3);
 
                 // Convert grayscale to RGB, maintaining high precision
                 for (let i = 0; i < pixels.length; i++) {
                     const normalizedValue = (pixels[i] - minVal) / range;
-                    rgbData[i * 3] = normalizedValue;     // R
-                    rgbData[i * 3 + 1] = normalizedValue; // G
-                    rgbData[i * 3 + 2] = normalizedValue; // B
+                    rgbData[i * 3] = normalizedValue;
+                    rgbData[i * 3 + 1] = normalizedValue;
+                    rgbData[i * 3 + 2] = normalizedValue;
                 }
 
-                console.log("Creating texture with dimensions:", width, "x", height);  // Debug log
+                console.log("Creating texture with dimensions:", width, "x", height);
 
-                const texture = new BABYLON.RawTexture(
+                this.texture = new BABYLON.RawTexture(
                     rgbData,
                     width,
                     height,
@@ -173,7 +266,7 @@ class ImageViewer {
 
                 // Create new material with the texture
                 const material = new BABYLON.StandardMaterial("texturedMaterial", this.scene);
-                material.diffuseTexture = texture;
+                material.diffuseTexture = this.texture;
                 material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
                 material.useFloatValues = true;
 
@@ -183,7 +276,8 @@ class ImageViewer {
                 // Mark viewer as having image
                 this.container.classList.add("has-image");
 
-                console.log("Texture creation complete");  // Debug log
+                console.log("Texture creation complete");
+                this.updateSlice();
             } else {
                 console.error("Upload failed:", result.message);
             }
