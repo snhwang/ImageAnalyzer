@@ -12,8 +12,29 @@ class ImageViewer {
         this.canvas.style.outline = "none";
         this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas);
 
+        // Initialize file input
+        this.fileInput = container.querySelector(".hidden-file-input");
+        this.uploadBtn = container.querySelector(".upload-btn");
+
+        // Setup upload event listeners
+        this.setupEventListeners();
+
         // Initialize Babylon.js scene
         this.initializeBabylonScene();
+    }
+
+    setupEventListeners() {
+        // File upload handling
+        this.uploadBtn?.addEventListener("click", () => {
+            this.fileInput?.click();
+        });
+
+        this.fileInput?.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.uploadFile(file);
+            }
+        });
     }
 
     initializeBabylonScene() {
@@ -44,15 +65,15 @@ class ImageViewer {
         this.camera.setTarget(BABYLON.Vector3.Zero());
         this.camera.attachControl(this.canvas, true);
 
-        // Create 16-bit gray material
-        const material = new BABYLON.StandardMaterial("grayMaterial", this.scene);
-        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);  // mid-gray
+        // Create initial gray material
+        const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
+        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
         material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
         material.useFloatValues = true;  // Enable high precision values
 
         // Create a cube
-        const cube = BABYLON.MeshBuilder.CreateBox("cube", {size: 2}, this.scene);
-        cube.material = material;
+        this.cube = BABYLON.MeshBuilder.CreateBox("cube", {size: 2}, this.scene);
+        this.cube.material = material;
 
         // Add lights for proper visibility
         const hemisphericLight = new BABYLON.HemisphericLight(
@@ -78,6 +99,54 @@ class ImageViewer {
         window.addEventListener("resize", () => {
             this.engine.resize();
         });
+    }
+
+    async uploadFile(file) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(`${BASE_URL}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (result.success) {
+                console.log("Upload successful, creating texture...");
+
+                // Create a URL for the uploaded file
+                const imageUrl = URL.createObjectURL(file);
+
+                // Create a new material with the image texture
+                const material = new BABYLON.StandardMaterial("texturedMaterial", this.scene);
+                material.useFloatValues = true; // Maintain high precision
+
+                // Create texture with high precision options
+                const texture = new BABYLON.Texture(imageUrl, this.scene, {
+                    samplingMode: BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+                    format: BABYLON.Engine.TEXTUREFORMAT_RGBA,
+                    type: BABYLON.Engine.TEXTURETYPE_FLOAT
+                });
+
+                material.diffuseTexture = texture;
+                material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+                // Apply the textured material to the cube
+                this.cube.material = material;
+
+                // Mark the viewer as having an image
+                this.container.classList.add("has-image");
+            } else {
+                console.error("Upload failed:", result.message);
+            }
+        } catch (error) {
+            console.error("Error uploading file:", error);
+        }
     }
 }
 
