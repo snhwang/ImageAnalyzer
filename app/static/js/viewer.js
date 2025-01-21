@@ -17,6 +17,7 @@ class ImageViewer {
         this.isDragging = false;
         this.currentLabel = state ? state.currentLabel : "";
         this.rotation = 0;
+        this.currentFilename = null;
 
         // Initialize UI elements
         this.initializeUI();
@@ -33,7 +34,6 @@ class ImageViewer {
     }
 
     initializeUI() {
-        // UI elements initialization
         this.fileInput = this.container.querySelector(".hidden-file-input");
         this.uploadBtn = this.container.querySelector(".upload-btn");
         this.browseBtn = this.container.querySelector(".browse-btn");
@@ -83,6 +83,7 @@ class ImageViewer {
             this.lastMouseY = e.clientY;
 
             this.updateWindowingInfo();
+            this.loadSlice(this.currentSlice); // Reload the slice with new window settings
         });
 
         document.addEventListener("mouseup", () => {
@@ -111,34 +112,19 @@ class ImageViewer {
         // Rotation buttons
         this.rotateLeftBtn?.addEventListener("click", () => {
             if (this.container.classList.contains("has-image")) {
-                this.rotation = (this.rotation || 0) - 90;
+                this.rotation = (this.rotation - 90) % 360;
                 this.updateDisplayRotation();
             }
         });
 
         this.rotateRightBtn?.addEventListener("click", () => {
             if (this.container.classList.contains("has-image")) {
-                this.rotation = (this.rotation || 0) + 90;
+                this.rotation = (this.rotation + 90) % 360;
                 this.updateDisplayRotation();
             }
         });
 
-        // Menu handling
-        const menuBtn = this.container.querySelector(".menu-btn");
-        const menuContainer = this.container.querySelector(".menu-container");
-
-        if (menuBtn && menuContainer) {
-            menuBtn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                menuContainer.classList.toggle("show");
-            });
-
-            document.addEventListener("click", () => {
-                menuContainer.classList.remove("show");
-            });
-        }
-
-        // Drag and drop handling
+        // Handle drag and drop
         const dropZone = this.container.querySelector(".image-container");
         if (dropZone) {
             dropZone.addEventListener('dragover', (e) => {
@@ -191,11 +177,7 @@ class ImageViewer {
             const result = await response.json();
             if (result.success) {
                 this.container.classList.add("has-image");
-                const img = this.container.querySelector("img");
-                if (img) {
-                    img.src = result.url;
-                    img.style.display = "block";
-                }
+                this.currentFilename = file.name;
 
                 // Update metadata
                 if (result.metadata) {
@@ -204,6 +186,9 @@ class ImageViewer {
                     this.dimensions = result.metadata.dimensions;
                     this.imageType = result.metadata.type;
                     this.updateWindowingInfo();
+
+                    // Load the first slice
+                    await this.loadSlice(0);
                 }
             } else {
                 this.showError(result.message || "Upload failed");
@@ -263,9 +248,21 @@ class ImageViewer {
         };
     }
 
-    loadSlice(sliceNumber) {
-        // Implementation will be added when slice handling is needed
-        console.log("Load slice:", sliceNumber);
+    async loadSlice(sliceNumber) {
+        if (!this.currentFilename || !this.container.classList.contains("has-image")) return;
+
+        try {
+            const img = this.container.querySelector("img");
+            if (img) {
+                // Add timestamp to prevent caching
+                const timestamp = new Date().getTime();
+                img.src = `${BASE_URL}/slice/${this.currentFilename}/${sliceNumber}?t=${timestamp}`;
+                img.style.display = "block";
+            }
+        } catch (error) {
+            console.error("Error loading slice:", error);
+            this.showError("Failed to load image slice");
+        }
     }
 
     updateSliceInfo() {

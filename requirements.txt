@@ -38,3 +38,8 @@ python-multipart
 starlette
 streamlit
 uvicorn
+fastapi
+nibabel
+numpy
+pillow
+pydicom
