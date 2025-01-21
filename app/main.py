@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from app.routes import session, upload, image, directory
 import nibabel as nib
@@ -11,6 +11,7 @@ from pathlib import Path
 import os
 from PIL import Image
 import io
+import base64
 
 # Initialize app
 app = FastAPI(title="Medical Image Viewer")
@@ -23,7 +24,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/images", StaticFiles(directory="images"), name="images")
 
-# Configure CORS with more permissive settings for development
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,50 +36,52 @@ app.add_middleware(
 # Set up templates
 templates = Jinja2Templates(directory="app/templates")
 
-def normalize_image(image_array):
-    """Normalize image array to 0-255 range"""
-    min_val = np.min(image_array)
-    max_val = np.max(image_array)
-    if max_val == min_val:
-        return np.zeros_like(image_array)
-    return ((image_array - min_val) / (max_val - min_val) * 255).astype(np.uint8)
-
 def process_medical_image(file_path):
-    """Process medical image files (DICOM, NIfTI) and return metadata"""
+    """Process medical image files (DICOM, NIfTI) and return image data and metadata"""
     ext = file_path.suffix.lower()
 
     try:
         if ext == '.dcm':
             # Handle DICOM
             ds = pydicom.dcmread(str(file_path))
-            return {
-                'total_slices': 1,  # Single DICOM file
+            img_array = ds.pixel_array.astype(np.float32)
+            metadata = {
+                'total_slices': 1,
                 'dimensions': [int(ds.Rows), int(ds.Columns)],
-                'type': 'dicom'
+                'type': 'dicom',
+                'min_value': float(np.min(img_array)),
+                'max_value': float(np.max(img_array))
             }
+            return img_array, metadata
+
         elif ext in ['.nii', '.gz']:
             # Handle NIfTI
             img = nib.load(str(file_path))
-            shape = img.shape
-            return {
-                'total_slices': shape[2] if len(shape) > 2 else 1,
-                'dimensions': [shape[0], shape[1]],
-                'type': 'nifti'
+            img_array = img.get_fdata().astype(np.float32)
+            metadata = {
+                'total_slices': img_array.shape[2] if len(img_array.shape) > 2 else 1,
+                'dimensions': [img_array.shape[0], img_array.shape[1]],
+                'type': 'nifti',
+                'min_value': float(np.min(img_array)),
+                'max_value': float(np.max(img_array))
             }
+            return img_array, metadata
+
         else:
             # Regular image file
-            return {
+            img = Image.open(file_path)
+            img_array = np.array(img, dtype=np.float32)
+            return img_array, {
                 'total_slices': 1,
-                'dimensions': None,
-                'type': 'standard'
+                'dimensions': [img_array.shape[0], img_array.shape[1]],
+                'type': 'standard',
+                'min_value': float(np.min(img_array)),
+                'max_value': float(np.max(img_array))
             }
+
     except Exception as e:
         print(f"Error processing medical image: {str(e)}")
-        return {
-            'total_slices': 1,
-            'dimensions': None,
-            'type': 'unknown'
-        }
+        return None, None
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -94,59 +97,42 @@ async def upload_file(file: UploadFile = File(...)):
         with open(file_path, "wb") as f:
             f.write(contents)
 
-        # Process the medical image and get metadata
-        metadata = process_medical_image(file_path)
+        # Process the medical image and get data + metadata
+        img_array, metadata = process_medical_image(file_path)
 
-        return JSONResponse({
-            "success": True,
-            "url": f"/static/uploads/{file.filename}",
-            "filename": file.filename,
-            "metadata": metadata
-        })
+        if img_array is not None and metadata is not None:
+            # Convert the image data to base64
+            if len(img_array.shape) > 2:
+                # For 3D volumes, encode each slice
+                encoded_slices = []
+                for i in range(img_array.shape[2]):
+                    slice_data = img_array[:, :, i].tobytes()
+                    encoded_slice = base64.b64encode(slice_data).decode('utf-8')
+                    encoded_slices.append(encoded_slice)
+                response_data = encoded_slices
+            else:
+                # For 2D images, encode the single image
+                encoded_data = base64.b64encode(img_array.tobytes()).decode('utf-8')
+                response_data = [encoded_data]
+
+            return JSONResponse({
+                "success": True,
+                "data": response_data,
+                "metadata": metadata,
+                "dtype": str(img_array.dtype)
+            })
+        else:
+            return JSONResponse({
+                "success": False,
+                "message": "Failed to process image"
+            }, status_code=500)
+
     except Exception as e:
+        print(f"Upload error: {str(e)}")
         return JSONResponse({
             "success": False,
             "message": str(e)
         }, status_code=500)
-
-@app.get("/slice/{filename}/{slice_number}")
-async def get_slice(filename: str, slice_number: int):
-    try:
-        file_path = UPLOAD_DIR / filename
-        if not file_path.exists():
-            return JSONResponse({"error": "File not found"}, status_code=404)
-
-        ext = file_path.suffix.lower()
-        img_array = None
-
-        if ext == '.dcm':
-            ds = pydicom.dcmread(str(file_path))
-            img_array = ds.pixel_array
-        elif ext in ['.nii', '.gz']:
-            img = nib.load(str(file_path))
-            img_array = img.get_fdata()
-            if len(img_array.shape) > 2:
-                img_array = img_array[:, :, slice_number]
-
-        if img_array is not None:
-            # Normalize and convert to 8-bit
-            img_array = normalize_image(img_array)
-
-            # Convert to PIL Image
-            image = Image.fromarray(img_array)
-
-            # Save to bytes
-            img_byte_arr = io.BytesIO()
-            image.save(img_byte_arr, format='PNG')
-            img_byte_arr = img_byte_arr.getvalue()
-
-            return Response(content=img_byte_arr, media_type="image/png")
-
-        return JSONResponse({"error": "Invalid image format"}, status_code=400)
-
-    except Exception as e:
-        print(f"Error serving slice: {str(e)}")
-        return JSONResponse({"error": str(e)}, status_code=500)
 
 # Include routes
 app.include_router(session.router)

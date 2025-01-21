@@ -18,6 +18,15 @@ class ImageViewer {
         this.currentLabel = state ? state.currentLabel : "";
         this.rotation = 0;
         this.currentFilename = null;
+        this.volumeData = null;
+        this.minValue = 0;
+        this.maxValue = 255;
+
+        // Initialize Babylon.js components
+        this.engine = null;
+        this.scene = null;
+        this.camera = null;
+        this.texture = null;
 
         // Initialize UI elements
         this.initializeUI();
@@ -25,12 +34,8 @@ class ImageViewer {
         // Set up event listeners
         this.setupEventListeners();
 
-        // Restore state if provided
-        if (state && state.imageId) {
-            this.container.classList.add("has-image");
-            this.loadSlice(this.currentSlice);
-            this.updateWindowingInfo();
-        }
+        // Initialize Babylon.js scene
+        this.initializeBabylonScene();
     }
 
     initializeUI() {
@@ -42,8 +47,80 @@ class ImageViewer {
         this.optimizeWindowBtn = this.container.querySelector(".optimize-window-btn");
         this.windowLevelBtn = this.container.querySelector(".window-level-btn");
         this.toolbar = this.container.querySelector(".toolbar");
-        this.canvas = this.container.querySelector("canvas") || document.createElement("canvas");
-        this.ctx = this.canvas.getContext("2d");
+
+        // Create canvas for Babylon.js
+        this.canvas = document.createElement("canvas");
+        this.canvas.style.width = "100%";
+        this.canvas.style.height = "100%";
+        this.canvas.style.outline = "none";
+        this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas);
+    }
+
+    initializeBabylonScene() {
+        // Create Babylon.js engine and scene
+        this.engine = new BABYLON.Engine(this.canvas, true);
+        this.scene = new BABYLON.Scene(this.engine);
+
+        // Create camera
+        this.camera = new BABYLON.ArcRotateCamera("camera", 0, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene);
+        this.camera.attachControl(this.canvas, true);
+
+        // Create a plane to display the image
+        const plane = BABYLON.MeshBuilder.CreatePlane("plane", {width: 1, height: 1}, this.scene);
+
+        // Create custom shader material for window/level adjustment
+        const shaderMaterial = new BABYLON.ShaderMaterial("shader", this.scene, {
+            vertex: "custom",
+            fragment: "custom",
+        }, {
+            attributes: ["position", "normal", "uv"],
+            uniforms: ["world", "worldView", "worldViewProjection", "view", "projection", "windowCenter", "windowWidth", "minValue", "maxValue"]
+        });
+
+        // Set shader code
+        BABYLON.Effect.ShadersStore["customVertexShader"] = `
+            precision highp float;
+            attribute vec3 position;
+            attribute vec2 uv;
+            uniform mat4 worldViewProjection;
+            varying vec2 vUV;
+            void main() {
+                gl_Position = worldViewProjection * vec4(position, 1.0);
+                vUV = uv;
+            }
+        `;
+
+        BABYLON.Effect.ShadersStore["customFragmentShader"] = `
+            precision highp float;
+            varying vec2 vUV;
+            uniform sampler2D textureSampler;
+            uniform float windowCenter;
+            uniform float windowWidth;
+            uniform float minValue;
+            uniform float maxValue;
+
+            void main() {
+                float pixelValue = texture2D(textureSampler, vUV).r;
+                float normalizedValue = (pixelValue - minValue) / (maxValue - minValue);
+                float windowMin = windowCenter - windowWidth / 2.0;
+                float windowMax = windowCenter + windowWidth / 2.0;
+                float displayValue = (normalizedValue - windowMin) / (windowMax - windowMin);
+                displayValue = clamp(displayValue, 0.0, 1.0);
+                gl_FragColor = vec4(displayValue, displayValue, displayValue, 1.0);
+            }
+        `;
+
+        plane.material = shaderMaterial;
+
+        // Start rendering loop
+        this.engine.runRenderLoop(() => {
+            this.scene.render();
+        });
+
+        // Handle window resize
+        window.addEventListener("resize", () => {
+            this.engine.resize();
+        });
     }
 
     setupEventListeners() {
@@ -83,7 +160,7 @@ class ImageViewer {
             this.lastMouseY = e.clientY;
 
             this.updateWindowingInfo();
-            this.loadSlice(this.currentSlice); // Reload the slice with new window settings
+            this.updateShaderParameters();
         });
 
         document.addEventListener("mouseup", () => {
@@ -97,31 +174,13 @@ class ImageViewer {
             if (this.totalSlices <= 1) return;
 
             if (e.deltaY < 0) {
-                this.currentSlice = Math.min(
-                    this.currentSlice + 1,
-                    this.totalSlices - 1
-                );
+                this.currentSlice = Math.min(this.currentSlice + 1, this.totalSlices - 1);
             } else {
                 this.currentSlice = Math.max(this.currentSlice - 1, 0);
             }
 
             this.updateWindowingInfo();
-            this.loadSlice(this.currentSlice);
-        });
-
-        // Rotation buttons
-        this.rotateLeftBtn?.addEventListener("click", () => {
-            if (this.container.classList.contains("has-image")) {
-                this.rotation = (this.rotation - 90) % 360;
-                this.updateDisplayRotation();
-            }
-        });
-
-        this.rotateRightBtn?.addEventListener("click", () => {
-            if (this.container.classList.contains("has-image")) {
-                this.rotation = (this.rotation + 90) % 360;
-                this.updateDisplayRotation();
-            }
+            this.updateTexture();
         });
 
         // Handle drag and drop
@@ -152,13 +211,6 @@ class ImageViewer {
         }
     }
 
-    updateDisplayRotation() {
-        const img = this.container.querySelector("img");
-        if (img) {
-            img.style.transform = `rotate(${this.rotation}deg)`;
-        }
-    }
-
     async uploadFile(file) {
         try {
             const formData = new FormData();
@@ -166,8 +218,7 @@ class ImageViewer {
 
             const response = await fetch(`${BASE_URL}/upload`, {
                 method: 'POST',
-                body: formData,
-                credentials: 'same-origin'
+                body: formData
             });
 
             if (!response.ok) {
@@ -185,10 +236,18 @@ class ImageViewer {
                     this.currentSlice = 0;
                     this.dimensions = result.metadata.dimensions;
                     this.imageType = result.metadata.type;
+                    this.minValue = result.metadata.min_value;
+                    this.maxValue = result.metadata.max_value;
                     this.updateWindowingInfo();
 
-                    // Load the first slice
-                    await this.loadSlice(0);
+                    // Create texture from the received data
+                    if (result.data) {
+                        this.volumeData = result.data.map(slice => {
+                            const buffer = new Uint8Array(atob(slice).split('').map(c => c.charCodeAt(0)));
+                            return new Float32Array(buffer.buffer);
+                        });
+                        this.updateTexture();
+                    }
                 }
             } else {
                 this.showError(result.message || "Upload failed");
@@ -196,6 +255,63 @@ class ImageViewer {
         } catch (error) {
             console.error("Error uploading file:", error);
             this.showError(error.message);
+        }
+    }
+
+    updateTexture() {
+        if (!this.volumeData || !this.volumeData[this.currentSlice]) return;
+
+        // Create raw texture from slice data
+        const width = this.dimensions[0];
+        const height = this.dimensions[1];
+        const data = this.volumeData[this.currentSlice];
+
+        if (this.texture) {
+            this.texture.dispose();
+        }
+
+        this.texture = new BABYLON.RawTexture.CreateRGBTexture(
+            data,
+            width,
+            height,
+            this.scene,
+            false,
+            false,
+            BABYLON.Texture.NEAREST_SAMPLINGMODE,
+            BABYLON.Engine.TEXTURETYPE_FLOAT
+        );
+
+        // Update material
+        const material = this.scene.getMaterialByName("shader");
+        if (material) {
+            material.setTexture("textureSampler", this.texture);
+            this.updateShaderParameters();
+        }
+    }
+
+    updateShaderParameters() {
+        const material = this.scene.getMaterialByName("shader");
+        if (material) {
+            material.setFloat("windowCenter", this.windowCenter);
+            material.setFloat("windowWidth", this.windowWidth);
+            material.setFloat("minValue", this.minValue);
+            material.setFloat("maxValue", this.maxValue);
+        }
+    }
+
+    updateWindowingInfo() {
+        if (this.imageInfo) {
+            const sliceInfo = this.totalSlices > 1 ? 
+                `Slice: ${this.currentSlice + 1}/${this.totalSlices}` : 
+                "Single Image";
+
+            const dimensionsInfo = this.dimensions ? 
+                ` | ${this.dimensions[0]}x${this.dimensions[1]}` : 
+                "";
+
+            const windowInfo = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)}`;
+
+            this.imageInfo.textContent = `${this.imageType?.toUpperCase() || 'IMAGE'} | ${windowInfo} | ${sliceInfo}${dimensionsInfo}`;
         }
     }
 
@@ -218,22 +334,6 @@ class ImageViewer {
         setTimeout(() => errorDiv.remove(), 3000);
     }
 
-    updateWindowingInfo() {
-        if (this.imageInfo) {
-            const sliceInfo = this.totalSlices > 1 ? 
-                `Slice: ${this.currentSlice + 1}/${this.totalSlices}` : 
-                "Single Image";
-
-            const dimensionsInfo = this.dimensions ? 
-                ` | ${this.dimensions[0]}x${this.dimensions[1]}` : 
-                "";
-
-            const windowInfo = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)}`;
-
-            this.imageInfo.textContent = `${this.imageType?.toUpperCase() || 'IMAGE'} | ${windowInfo} | ${sliceInfo}${dimensionsInfo}`;
-        }
-    }
-
     getState() {
         return {
             windowCenter: this.windowCenter,
@@ -246,27 +346,6 @@ class ImageViewer {
             imageType: this.imageType,
             dimensions: this.dimensions
         };
-    }
-
-    async loadSlice(sliceNumber) {
-        if (!this.currentFilename || !this.container.classList.contains("has-image")) return;
-
-        try {
-            const img = this.container.querySelector("img");
-            if (img) {
-                // Add timestamp to prevent caching
-                const timestamp = new Date().getTime();
-                img.src = `${BASE_URL}/slice/${this.currentFilename}/${sliceNumber}?t=${timestamp}`;
-                img.style.display = "block";
-            }
-        } catch (error) {
-            console.error("Error loading slice:", error);
-            this.showError("Failed to load image slice");
-        }
-    }
-
-    updateSliceInfo() {
-        this.updateWindowingInfo();
     }
 }
 
