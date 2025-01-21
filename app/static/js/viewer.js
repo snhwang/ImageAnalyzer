@@ -94,9 +94,13 @@ class ImageViewer {
         };
         window.addEventListener("resize", this.resizeHandler);
 
+        this.dataMin = 0;
+        this.dataMax = 255;
+        this.isWindowLevelDrag = false;
+
+        this.validateWindowValues();
+
         this.setupEventListeners();
-        this.dataMin = 0; // Initialize dataMin and dataMax.  These values need to be set correctly elsewhere in your code based on the image data.
-        this.dataMax = 255; //  Ideally this would come from the image metadata or processing step.
     }
 
     getState() {
@@ -110,6 +114,25 @@ class ImageViewer {
             rotation: this.rotation,
             currentLabel: this.currentLabel
         };
+    }
+
+    validateWindowValues() {
+        // Ensure data range is valid
+        if (!isFinite(this.dataMin)) this.dataMin = 0;
+        if (!isFinite(this.dataMax)) this.dataMax = 255;
+        if (this.dataMin >= this.dataMax) {
+            this.dataMin = 0;
+            this.dataMax = 255;
+        }
+
+        // Ensure window width is valid
+        const range = this.dataMax - this.dataMin;
+        const minWidth = range * 0.01; // 1% of range
+        const maxWidth = range;
+        this.windowWidth = Math.min(maxWidth, Math.max(minWidth, this.windowWidth));
+
+        // Ensure window center is within data range
+        this.windowCenter = Math.min(this.dataMax, Math.max(this.dataMin, this.windowCenter));
     }
 
     setupEventListeners() {
@@ -276,25 +299,29 @@ class ImageViewer {
             const deltaX = e.clientX - this.lastMouseX;
             const deltaY = this.lastMouseY - e.clientY;
 
-            // Fixed sensitivity value to prevent extreme changes
-            const sensitivity = 2.0;  // Lower value for more gradual changes
+            // Validate current values before adjusting
+            this.validateWindowValues();
 
-            // Update window width with horizontal movement
-            // Ensure it stays positive and within reasonable bounds
-            const minWidth = 1;  // Minimum window width
-            const maxWidth = this.dataMax - this.dataMin;  // Maximum possible width
-            const newWidth = this.windowWidth + (deltaX * sensitivity);
-            this.windowWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+            // Calculate sensitivity based on data range
+            const range = this.dataMax - this.dataMin;
+            const sensitivity = Math.max(0.1, range / 1000);
 
-            // Update window center with vertical movement
-            // Keep it within the data range
-            const newCenter = this.windowCenter + (deltaY * sensitivity);
+            // Update window width with bounds checking
+            const widthDelta = deltaX * sensitivity;
+            const newWidth = this.windowWidth + widthDelta;
+            const minWidth = range * 0.01; // 1% of range
+            const maxWidth = range;
+            this.windowWidth = Math.min(maxWidth, Math.max(minWidth, newWidth));
+
+            // Update window center with bounds checking
+            const centerDelta = deltaY * sensitivity;
+            const newCenter = this.windowCenter + centerDelta;
             this.windowCenter = Math.min(this.dataMax, Math.max(this.dataMin, newCenter));
 
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
 
-            // Ensure values are valid before updating
+            // Only update if values are valid
             if (isFinite(this.windowWidth) && isFinite(this.windowCenter)) {
                 this.updateWindowingInfo();
                 this.applyWindowLevel();
@@ -555,21 +582,19 @@ class ImageViewer {
     }
 
     applyWindow(value) {
-        // Ensure window width is positive and reasonable
-        const minWidth = 1;
-        const maxWidth = this.dataMax - this.dataMin;
-        this.windowWidth = Math.max(minWidth, Math.min(maxWidth, this.windowWidth));
+        // Validate window values before applying
+        this.validateWindowValues();
 
         // Calculate window range
         const windowMin = this.windowCenter - (this.windowWidth / 2);
         const windowMax = this.windowCenter + (this.windowWidth / 2);
 
-        // Clamp input value to window range
+        // Handle edge cases
         if (value <= windowMin) return 0;
         if (value >= windowMax) return 255;
 
-        // Safe linear scaling to display range
-        const scale = Math.max(0.001, windowMax - windowMin);  // Prevent division by zero
+        // Safe scaling with validation
+        const scale = Math.max(0.001, windowMax - windowMin);
         const normalized = (value - windowMin) / scale;
         return Math.round(Math.max(0, Math.min(255, normalized * 255)));
     }
@@ -894,12 +919,14 @@ class ImageViewer {
             const listData = await listResponse.json();
 
             if (listData.status === "success") {
-                this.updateDirectoryList(listData.files || [], listData.directories || []);                return;
+                this.updateDirectoryList(listData.files || [], listData.directories || []);
+                return;
             }
 
             throw new Error("Invalid directory listing response");
 
-        } catch (error) {            console.error("Error importing from URL:", error);
+        } catch (error) {
+            console.error("Error importing from URL:", error);
             directoryList.innerHTML = `<div class="error">${error.message}</div>`;
         }
     }
