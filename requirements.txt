@@ -17,3 +17,5 @@ pillow
 pydicom
 python-multipart
 uvicorn
+numpy
+pillow
