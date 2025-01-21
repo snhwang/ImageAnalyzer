@@ -14,91 +14,12 @@ class ImageViewer {
         this.lastMouseY = 0;
         this.currentLabel = state ? state.currentLabel : "";
 
-        // Debug logs for file input
-        console.log("Container:", container);
-        console.log("Hidden file inputs in container:", container.querySelectorAll(".hidden-file-input"));
-        this.fileInput = container.querySelector(".hidden-file-input");
-        console.log("Selected file input:", this.fileInput);
-
-        this.uploadBtn = container.querySelector(".upload-btn");
-        this.browseBtn = container.querySelector(".browse-btn");
-        this.rotateLeftBtn = container.querySelector(".rotate-left-btn");
-        this.rotateRightBtn = container.querySelector(".rotate-right-btn");
-        this.optimizeWindowBtn = container.querySelector(".optimize-window-btn");
-        this.windowLevelBtn = container.querySelector(".window-level-btn");
-        this.toolbar = container.querySelector(".toolbar");
-        this.slices = state ? state.slices : [];
-        this.rotation = state ? state.rotation : 0;
-        this.mode = "window-level"; // 'window-level' or 'roi'
-        this.isDrawingROI = false;
-        this.roiPoints = [];
-        this.lastBrowsePath = "images"; // Store last browsed path
-        this.currentImagePath = ""; // Store current image path
-
-        // Remove any existing dropdown
-        const existingDropdown = this.toolbar.querySelector(".image-label");
-        if (existingDropdown) {
-            existingDropdown.remove();
-        }
-
-        // Create image element for loading if it doesn't exist
-        this.img = this.imageContainer.querySelector("img");
-        if (!this.img) {
-            this.img = document.createElement("img");
-            this.imageContainer.querySelector(".canvas-container").appendChild(this.img);
-        }
-        this.img.style.display = "none";
-
-        // Set up image onload handler
-        this.img.onload = () => {
-            this.canvas.width = this.img.width;
-            this.canvas.height = this.img.height;
-            this.roiCanvas.width = this.canvas.width;
-            this.roiCanvas.height = this.canvas.height;
-            this.applyWindowLevel();
-        };
-
-        if (state && state.imageId) {
-            // Restore image if state exists
-            this.container.classList.add("has-image");
-            this.addImageLabelDropdown();
-            this.loadSlice(this.currentSlice);
-            this.updateWindowingInfo();
-        }
-
-        // Create canvas for image manipulation
-        this.canvas = document.createElement("canvas");
-        this.canvas.style.width = "100%";
-        this.canvas.style.height = "100%";
-        this.canvas.style.display = "none";
-
-        // Set willReadFrequently to true since getImageData is called multiple times
-        this.ctx = this.canvas.getContext("2d", { willReadFrequently: true });
-        this.imageContainer.appendChild(this.canvas);
-
-        // getImageData is called multiple times, so we cache the result
-        this.cachedImageData = null;
-        this.cachedImageDataWillReadFrequently = true;
-
-        // Create ROI canvas
-        this.roiCanvas = document.createElement("canvas");
-        this.roiCanvas.className = "roi-canvas";
-        this.roiCtx = this.roiCanvas.getContext("2d");
-        this.imageContainer.appendChild(this.roiCanvas);
-
-        // Add resize handler
-        this.resizeHandler = () => {
-            if (this.img.complete && this.img.src) {
-                this.applyWindowLevel();
-            }
-        };
-        window.addEventListener("resize", this.resizeHandler);
-
+        // Track image bit depth and range
         this.dataMin = 0;
         this.dataMax = 255;
+        this.bitDepth = state ? state.bitDepth : 8;
+        this.maxValue = Math.pow(2, this.bitDepth) - 1;
         this.isWindowLevelDrag = false;
-
-        this.validateWindowValues();
 
         this.setupEventListeners();
     }
@@ -112,27 +33,11 @@ class ImageViewer {
             imageId: this.imageId,
             slices: this.slices,
             rotation: this.rotation,
-            currentLabel: this.currentLabel
+            currentLabel: this.currentLabel,
+            bitDepth: this.bitDepth,
+            dataMin: this.dataMin,
+            dataMax: this.dataMax
         };
-    }
-
-    validateWindowValues() {
-        // Ensure data range is valid
-        if (!isFinite(this.dataMin)) this.dataMin = 0;
-        if (!isFinite(this.dataMax)) this.dataMax = 255;
-        if (this.dataMin >= this.dataMax) {
-            this.dataMin = 0;
-            this.dataMax = 255;
-        }
-
-        // Ensure window width is valid
-        const range = this.dataMax - this.dataMin;
-        const minWidth = range * 0.01; // 1% of range
-        const maxWidth = range;
-        this.windowWidth = Math.min(maxWidth, Math.max(minWidth, this.windowWidth));
-
-        // Ensure window center is within data range
-        this.windowCenter = Math.min(this.dataMax, Math.max(this.dataMin, this.windowCenter));
     }
 
     setupEventListeners() {
@@ -286,46 +191,30 @@ class ImageViewer {
             }
         });
 
+        // Mouse move handler for window/level adjustment
         this.container.addEventListener("mousemove", (e) => {
             if (!this.isWindowLevelDrag) return;
             e.preventDefault();
 
-            // Ensure we still have the left button pressed
-            if (!(e.buttons & 1)) {
-                this.isWindowLevelDrag = false;
-                return;
-            }
-
             const deltaX = e.clientX - this.lastMouseX;
             const deltaY = this.lastMouseY - e.clientY;
 
-            // Validate current values before adjusting
-            this.validateWindowValues();
+            // Simple sensitivity calculation
+            const sensitivity = 2.0;
 
-            // Calculate sensitivity based on data range
-            const range = this.dataMax - this.dataMin;
-            const sensitivity = Math.max(0.1, range / 1000);
+            // Update window width, ensuring it stays positive
+            const newWidth = this.windowWidth + (deltaX * sensitivity);
+            this.windowWidth = Math.max(1, newWidth);  // Never let W go below 1
 
-            // Update window width with bounds checking
-            const widthDelta = deltaX * sensitivity;
-            const newWidth = this.windowWidth + widthDelta;
-            const minWidth = range * 0.01; // 1% of range
-            const maxWidth = range;
-            this.windowWidth = Math.min(maxWidth, Math.max(minWidth, newWidth));
-
-            // Update window center with bounds checking
-            const centerDelta = deltaY * sensitivity;
-            const newCenter = this.windowCenter + centerDelta;
+            // Update window center
+            const newCenter = this.windowCenter + (deltaY * sensitivity);
             this.windowCenter = Math.min(this.dataMax, Math.max(this.dataMin, newCenter));
 
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
 
-            // Only update if values are valid
-            if (isFinite(this.windowWidth) && isFinite(this.windowCenter)) {
-                this.updateWindowingInfo();
-                this.applyWindowLevel();
-            }
+            this.updateWindowingInfo();
+            this.applyWindowLevel();
         });
 
         // Handle mouse up and leave for window/level adjustment
@@ -582,8 +471,8 @@ class ImageViewer {
     }
 
     applyWindow(value) {
-        // Ensure window width is positive
-        if (this.windowWidth <= 0) this.windowWidth = 1;
+        // Ensure window width is at least 1
+        this.windowWidth = Math.max(1, this.windowWidth);
 
         // Calculate window bounds
         const windowMin = this.windowCenter - (this.windowWidth / 2);
@@ -591,10 +480,10 @@ class ImageViewer {
 
         // Apply window/level transformation
         if (value <= windowMin) return 0;
-        if (value >= windowMax) return 255;
+        if (value >= windowMax) return this.maxValue;
 
-        // Linear transformation within window
-        return Math.round(((value - windowMin) / this.windowWidth) * 255);
+        // Linear transformation preserving bit depth
+        return Math.round(((value - windowMin) / this.windowWidth) * this.maxValue);
     }
 
     async uploadFile(file) {
@@ -629,8 +518,10 @@ class ImageViewer {
                 this.imageId = data.image_id;
                 this.windowWidth = data.window_width;
                 this.windowCenter = data.window_center;
-                this.dataMin = data.data_min; // Assuming the server response provides this
-                this.dataMax = data.data_max; // Assuming the server response provides this
+                this.dataMin = data.data_min;
+                this.dataMax = data.data_max;
+                this.bitDepth = data.bit_depth || 8; // Get bit depth from server
+                this.maxValue = Math.pow(2, this.bitDepth) - 1;
                 this.loadSlice(this.currentSlice);
                 this.updateWindowingInfo();
                 this.container.classList.add("has-image");
@@ -884,6 +775,8 @@ class ImageViewer {
                     this.windowCenter = data.window_center;
                     this.dataMin = data.data_min;
                     this.dataMax = data.data_max;
+                    this.bitDepth = data.bit_depth || 8; // Get bit depth from server
+                    this.maxValue = Math.pow(2, this.bitDepth) - 1;
 
                     // Load first slice
                     await this.loadSlice(0);
