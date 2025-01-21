@@ -100,12 +100,16 @@ class ImageViewer {
             uniform float maxValue;
 
             void main() {
+                // For luminance texture, the value is in the red channel
                 float pixelValue = texture2D(textureSampler, vUV).r;
+
+                // Apply window/level
                 float normalizedValue = (pixelValue - minValue) / (maxValue - minValue);
-                float windowMin = windowCenter - windowWidth / 2.0;
-                float windowMax = windowCenter + windowWidth / 2.0;
+                float windowMin = (windowCenter - windowWidth / 2.0) / (maxValue - minValue);
+                float windowMax = (windowCenter + windowWidth / 2.0) / (maxValue - minValue);
                 float displayValue = (normalizedValue - windowMin) / (windowMax - windowMin);
                 displayValue = clamp(displayValue, 0.0, 1.0);
+
                 gl_FragColor = vec4(displayValue, displayValue, displayValue, 1.0);
             }
         `;
@@ -270,10 +274,12 @@ class ImageViewer {
             this.texture.dispose();
         }
 
-        this.texture = new BABYLON.RawTexture.CreateRGBTexture(
+        // Create a luminance texture (single channel) instead of RGB
+        this.texture = new BABYLON.RawTexture(
             data,
             width,
             height,
+            BABYLON.Engine.TEXTUREFORMAT_LUMINANCE,
             this.scene,
             false,
             false,
@@ -301,12 +307,12 @@ class ImageViewer {
 
     updateWindowingInfo() {
         if (this.imageInfo) {
-            const sliceInfo = this.totalSlices > 1 ? 
-                `Slice: ${this.currentSlice + 1}/${this.totalSlices}` : 
+            const sliceInfo = this.totalSlices > 1 ?
+                `Slice: ${this.currentSlice + 1}/${this.totalSlices}` :
                 "Single Image";
 
-            const dimensionsInfo = this.dimensions ? 
-                ` | ${this.dimensions[0]}x${this.dimensions[1]}` : 
+            const dimensionsInfo = this.dimensions ?
+                ` | ${this.dimensions[0]}x${this.dimensions[1]}` :
                 "";
 
             const windowInfo = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)}`;
