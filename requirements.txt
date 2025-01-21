@@ -20,3 +20,11 @@ uvicorn
 numpy
 pillow
 nibabel
+flask
+requests
+streamlit
+werkzeug
+flask
+requests
+werkzeug
+flask-cors

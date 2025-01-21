@@ -1,4 +1,4 @@
-const BASE_URL = window.location.origin;
+const BASE_URL = window.location.protocol + "//" + window.location.hostname + ":5001";
 
 class ImageViewer {
     constructor(container, state = null) {
@@ -13,7 +13,7 @@ class ImageViewer {
         this.lastMouseX = 0;
         this.lastMouseY = 0;
         this.currentLabel = state ? state.currentLabel : "";
-        this.rotation = 0; // Initialize rotation
+        this.rotation = 0;
 
         // Initialize UI elements
         this.initializeUI();
@@ -83,8 +83,35 @@ class ImageViewer {
                 menuContainer.classList.remove("show");
             });
         }
-        // Mouse wheel for slice navigation (This part remains largely the same)
-        const renderCanvas = this.container.querySelector(".image-container canvas"); // Get canvas dynamically
+
+        // Drag and drop handling
+        const dropZone = this.container.querySelector(".image-container");
+        if (dropZone) {
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.container.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.container.classList.remove('drag-over');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.container.classList.remove('drag-over');
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.uploadFile(files[0]);
+                }
+            });
+        }
+        // Mouse wheel for slice navigation
+        const renderCanvas = this.container.querySelector(".image-container canvas");
         if(renderCanvas){
             renderCanvas.addEventListener("wheel", (e) => {
                 if (!this.container.classList.contains("has-image")) return;
@@ -105,7 +132,6 @@ class ImageViewer {
             });
         }
     }
-
 
     updateDisplayRotation() {
         const img = this.container.querySelector("img");
@@ -133,7 +159,9 @@ class ImageViewer {
                 this.container.classList.add("has-image");
                 const img = this.container.querySelector("img");
                 if (img) {
-                    img.src = result.url;
+                    // Construct full URL
+                    const imageUrl = `${BASE_URL}${result.url}`;
+                    img.src = imageUrl;
                     img.style.display = "block";
                 }
             } else {
@@ -176,15 +204,6 @@ class ImageViewer {
             currentLabel: this.currentLabel
         };
     }
-    // Removed unnecessary placeholder functions
-    loadSlice(sliceNumber) {
-        // Placeholder - needs implementation based on how slices are handled
-        const img = this.container.querySelector('img');
-        if (img) {
-            img.src = this.slices[sliceNumber];
-            this.updateWindowingInfo();
-        }
-    }
 
     updateWindowingInfo() {
         if (this.imageInfo) {
@@ -192,7 +211,15 @@ class ImageViewer {
         }
     }
 
-    updateSliceInfo(){} //Placeholder
+    loadSlice(sliceNumber) {
+        // Implementation will be added when slice handling is needed
+        console.log("Load slice:", sliceNumber);
+    }
+
+    updateSliceInfo() {
+        // Implementation will be added when slice handling is needed
+        console.log("Update slice info");
+    }
 }
 
 // Grid layout management
