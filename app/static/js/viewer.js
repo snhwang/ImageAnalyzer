@@ -1,4 +1,4 @@
-import * as BABYLON from '@babylonjs/core';
+const BASE_URL = "";
 
 class ImageViewer {
     constructor(container, state = null) {
@@ -282,8 +282,6 @@ class ImageViewer {
             }
         });
 
-        // Drag and drop events (Removed for brevity -  adapt as needed for Babylon.js)
-
         // Mouse wheel for slice navigation
         this.renderCanvas.addEventListener("wheel", (e) => { // Changed event target
             if (!this.container.classList.contains("has-image")) return;
@@ -302,12 +300,6 @@ class ImageViewer {
             this.updateSliceInfo();
             this.loadSlice(this.currentSlice);
         });
-
-        // Optimize window button and Window level mode button (Removed for brevity - adapt as needed)
-
-        // ROI drawing events (Removed for brevity - adapt as needed for Babylon.js, likely not directly compatible)
-
-        // Browse button click (Removed for brevity - adapt as needed)
     }
 
     async loadSlice(sliceNumber) {
@@ -425,7 +417,16 @@ class ImageViewer {
         }, 5000);
     }
 
-    // Removed applyWindowLevel(), applyWindow(), drawROI(), clearROI(), optimizeWindowFromROI(),  importFromUrl(), updateDirectoryList(), addImageLabelDropdown() for brevity.  These functions need significant adaptation or removal to work with the Babylon.js implementation.  The core logic might be reusable, but the canvas manipulation needs to be replaced with Babylon.js equivalents.
+    // Placeholder functions -  These need to be implemented or removed depending on the actual functionality
+    addImageLabelDropdown() {}
+    applyWindowLevel() {}
+    applyWindow() {}
+    drawROI() {}
+    clearROI() {}
+    optimizeWindowFromROI() {}
+    importFromUrl() {}
+    updateDirectoryList() {}
+    updateSliceInfo() {}
 
 
     getState() {

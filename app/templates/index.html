@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/ https://cdnjs.cloudflare.com/ajax/libs/font-awesome/; font-src 'self' https://cdnjs.cloudflare.com/ajax/libs/font-awesome/; img-src 'self' data:;">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/ https://preview.babylonjs.com/; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/ https://cdnjs.cloudflare.com/ajax/libs/font-awesome/; font-src 'self' https://cdnjs.cloudflare.com/ajax/libs/font-awesome/; img-src 'self' data: blob:;">
         <title>Medical Image Viewer - Penn State Health</title>
         <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
         <link
@@ -17,6 +17,9 @@
             crossorigin="anonymous"
             referrerpolicy="no-referrer"
         />
+        <!-- Add Babylon.js CDN -->
+        <script src="https://cdn.jsdelivr.net/npm/@babylonjs/core@6.22.1/babylon.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@babylonjs/loaders@6.22.1/babylonjs.loaders.min.js"></script>
         <style>
             :root {
                 --psu-blue: #1e407c;
@@ -752,6 +755,7 @@
         </template>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-        <script src="/static/js/viewer.js"></script>
+        <!-- Change viewer.js to be loaded as a module -->
+        <script type="module" src="/static/js/viewer.js"></script>
     </body>
 </html>
