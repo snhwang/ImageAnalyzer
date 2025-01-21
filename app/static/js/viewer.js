@@ -881,6 +881,11 @@ class ImageViewer {
 
                 // Add the dropdown
                 this.addImageLabelDropdown();
+            } else if (data.status === "directory") {
+                // Update directory listing
+                this.updateDirectoryList(data.files || [], data.directories || []);
+            } else {
+                throw new Error("Invalid response format from server");
             }
 
         } catch (error) {
@@ -893,69 +898,66 @@ class ImageViewer {
         const directoryList = document.getElementById("directoryList");
         const currentPath = document.getElementById("currentPath");
 
-        // Store current path if it's a directory (has contents)
-        if (directories.length > 0 || files.length > 0) {
-            this.lastBrowsePath = currentPath.textContent;
-        }
+        let html = '';
 
-        // Clear current list
-        directoryList.innerHTML = "";
-
-        // Add parent directory if not at root
-        if (currentPath.textContent !== ".") {
-            const parentItem = document.createElement("div");
-            parentItem.className = "directory-item folder";
-            parentItem.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
-            parentItem.onclick = () => {
-                const pathParts = currentPath.textContent
-                    .split("/")
-                    .filter(Boolean);
-                                pathParts.pop();
-                const newPath = pathParts.length ? pathParts.join("/") : ".";
-                currentPath.textContent = newPath;
-                this.importFromUrl();
-            };
-            directoryList.appendChild(parentItem);
+        // Add parent directory link if not in root
+        if (currentPath.textContent !== "images") {
+            html += `
+                <div class="directory-item" data-path="${currentPath.textContent}">
+                    <span class="directory-icon">📁</span>
+                    <span class="directory-name">..</span>
+                </div>
+            `;
         }
 
         // Add directories
-        directories.forEach((dir) => {
-            const dirItem = document.createElement("div");
-            dirItem.className = "directory-item folder";
-            dirItem.innerHTML = `<i class="fas fa-folder"></i> ${dir.name}`;
-            dirItem.onclick = () => {
-                currentPath.textContent = dir.url;
-                this.importFromUrl();
-            };
-            directoryList.appendChild(dirItem);
+        directories.forEach(dir => {
+            html += `
+                <div class="directory-item" data-path="${dir.url}">
+                    <span class="directory-icon">📁</span>
+                    <span class="directory-name">${dir.name}</span>
+                </div>
+            `;
         });
 
-        // Add files (only show supported image files)
-        const supportedExtensions = [
-            ".nii",
-            ".nii.gz",
-            ".dcm",
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".bmp",
-        ];
-        files
-            .filter((file) =>
-                supportedExtensions.some((ext) =>
-                    file.name.toLowerCase().endsWith(ext),
-                ),
-            )
-            .forEach((file) => {
-                const fileItem = document.createElement("div");
-                fileItem.className = "directory-item image";
-                fileItem.innerHTML = `<i class="fas fa-file-image"></i> ${file.name}`;
-                fileItem.onclick = () => {
-                    currentPath.textContent = file.url;
-                    this.importFromUrl();
-                };
-                directoryList.appendChild(fileItem);
+        // Add files
+        files.forEach(file => {
+            html += `
+                <div class="file-item" data-path="${file.url}">
+                    <span class="file-icon">📄</span>
+                    <span class="file-name">${file.name}</span>
+                </div>
+            `;
+        });
+
+        directoryList.innerHTML = html || '<div class="empty">No items found</div>';
+
+        // Add click handlers for directories and files
+        const directoryItems = directoryList.querySelectorAll(".directory-item");
+        const fileItems = directoryList.querySelectorAll(".file-item");
+
+        directoryItems.forEach(item => {
+            item.addEventListener("click", (e) => {
+                const path = item.dataset.path;
+                if (item.querySelector(".directory-name").textContent === "..") {
+                    // Handle parent directory
+                    const pathParts = currentPath.textContent.split("/").filter(Boolean);
+                    pathParts.pop();
+                    const newPath = pathParts.length ? pathParts.join("/") : "images";
+                    currentPath.textContent = newPath;
+                } else {
+                    currentPath.textContent = path;
+                }
+                this.importFromUrl();
             });
+        });
+
+        fileItems.forEach(item => {
+            item.addEventListener("click", () => {
+                currentPath.textContent = item.dataset.path;
+                this.importFromUrl();
+            });
+        });
     }
 
     addImageLabelDropdown() {

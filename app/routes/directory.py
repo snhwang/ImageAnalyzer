@@ -22,8 +22,9 @@ async def list_directory(request: Request):
         data = await request.json()
         url = data.get('url', '')
 
+        # Default to images directory if no URL provided
         if not url:
-            url = 'images'  # Default to images directory
+            url = 'images'
 
         # Ensure the directory path starts with 'images'
         if not url.startswith('images'):
@@ -33,15 +34,21 @@ async def list_directory(request: Request):
         if '..' in url:  # Prevent directory traversal
             raise HTTPException(status_code=400, detail="Invalid directory path")
 
+        # Get absolute paths
         base_path = os.path.abspath(os.getcwd())
         path = os.path.join(base_path, url)
+        logger.info(f"Listing directory at path: {path}")
 
         # Create images directory if it doesn't exist
-        if not os.path.exists(os.path.join(base_path, 'images')):
-            os.makedirs(os.path.join(base_path, 'images'))
+        images_dir = os.path.join(base_path, 'images')
+        if not os.path.exists(images_dir):
+            os.makedirs(images_dir)
+            logger.info(f"Created images directory at: {images_dir}")
 
+        # If requested path doesn't exist, default to images directory
         if not os.path.exists(path):
-            path = os.path.join(base_path, 'images')
+            path = images_dir
+            logger.info(f"Path not found, defaulting to: {path}")
 
         if not os.path.isdir(path):
             raise HTTPException(status_code=400, detail="Path is not a directory")
@@ -88,30 +95,31 @@ async def list_directory(request: Request):
         logger.error(f"Error in list_directory: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.post("/import-from-url")
 async def import_from_url(path: str = Form(...)):
     try:
         logger.info(f"Received import request for path: {path}")
-        
+
+        # Get absolute paths
         base_path = os.path.abspath(os.getcwd())
 
         # Ensure the path starts with 'images' directory
-        if not path.startswith('images'):
-            path = 'images/' + path
+        if not path.startswith('images/'):
+            path = f'images/{path}'
 
-        # Ensure the path is relative and secure
+        # Normalize path and prevent directory traversal
         path = os.path.normpath(path).replace('\\', '/')
-        if '..' in path:  # Prevent directory traversal
+        if '..' in path:
             path = 'images'
 
         full_path = os.path.join(base_path, path)
+        logger.info(f"Resolved full path: {full_path}")
 
         # Create images directory if it doesn't exist
-        if not os.path.exists(os.path.join(base_path, 'images')):
-            os.makedirs(os.path.join(base_path, 'images'))
-        
-        logger.info(f"Resolved full path: {full_path}")
+        images_dir = os.path.join(base_path, 'images')
+        if not os.path.exists(images_dir):
+            os.makedirs(images_dir)
+            logger.info(f"Created images directory at: {images_dir}")
 
         if not os.path.exists(full_path):
             logger.error(f"Path does not exist: {full_path}")
@@ -119,13 +127,16 @@ async def import_from_url(path: str = Form(...)):
 
         try:
             if os.path.isfile(full_path):
-                logger.info(f"Processing as file: {full_path}")
-                # Check if it's an image file
+                logger.info(f"Processing file: {full_path}")
+
+                # Check if it's a supported image file
                 supported_extensions = {'.nii', '.nii.gz', '.dcm', '.jpg', '.jpeg', '.png', '.bmp'}
                 file_ext = os.path.splitext(full_path)[1].lower()
+
                 # Special handling for .nii.gz files
                 if file_ext == '.gz' and full_path.lower().endswith('.nii.gz'):
                     file_ext = '.nii.gz'
+
                 is_image = any(full_path.lower().endswith(ext) for ext in supported_extensions)
 
                 if is_image:
@@ -218,47 +229,39 @@ async def import_from_url(path: str = Form(...)):
                         detail=f"Not a supported image file. Supported extensions: {', '.join(supported_extensions)}"
                     )
             else:
+                # Handle directory listing
                 logger.info(f"Processing as directory: {full_path}")
-                try:
-                    # List directory contents
-                    files = []
-                    directories = []
+                files = []
+                directories = []
 
-                    for item in sorted(os.listdir(full_path)):
-                        item_path = os.path.join(full_path, item)
-                        relative_path = os.path.relpath(item_path, base_path)
+                for item in sorted(os.listdir(full_path)):
+                    item_path = os.path.join(full_path, item)
+                    relative_path = os.path.relpath(item_path, base_path)
 
-                        # Skip hidden files and directories
-                        if item.startswith('.'):
-                            continue
+                    # Skip hidden files and directories
+                    if item.startswith('.'):
+                        continue
 
-                        if os.path.isdir(item_path):
-                            directories.append({
-                                "name": item,
-                                "url": relative_path.replace('\\', '/')
-                            })
-                            logger.info(f"Added directory: {item}")
-                        else:
-                            files.append({
-                                "name": item,
-                                "url": relative_path.replace('\\', '/')
-                            })
-                            logger.info(f"Added file: {item}")
+                    if os.path.isdir(item_path):
+                        directories.append({
+                            "name": item,
+                            "url": relative_path.replace('\\', '/')
+                        })
+                        logger.info(f"Added directory: {item}")
+                    else:
+                        files.append({
+                            "name": item,
+                            "url": relative_path.replace('\\', '/')
+                        })
+                        logger.info(f"Added file: {item}")
 
-                    logger.info(f"Found {len(directories)} directories and {len(files)} files")
-                    return {
-                        "status": "directory",
-                        "current_url": path,
-                        "files": files,
-                        "directories": directories
-                    }
-
-                except Exception as e:
-                    logger.error(f"Failed to list directory: {str(e)}", exc_info=True)
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Failed to list directory: {str(e)}"
-                    )
+                logger.info(f"Found {len(directories)} directories and {len(files)} files")
+                return {
+                    "status": "directory",
+                    "current_url": path,
+                    "files": files,
+                    "directories": directories
+                }
 
         except HTTPException:
             raise
