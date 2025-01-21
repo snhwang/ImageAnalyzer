@@ -21,7 +21,7 @@ class ImageViewer {
         this.volumeData = null;
         this.minValue = 0;
         this.maxValue = 255;
-        this.normalizedData = null; 
+        this.normalizedData = null;
 
         // Initialize Babylon.js components
         this.engine = null;
@@ -278,32 +278,37 @@ class ImageViewer {
                     this.minValue = result.metadata.min_value;
                     this.maxValue = result.metadata.max_value;
 
-                    // Set reasonable initial window/level values
+                    // Set initial window/level values based on actual data range
                     this.windowCenter = (this.maxValue + this.minValue) / 2;
-                    this.windowWidth = (this.maxValue - this.minValue);
+                    this.windowWidth = this.maxValue - this.minValue;
+
+                    console.log("Data range:", {
+                        min: this.minValue,
+                        max: this.maxValue,
+                        windowCenter: this.windowCenter,
+                        windowWidth: this.windowWidth
+                    });
 
                     this.updateWindowingInfo();
 
                     if (result.data) {
-                        // Convert base64 data to Float32Array more carefully
+                        // Convert base64 data to Float32Array
                         this.volumeData = result.data.map(slice => {
-                            // Decode base64 to binary string
-                            const binaryString = atob(slice);
-                            // Create a buffer to hold the binary data
-                            const buffer = new ArrayBuffer(binaryString.length);
-                            // Create a view into the buffer
-                            const byteArray = new Uint8Array(buffer);
-
-                            // Copy binary data to buffer
-                            for (let i = 0; i < binaryString.length; i++) {
-                                byteArray[i] = binaryString.charCodeAt(i);
+                            const binary = atob(slice);
+                            const bytes = new Uint8Array(binary.length);
+                            for (let i = 0; i < binary.length; i++) {
+                                bytes[i] = binary.charCodeAt(i);
                             }
-
-                            // Create Float32Array from the buffer
-                            const floatArray = new Float32Array(buffer);
-                            console.log("Converted data sample:", floatArray.slice(0, 10));
-                            return floatArray;
+                            // Create Float32Array from the bytes
+                            const floats = new Float32Array(bytes.buffer);
+                            console.log("Converted slice sample:", floats.slice(0, 10));
+                            return floats;
                         });
+
+                        // Debug output
+                        if (result.debug) {
+                            console.log("Debug data:", result.debug);
+                        }
 
                         this.updateTexture();
                     }
@@ -323,14 +328,17 @@ class ImageViewer {
             return;
         }
 
-        console.log("Updating texture...");
-        console.log("Dimensions:", this.dimensions);
-        console.log("Data size:", this.volumeData[this.currentSlice].length);
-        console.log("First few values:", this.volumeData[this.currentSlice].slice(0, 10));
-
         const width = this.dimensions[0];
         const height = this.dimensions[1];
         const data = this.volumeData[this.currentSlice];
+
+        console.log("Creating texture:", {
+            width,
+            height,
+            dataLength: data.length,
+            expectedLength: width * height,
+            sampleValues: Array.from(data.slice(0, 10))
+        });
 
         if (this.texture) {
             this.texture.dispose();
@@ -349,12 +357,9 @@ class ImageViewer {
             BABYLON.Engine.TEXTURETYPE_FLOAT
         );
 
-        console.log("Texture created successfully");
-
         // Update material
         const material = this.scene.getMaterialByName("shader");
         if (material) {
-            console.log("Updating material with texture");
             material.setTexture("textureSampler", this.texture);
             this.updateShaderParameters();
         }

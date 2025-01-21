@@ -101,9 +101,11 @@ async def upload_file(file: UploadFile = File(...)):
         img_array, metadata = process_medical_image(file_path)
 
         if img_array is not None and metadata is not None:
-            # Convert the image data to base64
+            # Ensure the array is in float32 format
+            img_array = img_array.astype(np.float32)
+
+            # For 3D volumes, encode each slice
             if len(img_array.shape) > 2:
-                # For 3D volumes, encode each slice
                 encoded_slices = []
                 for i in range(img_array.shape[2]):
                     slice_data = img_array[:, :, i].tobytes()
@@ -115,11 +117,22 @@ async def upload_file(file: UploadFile = File(...)):
                 encoded_data = base64.b64encode(img_array.tobytes()).decode('utf-8')
                 response_data = [encoded_data]
 
+            # Add debug information
+            print(f"Image array shape: {img_array.shape}")
+            print(f"Min value: {np.min(img_array)}, Max value: {np.max(img_array)}")
+            print(f"Sample values: {img_array.flatten()[:10]}")
+
             return JSONResponse({
                 "success": True,
                 "data": response_data,
                 "metadata": metadata,
-                "dtype": str(img_array.dtype)
+                "dtype": str(img_array.dtype),
+                "debug": {
+                    "shape": img_array.shape,
+                    "min": float(np.min(img_array)),
+                    "max": float(np.max(img_array)),
+                    "sample": [float(x) for x in img_array.flatten()[:10]]
+                }
             })
         else:
             return JSONResponse({
