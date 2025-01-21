@@ -62,14 +62,14 @@ class ImageViewer {
         this.scene = new BABYLON.Scene(this.engine);
 
         // Create orthographic camera for 2D viewing
-        this.camera = new BABYLON.ArcRotateCamera("camera", 0, 0, 10, BABYLON.Vector3.Zero(), this.scene);
+        this.camera = new BABYLON.ArcRotateCamera("camera", 0, Math.PI/2, 5, BABYLON.Vector3.Zero(), this.scene);
         this.camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
         this.camera.minZ = 0.1;
         this.camera.maxZ = 100;
 
         // Lock camera movement
-        this.camera.lowerBetaLimit = 0;
-        this.camera.upperBetaLimit = 0;
+        this.camera.lowerBetaLimit = Math.PI/2;
+        this.camera.upperBetaLimit = Math.PI/2;
         this.camera.lowerAlphaLimit = 0;
         this.camera.upperAlphaLimit = 0;
         this.camera.allowUpsideDown = false;
@@ -79,6 +79,7 @@ class ImageViewer {
 
         // Create a plane to display the image
         const plane = BABYLON.MeshBuilder.CreatePlane("plane", {width: 2, height: 2}, this.scene);
+        plane.rotation.x = Math.PI; // Flip the plane to face the camera
         plane.position = new BABYLON.Vector3(0, 0, 0);
 
         // Create custom shader material for window/level adjustment
