@@ -1,27 +1,31 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from app.routes import session, upload, image, directory
 from app.config import CORS_ORIGINS, CORS_ALLOW_CREDENTIALS, CORS_ALLOW_METHODS, CORS_ALLOW_HEADERS, LOGGING_LEVEL, LOG_FORMAT
-
+import os
+from pathlib import Path
 
 # Initialize app
 app = FastAPI(title="Medical Image Viewer")
+
+# Set up upload directory
+UPLOAD_DIR = Path("app/static/uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/images", StaticFiles(directory="images"), name="images")
 
-
-# Configure CORS
+# Configure CORS with more permissive settings for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=CORS_ALLOW_CREDENTIALS,
-    allow_methods=CORS_ALLOW_METHODS,
-    allow_headers=CORS_ALLOW_HEADERS,
+    allow_origins=["*"],  # More permissive for development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Middleware for cookies
@@ -41,6 +45,27 @@ templates = Jinja2Templates(directory="app/templates")
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+# File upload endpoint
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        file_path = UPLOAD_DIR / file.filename
+
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+        return JSONResponse({
+            "success": True,
+            "url": f"/static/uploads/{file.filename}",
+            "filename": file.filename
+        })
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "message": str(e)
+        }, status_code=500)
 
 # Include routes
 app.include_router(session.router)

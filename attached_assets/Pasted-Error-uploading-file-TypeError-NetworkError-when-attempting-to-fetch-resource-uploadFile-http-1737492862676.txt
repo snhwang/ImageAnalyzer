@@ -1,0 +1,27 @@
+Error uploading file: TypeError: NetworkError when attempting to fetch resource.
+    uploadFile https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:148
+    setupEventListeners https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:53
+    Async* <anonymous code>:1
+    apply <anonymous code>:1
+    setupEventListeners https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:50
+    ImageViewer https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:22
+    updateGrid https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:260
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:268
+    Async* <anonymous code>:1
+    apply <anonymous code>:1
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:266
+viewer.js:171:21
+    uploadFile https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:171
+    setupEventListeners https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:53
+    (Async: EventListener.handleEvent)
+    <anonymous> <anonymous code>:1
+    apply <anonymous code>:1
+    setupEventListeners https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:50
+    ImageViewer https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:22
+    updateGrid https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:260
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:268
+    (Async: EventListener.handleEvent)
+    <anonymous> <anonymous code>:1
+    apply <anonymous code>:1
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:266
+Content-Security-Policy: The page’s settings blocked the loading of a resource (connect-src) at https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev:5000/upload because it violates the following directive: “connect-src 'self' blob: https://* http://* ws://* wss://* data:” viewer

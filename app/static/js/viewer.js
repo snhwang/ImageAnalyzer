@@ -1,4 +1,4 @@
-const BASE_URL = window.location.protocol + "//" + window.location.hostname + ":5000";
+const BASE_URL = window.location.origin;
 
 class ImageViewer {
     constructor(container, state = null) {
@@ -147,7 +147,8 @@ class ImageViewer {
 
             const response = await fetch(`${BASE_URL}/upload`, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'same-origin'
             });
 
             if (!response.ok) {
@@ -159,9 +160,7 @@ class ImageViewer {
                 this.container.classList.add("has-image");
                 const img = this.container.querySelector("img");
                 if (img) {
-                    // Construct full URL
-                    const imageUrl = `${BASE_URL}${result.url}`;
-                    img.src = imageUrl;
+                    img.src = result.url;
                     img.style.display = "block";
                 }
             } else {
