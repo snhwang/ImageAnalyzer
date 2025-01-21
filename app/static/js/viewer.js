@@ -582,21 +582,19 @@ class ImageViewer {
     }
 
     applyWindow(value) {
-        // Validate window values before applying
-        this.validateWindowValues();
+        // Ensure window width is positive
+        if (this.windowWidth <= 0) this.windowWidth = 1;
 
-        // Calculate window range
+        // Calculate window bounds
         const windowMin = this.windowCenter - (this.windowWidth / 2);
         const windowMax = this.windowCenter + (this.windowWidth / 2);
 
-        // Handle edge cases
+        // Apply window/level transformation
         if (value <= windowMin) return 0;
         if (value >= windowMax) return 255;
 
-        // Safe scaling with validation
-        const scale = Math.max(0.001, windowMax - windowMin);
-        const normalized = (value - windowMin) / scale;
-        return Math.round(Math.max(0, Math.min(255, normalized * 255)));
+        // Linear transformation within window
+        return Math.round(((value - windowMin) / this.windowWidth) * 255);
     }
 
     async uploadFile(file) {
