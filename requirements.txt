@@ -28,3 +28,13 @@ flask
 requests
 werkzeug
 flask-cors
+aiofiles
+fastapi
+jinja2
+numpy
+opencv-python
+pillow
+python-multipart
+starlette
+streamlit
+uvicorn
