@@ -266,6 +266,7 @@ class ImageViewer {
 
             const result = await response.json();
             if (result.success) {
+                console.log("Upload successful, received data:", result);
                 this.container.classList.add("has-image");
                 this.currentFilename = file.name;
 
@@ -277,12 +278,31 @@ class ImageViewer {
                     this.minValue = result.metadata.min_value;
                     this.maxValue = result.metadata.max_value;
 
+                    // Set reasonable initial window/level values
+                    this.windowCenter = (this.maxValue + this.minValue) / 2;
+                    this.windowWidth = (this.maxValue - this.minValue);
+
                     this.updateWindowingInfo();
 
                     if (result.data) {
+                        // Convert base64 data to Float32Array more carefully
                         this.volumeData = result.data.map(slice => {
-                            const buffer = new Uint8Array(atob(slice).split('').map(c => c.charCodeAt(0)));
-                            return new Float32Array(buffer.buffer);
+                            // Decode base64 to binary string
+                            const binaryString = atob(slice);
+                            // Create a buffer to hold the binary data
+                            const buffer = new ArrayBuffer(binaryString.length);
+                            // Create a view into the buffer
+                            const byteArray = new Uint8Array(buffer);
+
+                            // Copy binary data to buffer
+                            for (let i = 0; i < binaryString.length; i++) {
+                                byteArray[i] = binaryString.charCodeAt(i);
+                            }
+
+                            // Create Float32Array from the buffer
+                            const floatArray = new Float32Array(buffer);
+                            console.log("Converted data sample:", floatArray.slice(0, 10));
+                            return floatArray;
                         });
 
                         this.updateTexture();
@@ -312,18 +332,6 @@ class ImageViewer {
         const height = this.dimensions[1];
         const data = this.volumeData[this.currentSlice];
 
-        // Initialize window/level based on data range if not already set
-        if (this.windowCenter === 128 && this.windowWidth === 255) {
-            this.windowCenter = (this.maxValue + this.minValue) / 2;
-            this.windowWidth = this.maxValue - this.minValue;
-            console.log("Setting initial window/level:", {
-                center: this.windowCenter,
-                width: this.windowWidth,
-                min: this.minValue,
-                max: this.maxValue
-            });
-        }
-
         if (this.texture) {
             this.texture.dispose();
         }
@@ -349,14 +357,18 @@ class ImageViewer {
             console.log("Updating material with texture");
             material.setTexture("textureSampler", this.texture);
             this.updateShaderParameters();
-        } else {
-            console.error("Material not found");
         }
     }
 
     updateShaderParameters() {
         const material = this.scene.getMaterialByName("shader");
         if (material) {
+            console.log("Setting shader parameters:", {
+                windowCenter: this.windowCenter,
+                windowWidth: this.windowWidth,
+                minValue: this.minValue,
+                maxValue: this.maxValue
+            });
             material.setFloat("windowCenter", this.windowCenter);
             material.setFloat("windowWidth", this.windowWidth);
             material.setFloat("minValue", this.minValue);
