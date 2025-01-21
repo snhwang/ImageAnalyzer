@@ -1,0 +1,17 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "A professional web-based medical image viewer built with Python (FastAPI) and JavaScript. The application provides a modern interface for viewing and manipulating medical images, with support for DICOM, NIfTI, and common image formats.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babylonjs/core": "^7.44.0",
+    "@babylonjs/gui": "^7.44.0",
+    "@babylonjs/loaders": "^7.44.0"
+  }
+}
