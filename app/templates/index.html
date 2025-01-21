@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/ https://cdnjs.cloudflare.com/ajax/libs/font-awesome/; font-src 'self' https://cdnjs.cloudflare.com/ajax/libs/font-awesome/; img-src 'self' data:;">
+        <title>Medical Image Viewer - Penn State Health</title>
+        <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico" />
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+            integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        />
+        <style>
+            :root {
+                --psu-blue: #1e407c;
+                --psu-light-blue: #96bee6;
+                --psu-gray: #96989b;
+                --psu-light-gray: #e3e4e5;
+            }
+
+            body {
+                font-family: Arial, sans-serif;
+                background-color: var(--psu-light-gray);
+                margin: 0;
+                padding: 0;
+            }
+
+            .navbar {
+                background-color: var(--psu-blue);
+                color: white;
+            }
+
+            .viewer-container {
+                padding: 20px;
+                background-color: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                margin: 20px;
+                height: calc(100vh - 100px);
+                display: flex;
+                flex-direction: column;
+            }
+
+            .image-grid {
+                display: grid;
+                gap: 10px;
+                margin-top: 20px;
+                flex: 1;
+                min-height: 0;
+            }
+
+            .image-window {
+                background-color: black;
+                border: 2px solid var(--psu-blue);
+                border-radius: 4px;
+                overflow: visible;
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+            }
+
+            .toolbar {
+                position: relative;
+                height: 40px;
+                background-color: var(--psu-blue);
+                display: flex;
+                align-items: center;
+                padding: 0 10px;
+                z-index: 1000;
+                flex-shrink: 0;
+            }
+
+            .toolbar > * {
+                margin-right: 10px;
+            }
+
+            .toolbar > *:last-child {
+                margin-right: 0;
+            }
+
+            .tool-button {
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                cursor: pointer;
+                margin-right: 10px;
+                border-radius: 4px;
+                transition: all 0.2s ease;
+                position: relative;
+                background-color: transparent;
+            }
+
+            .tool-button:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                transform: scale(1.05);
+            }
+
+            .tool-button.active {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+
+            .tool-button i {
+                font-size: 16px;
+                color: white;
+                opacity: 0.7;
+            }
+
+            .tool-button.active i {
+                opacity: 1;
+            }
+
+            .tool-button:hover i {
+                opacity: 1;
+            }
+
+            .tool-button.optimize-window-btn {
+                overflow: visible;
+            }
+
+            .tool-button.optimize-window-btn i.fa-adjust {
+                font-size: 14px;
+            }
+
+            .tool-button.optimize-window-btn::after {
+                content: "";
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 24px;
+                height: 24px;
+                transform: translate(-50%, -50%);
+                border: 2px solid rgba(255, 255, 255, 0.7);
+                border-radius: 40% 60% 60% 40% / 50% 40% 60% 50%;
+                pointer-events: none;
+            }
+
+            .tool-button.optimize-window-btn.active::after {
+                border-color: rgba(255, 255, 255, 1);
+            }
+
+            .image-container {
+                position: relative;
+                flex: 1;
+                background-color: black;
+                min-height: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                overflow: visible;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .image-container select.image-label {
+                display: none;
+            }
+
+            .toolbar select {
+                margin: 0 5px;
+                padding: 4px 8px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 4px;
+                background-color: transparent;
+                color: white;
+                font-size: 14px;
+                width: 150px;
+                cursor: pointer;
+            }
+
+            .toolbar select:hover {
+                border-color: rgba(255, 255, 255, 0.5);
+            }
+
+            .toolbar select:focus {
+                outline: none;
+                border-color: rgba(255, 255, 255, 0.7);
+            }
+
+            .toolbar select option {
+                background-color: #1e407c;
+                color: white;
+                padding: 8px;
+            }
+
+            .image-info {
+                position: relative;
+                height: 24px;
+                background-color: var(--psu-blue);
+                color: white;
+                padding: 5px 10px;
+                font-size: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                font-weight: 500;
+                letter-spacing: 0.5px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .image-window.has-image img {
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+            }
+
+            .image-window img {
+                max-width: 100%;
+                max-height: 100%;
+                width: auto;
+                height: auto;
+                object-fit: contain;
+                display: none;
+            }
+
+            .upload-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 3;
+                transition: opacity 0.3s ease;
+            }
+
+            .image-window.has-image .upload-overlay {
+                opacity: 0;
+                pointer-events: none;
+                z-index: 1;
+            }
+
+            .image-window.has-image .upload-icon {
+                opacity: 0.7;
+                pointer-events: auto;
+            }
+
+            .image-window.has-image .upload-icon:hover {
+                opacity: 1;
+            }
+
+            .image-window.drag-over .upload-overlay {
+                background-color: rgba(30, 64, 124, 0.9);
+                opacity: 1 !important;
+            }
+
+            .upload-text {
+                color: white;
+                text-align: center;
+                padding: 20px;
+                font-size: 1.2em;
+            }
+
+            .upload-text small {
+                display: block;
+                margin-top: 10px;
+                font-size: 0.8em;
+                opacity: 0.8;
+            }
+
+            .controls {
+                background-color: var(--psu-light-blue);
+                padding: 15px;
+                border-radius: 4px;
+                margin-bottom: 20px;
+            }
+
+            .btn-primary {
+                background-color: var(--psu-blue);
+                border-color: var(--psu-blue);
+            }
+
+            .btn-primary:hover {
+                background-color: #15305d;
+                border-color: #15305d;
+            }
+
+            .grid-controls {
+                margin-bottom: 15px;
+            }
+
+            .image-window.has-image .image-info {
+                display: block;
+            }
+
+            .tool-button.active {
+                background-color: rgba(255, 255, 255, 0.3);
+            }
+
+            .roi-canvas {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 3;
+                pointer-events: none;
+                width: 100%;
+                height: 100%;
+            }
+
+            .roi-canvas.active {
+                pointer-events: auto;
+                cursor: crosshair !important;
+            }
+
+            .canvas-container {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                pointer-events: auto;
+            }
+
+            .canvas-container canvas {
+                max-width: 100%;
+                max-height: 100%;
+                width: auto;
+                height: auto;
+                object-fit: contain;
+            }
+
+            .url-import-modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .url-import-modal.show {
+                display: flex;
+            }
+
+            .url-import-content {
+                background-color: white;
+                padding: 20px;
+                border-radius: 8px;
+                width: 90%;
+                max-width: 600px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            }
+
+            .url-import-content h3 {
+                margin-top: 0;
+                color: var(--psu-blue);
+            }
+
+            .url-import-content input {
+                width: 100%;
+                padding: 8px;
+                margin: 10px 0;
+                border: 1px solid var(--psu-gray);
+                border-radius: 4px;
+            }
+
+            .url-import-content .buttons {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                margin-top: 15px;
+            }
+
+            .url-import-content button {
+                padding: 8px 15px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+
+            .url-import-content .cancel-btn {
+                background-color: var(--psu-gray);
+                color: white;
+            }
+
+            .url-import-content .import-btn {
+                background-color: var(--psu-blue);
+                color: white;
+            }
+
+            .directory-browser {
+                margin: 15px 0;
+                border: 1px solid var(--psu-gray);
+                border-radius: 4px;
+                max-height: 400px;
+                overflow-y: auto;
+            }
+
+            .current-path {
+                padding: 10px;
+                background-color: var(--psu-light-gray);
+                border-bottom: 1px solid var(--psu-gray);
+                word-break: break-all;
+            }
+
+            .current-path span:first-child {
+                font-weight: bold;
+                margin-right: 5px;
+            }
+
+            .directory-list {
+                padding: 10px;
+            }
+
+            .directory-item {
+                display: flex;
+                align-items: center;
+                padding: 8px;
+                cursor: pointer;
+                border-radius: 4px;
+                transition: background-color 0.2s;
+            }
+
+            .directory-item:hover {
+                background-color: var(--psu-light-gray);
+            }
+
+            .directory-item i {
+                margin-right: 10px;
+                color: var(--psu-blue);
+            }
+
+            .directory-item.folder i {
+                color: var(--psu-blue);
+            }
+
+            .directory-item.image i {
+                color: #28a745;
+            }
+
+            .directory-list .loading {
+                padding: 20px;
+                text-align: center;
+                color: var(--psu-blue);
+            }
+
+            .directory-list .error {
+                padding: 20px;
+                text-align: center;
+                color: #dc3545;
+            }
+
+            /* Ensure the dropdown stays above and interactive */
+            .image-container select.image-label {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                z-index: 1002;
+                pointer-events: auto !important;
+            }
+
+            .menu-container {
+                margin-left: auto !important;
+            }
+            
+            .menu-dropdown {
+                display: none;
+                position: absolute;
+                top: 100%;
+                right: 0;
+                background-color: #2d2d2d;
+                border: 1px solid #444;
+                border-radius: 4px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                z-index: 1000;
+                min-width: 200px;
+            }
+            
+            .menu-container.show .menu-dropdown {
+                display: block;
+            }
+            
+            .menu-item {
+                padding: 8px 16px;
+                color: white;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            
+            .menu-item:hover {
+                background-color: #444;
+            }
+            
+            .menu-item i {
+                width: 16px;
+                text-align: center;
+            }
+
+            .toolbar select.image-label {
+                margin-right: 10px;
+                padding: 4px 8px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 4px;
+                background-color: transparent;
+                color: white;
+                font-size: 14px;
+                width: 150px;
+                cursor: pointer;
+            }
+
+            .toolbar-right {
+                display: none !important;
+            }
+        </style>
+    </head>
+    <body>
+        <nav class="navbar navbar-dark">
+            <div class="container-fluid">
+                <span class="navbar-brand mb-0 h1"
+                    >Penn State Health - Medical Image Viewer</span
+                >
+            </div>
+        </nav>
+
+        <div class="container-fluid">
+            <div class="viewer-container">
+                <div class="controls">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="grid-controls">
+                                <label class="form-label">Grid Layout:</label>
+                                <select class="form-select" id="gridLayout">
+                                    <option value="1x1">1 x 1</option>
+                                    <option value="1x2">1 x 2</option>
+                                    <option value="2x1">2 x 1</option>
+                                    <option value="2x2">2 x 2</option>
+                                    <option value="2x3">2 x 3</option>
+                                    <option value="3x2">3 x 2</option>
+                                    <option value="2x4">2 x 4</option>
+                                    <option value="4x2">4 x 2</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    id="imageGrid"
+                    class="image-grid"
+                    style="grid-template-columns: repeat(1, 1fr)"
+                >
+                    <div class="image-window">
+                        <div class="toolbar">
+                            <button class="tool-button upload-btn" title="Upload Image">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                            <button class="tool-button browse-btn" title="Browse Remote Images">
+                                <i class="fas fa-folder-open"></i>
+                            </button>
+                            <button class="tool-button rotate-left-btn" title="Rotate Left">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button class="tool-button rotate-right-btn" title="Rotate Right">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            <button class="tool-button optimize-window-btn" title="Adjust Window with ROI">
+                                <i class="fas fa-adjust"></i>
+                            </button>
+                            <button class="tool-button window-level-btn active" title="Window/Level">
+                                <i class="fas fa-adjust"></i>
+                            </button>
+                            <select class="image-label">
+                                <option value="">Select image type...</option>
+                                <option value="T1">T1</option>
+                                <option value="T2">T2</option>
+                                <option value="FLAIR">FLAIR</option>
+                                <option value="PostT1">PostT1</option>
+                                <option value="MPRAGE">MPRAGE</option>
+                                <option value="PostMPRAGE">PostMPRAGE</option>
+                            </select>
+                            <div class="menu-container">
+                                <button class="tool-button menu-btn" title="Menu">
+                                    <i class="fas fa-bars"></i>
+                                </button>
+                                <div class="menu-dropdown">
+                                    <div class="menu-item" data-action="upload">
+                                        <i class="fas fa-upload"></i> Upload Image
+                                    </div>
+                                    <div class="menu-item" data-action="browse">
+                                        <i class="fas fa-folder-open"></i> Browse Remote Images
+                                    </div>
+                                    <div class="menu-item" data-action="rotate-left">
+                                        <i class="fas fa-undo"></i> Rotate Left
+                                    </div>
+                                    <div class="menu-item" data-action="rotate-right">
+                                        <i class="fas fa-redo"></i> Rotate Right
+                                    </div>
+                                    <div class="menu-item" data-action="optimize-window">
+                                        <i class="fas fa-adjust"></i> Adjust Window with ROI
+                                    </div>
+                                    <div class="menu-item" data-action="window-level">
+                                        <i class="fas fa-adjust"></i> Window/Level
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="image-container">
+                            <div class="canvas-container">
+                                <div class="upload-overlay">
+                                    <div class="upload-text">
+                                        Drag images here<br />
+                                        <small
+                                            >Supports DICOM, NIfTI (.nii,
+                                            .nii.gz), and common image
+                                            formats</small
+                                        >
+                                    </div>
+                                </div>
+                                <img src="" alt="" style="display: none" />
+                            </div>
+                        </div>
+                        <div class="image-info">
+                            Window: C: 0 W: 0 | Slice: 0/0
+                        </div>
+                        <input
+                            type="file"
+                            class="hidden-file-input"
+                            accept=".nii,.nii.gz,.dcm,.jpg,.png,.bmp"
+                            style="display: none"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- URL Import Modal -->
+        <div class="url-import-modal" id="urlImportModal">
+            <div class="url-import-content">
+                <h3>Browse Images</h3>
+                <div class="directory-browser">
+                    <div class="current-path">
+                        <span>Current Folder:</span>
+                        <span id="currentPath">images</span>
+                    </div>
+                    <div class="directory-list" id="directoryList">
+                        <!-- Directory contents will be populated here -->
+                    </div>
+                </div>
+                <div class="buttons">
+                    <button
+                        class="cancel-btn"
+                        onclick="document.getElementById('urlImportModal').classList.remove('show')"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Template for new grid cells -->
+        <template id="imageWindowTemplate">
+            <div class="image-window">
+                <div class="toolbar">
+                    <button class="tool-button upload-btn" title="Upload Image">
+                        <i class="fas fa-upload"></i>
+                    </button>
+                    <button class="tool-button browse-btn" title="Browse Remote Images">
+                        <i class="fas fa-folder-open"></i>
+                    </button>
+                    <button class="tool-button rotate-left-btn" title="Rotate Left">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button class="tool-button rotate-right-btn" title="Rotate Right">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button class="tool-button optimize-window-btn" title="Adjust Window with ROI">
+                        <i class="fas fa-adjust"></i>
+                    </button>
+                    <button class="tool-button window-level-btn active" title="Window/Level">
+                        <i class="fas fa-adjust"></i>
+                    </button>
+                    <select class="image-label">
+                        <option value="">Select image type...</option>
+                        <option value="T1">T1</option>
+                        <option value="T2">T2</option>
+                        <option value="FLAIR">FLAIR</option>
+                        <option value="PostT1">PostT1</option>
+                        <option value="MPRAGE">MPRAGE</option>
+                        <option value="PostMPRAGE">PostMPRAGE</option>
+                    </select>
+                    <div class="menu-container">
+                        <button class="tool-button menu-btn" title="Menu">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <div class="menu-dropdown">
+                            <div class="menu-item" data-action="upload">
+                                <i class="fas fa-upload"></i> Upload Image
+                            </div>
+                            <div class="menu-item" data-action="browse">
+                                <i class="fas fa-folder-open"></i> Browse Remote Images
+                            </div>
+                            <div class="menu-item" data-action="rotate-left">
+                                <i class="fas fa-undo"></i> Rotate Left
+                            </div>
+                            <div class="menu-item" data-action="rotate-right">
+                                <i class="fas fa-redo"></i> Rotate Right
+                            </div>
+                            <div class="menu-item" data-action="optimize-window">
+                                <i class="fas fa-adjust"></i> Adjust Window with ROI
+                            </div>
+                            <div class="menu-item" data-action="window-level">
+                                <i class="fas fa-adjust"></i> Window/Level
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="image-container">
+                    <div class="canvas-container">
+                        <div class="upload-overlay">
+                            <div class="upload-text">
+                                Drag images here<br />
+                                <small
+                                    >Supports DICOM, NIfTI (.nii, .nii.gz), and
+                                    common image formats</small
+                                >
+                            </div>
+                        </div>
+                        <img src="" alt="" style="display: none" />
+                    </div>
+                </div>
+                <div class="image-info">Window: C: 0 W: 0 | Slice: 0/0</div>
+                <input
+                    type="file"
+                    class="hidden-file-input"
+                    accept=".nii,.nii.gz,.dcm,.jpg,.png,.bmp"
+                    style="display: none"
+                />
+            </div>
+        </template>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="/static/js/viewer.js"></script>
+    </body>
+</html>
