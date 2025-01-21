@@ -277,17 +277,18 @@ class ImageViewer {
             const deltaX = e.clientX - this.lastMouseX;
             const deltaY = this.lastMouseY - e.clientY;
 
-            // Scale the movements based on the data range
-            const windowDelta = deltaX * (this.dataMax - this.dataMin) / 100;
-            const centerDelta = deltaY * (this.dataMax - this.dataMin) / 100;
+            // Calculate window adjustments based on data range
+            const sensitivity = (this.dataMax - this.dataMin) / 1000;
+            const windowDelta = deltaX * sensitivity;
+            const centerDelta = deltaY * sensitivity;
 
-            // Adjust window width with horizontal movement
-            this.windowWidth = Math.max(
-                (this.dataMax - this.dataMin) / 1000, // Minimum window width
-                this.windowWidth + windowDelta
-            );
+            // Update window width (horizontal movement)
+            // Ensure minimum window width is 1% of data range
+            const minWidth = (this.dataMax - this.dataMin) / 100;
+            this.windowWidth = Math.max(minWidth, this.windowWidth + windowDelta);
 
-            // Adjust window center with vertical movement
+            // Update window center (vertical movement)
+            // Keep center within data range
             this.windowCenter = Math.min(
                 this.dataMax,
                 Math.max(this.dataMin, this.windowCenter + centerDelta)
@@ -461,111 +462,17 @@ class ImageViewer {
         });
     }
 
-    applyWindowLevel() {
-        if (!this.img.complete || !this.img.src) return;
-
-        try {
-            // Calculate canvas size based on rotation
-            const useWidth =
-                this.rotation % 180 === 0 ? this.img.width : this.img.height;
-            const useHeight =
-                this.rotation % 180 === 0 ? this.img.height : this.img.width;
-
-            if (!useWidth || !useHeight) return; // Skip if dimensions are invalid
-
-            // Set canvas dimensions to match image
-            this.canvas.width = useWidth;
-            this.canvas.height = useHeight;
-
-            // Calculate the container dimensions
-            const containerRect = this.imageContainer.getBoundingClientRect();
-            if (!containerRect.width || !containerRect.height) return; // Skip if container is not visible
-
-            const containerAspect = containerRect.width / containerRect.height;
-            const imageAspect = useWidth / useHeight;
-
-            // Calculate dimensions to fit container while maintaining aspect ratio
-            let displayWidth, displayHeight;
-            if (imageAspect > containerAspect) {
-                // Image is wider than container
-                displayWidth = containerRect.width;
-                displayHeight = containerRect.width / imageAspect;
-            } else {
-                // Image is taller than container
-                displayHeight = containerRect.height;
-                displayWidth = containerRect.height * imageAspect;
-            }
-
-            // Center the canvas in the container
-            const leftOffset = (containerRect.width - displayWidth) / 2;
-            this.canvas.style.position = "absolute";
-            this.canvas.style.left = `${leftOffset}px`;
-            this.canvas.style.width = `${displayWidth}px`;
-            this.canvas.style.height = `${displayHeight}px`;
-
-            // Clear canvas and save context
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.save();
-
-            // Move to center and rotate
-            this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
-            this.ctx.rotate((this.rotation * Math.PI) / 180);
-
-            // Draw image centered
-            this.ctx.drawImage(
-                this.img,
-                -this.img.width / 2,
-                -this.img.height / 2,
-            );
-
-            // Restore context
-            this.ctx.restore();
-
-            // Get image data
-            const imageData = this.ctx.getImageData(
-                0,
-                0,
-                this.canvas.width,
-                this.canvas.height,
-            );
-            const data = imageData.data;
-
-            // Apply window/level to each pixel
-            for (let i = 0; i < data.length; i += 4) {
-                const value = data[i]; // Assuming grayscale, so just use red channel
-                const normalized = this.applyWindow(value);
-                data[i] = normalized; // R
-                data[i + 1] = normalized; // G
-                data[i + 2] = normalized; // B
-                // Keep alpha channel (i + 3) unchanged
-            }
-
-            // Put the modified image data back
-            this.ctx.putImageData(imageData, 0, 0);
-            this.canvas.style.display = "block";
-
-            // Update ROI canvas dimensions and position to match main canvas
-            this.roiCanvas.width = this.canvas.width;
-            this.roiCanvas.height = this.canvas.height;
-            this.roiCanvas.style.position = "absolute";
-            this.roiCanvas.style.left = this.canvas.style.left;
-            this.roiCanvas.style.width = this.canvas.style.width;
-            this.roiCanvas.style.height = this.canvas.style.height;
-        } catch (error) {
-            console.error("Error applying window level:", error);
-        }
-    }
-
     applyWindow(value) {
         const windowMin = this.windowCenter - this.windowWidth / 2;
         const windowMax = this.windowCenter + this.windowWidth / 2;
 
-        // First normalize to 0-1
-        let normalized = (value - windowMin) / (windowMax - windowMin);
-        // Then scale to display range (0-255)
-        normalized = Math.min(255, Math.max(0, normalized * 255));
+        // If value is outside the window, clamp to window edges
+        if (value <= windowMin) return 0;
+        if (value >= windowMax) return 255;
 
-        return normalized;
+        // Normalize within window range to 0-1, then scale to 0-255
+        const normalized = (value - windowMin) / (this.windowWidth);
+        return Math.round(normalized * 255);
     }
 
     async uploadFile(file) {
@@ -930,7 +837,7 @@ class ImageViewer {
         files.forEach(file => {
             html += `
                 <div class="file-item" data-path="${file.url}">
-                    <spanclass="file-icon">📄</span>
+                    <span class="file-icon">📄</span>
                     <span class="file-name">${file.name}</span>
                 </div>
             `;
