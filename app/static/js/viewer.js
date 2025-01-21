@@ -21,7 +21,7 @@ class ImageViewer {
         this.volumeData = null;
         this.minValue = 0;
         this.maxValue = 255;
-        this.normalizedData = null; //Added to store normalized data
+        this.normalizedData = null; 
 
         // Initialize Babylon.js components
         this.engine = null;
@@ -63,21 +63,14 @@ class ImageViewer {
         this.scene = new BABYLON.Scene(this.engine);
 
         // Create orthographic camera for 2D viewing
-        this.camera = new BABYLON.ArcRotateCamera("camera", 0, 0, 3, BABYLON.Vector3.Zero(), this.scene);
+        this.camera = new BABYLON.ArcRotateCamera("camera", 0, Math.PI/2, 5, BABYLON.Vector3.Zero(), this.scene);
         this.camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
-        this.camera.minZ = -1;
-        this.camera.maxZ = 1000;
-
-        // Set orthographic scale to control view size
-        const aspectRatio = this.canvas.width / this.canvas.height;
-        this.camera.orthoTop = 2;
-        this.camera.orthoBottom = -2;
-        this.camera.orthoLeft = -2 * aspectRatio;
-        this.camera.orthoRight = 2 * aspectRatio;
+        this.camera.minZ = 0.1;
+        this.camera.maxZ = 100;
 
         // Lock camera movement
-        this.camera.lowerBetaLimit = 0;
-        this.camera.upperBetaLimit = 0;
+        this.camera.lowerBetaLimit = Math.PI/2;
+        this.camera.upperBetaLimit = Math.PI/2;
         this.camera.lowerAlphaLimit = 0;
         this.camera.upperAlphaLimit = 0;
         this.camera.allowUpsideDown = false;
@@ -87,7 +80,7 @@ class ImageViewer {
 
         // Create a plane to display the image
         const plane = BABYLON.MeshBuilder.CreatePlane("plane", {width: 4, height: 4}, this.scene);
-        plane.rotation.y = Math.PI; // Rotate plane to face camera
+        plane.rotation.x = Math.PI; 
         plane.position = new BABYLON.Vector3(0, 0, 0);
 
         // Create custom shader material for window/level adjustment
@@ -122,20 +115,11 @@ class ImageViewer {
             uniform float maxValue;
 
             void main() {
-                // Get the normalized value from texture
-                float normalizedValue = texture2D(textureSampler, vUV).r;
-
-                // Convert normalized value back to original range
-                float value = normalizedValue * (maxValue - minValue) + minValue;
-
-                // Apply window/level
+                float value = texture2D(textureSampler, vUV).r;
                 float windowMin = windowCenter - (windowWidth / 2.0);
                 float windowMax = windowCenter + (windowWidth / 2.0);
-
-                // Calculate display value and clamp to [0,1]
                 float displayValue = (value - windowMin) / windowWidth;
                 displayValue = clamp(displayValue, 0.0, 1.0);
-
                 gl_FragColor = vec4(displayValue, displayValue, displayValue, 1.0);
             }
         `;
@@ -265,11 +249,9 @@ class ImageViewer {
 
             const result = await response.json();
             if (result.success) {
-                console.log("Upload successful, received data:", result);
                 this.container.classList.add("has-image");
                 this.currentFilename = file.name;
 
-                // Update metadata
                 if (result.metadata) {
                     this.totalSlices = result.metadata.total_slices;
                     this.currentSlice = 0;
@@ -278,38 +260,13 @@ class ImageViewer {
                     this.minValue = result.metadata.min_value;
                     this.maxValue = result.metadata.max_value;
 
-                    console.log("Image metadata:", {
-                        dimensions: this.dimensions,
-                        minValue: this.minValue,
-                        maxValue: this.maxValue
-                    });
-
                     this.updateWindowingInfo();
 
-                    // Create normalized texture from the received data
                     if (result.data) {
                         this.volumeData = result.data.map(slice => {
                             const buffer = new Uint8Array(atob(slice).split('').map(c => c.charCodeAt(0)));
-                            const floatData = new Float32Array(buffer.buffer);
-
-                            // Log first few values for debugging
-                            console.log("First few pixel values:", floatData.slice(0, 5));
-
-                            return floatData;
+                            return new Float32Array(buffer.buffer);
                         });
-
-                        // Normalize the data before creating texture
-                        const normalizedData = new Float32Array(this.volumeData[0].length);
-                        for (let i = 0; i < this.volumeData[0].length; i++) {
-                            normalizedData[i] = (this.volumeData[0][i] - this.minValue) / (this.maxValue - this.minValue);
-                        }
-
-                        console.log("First few normalized values:", normalizedData.slice(0, 5));
-
-                        // Store original data
-                        this.volumeData = [this.volumeData[0]];
-                        // Store normalized data for texture
-                        this.normalizedData = [normalizedData];
 
                         this.updateTexture();
                     }
@@ -324,21 +281,17 @@ class ImageViewer {
     }
 
     updateTexture() {
-        if (!this.normalizedData || !this.normalizedData[this.currentSlice]) {
-            console.error("No normalized data available");
-            return;
-        }
+        if (!this.volumeData || !this.volumeData[this.currentSlice]) return;
 
-        console.log("Updating texture with dimensions:", this.dimensions);
         const width = this.dimensions[0];
         const height = this.dimensions[1];
-        const data = this.normalizedData[this.currentSlice];
+        const data = this.volumeData[this.currentSlice];
 
         if (this.texture) {
             this.texture.dispose();
         }
 
-        // Create raw texture with normalized float data
+        // Create raw texture with float data
         this.texture = new BABYLON.RawTexture(
             data,
             width,
