@@ -7,19 +7,27 @@ class ImageViewer {
         this.is3DMode = true;
         this.currentSlice = 0;
         this.totalSlices = 1;
+        this.windowCenter = 0;
+        this.windowWidth = 0;
+        this.isDragging = false;
+        this.dragStart = { x: 0, y: 0 };
+        this.rotation = 0;
 
-        // Initialize canvas with high precision
+        // Initialize canvas
         this.canvas = document.createElement("canvas");
         this.canvas.style.width = "100%";
         this.canvas.style.height = "100%";
         this.canvas.style.outline = "none";
         this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas);
 
-        // Initialize file input and buttons
+        // Initialize buttons
         this.fileInput = container.querySelector(".hidden-file-input");
         this.uploadBtn = container.querySelector(".upload-btn");
         this.viewModeBtn = container.querySelector(".view-mode-btn");
         this.windowLevelBtn = container.querySelector(".window-level-btn");
+        this.optimizeWindowBtn = container.querySelector(".optimize-window-btn");
+        this.rotateLeftBtn = container.querySelector(".rotate-left-btn");
+        this.rotateRightBtn = container.querySelector(".rotate-right-btn");
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
 
@@ -51,6 +59,20 @@ class ImageViewer {
             this.toggleWindowLevelMode();
         });
 
+        // Optimize window with ROI
+        this.optimizeWindowBtn?.addEventListener("click", () => {
+            this.toggleOptimizeWindow();
+        });
+
+        // Rotation buttons
+        this.rotateLeftBtn?.addEventListener("click", () => {
+            this.rotate(-90);
+        });
+
+        this.rotateRightBtn?.addEventListener("click", () => {
+            this.rotate(90);
+        });
+
         // Menu button handling
         this.menuBtn?.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -80,84 +102,60 @@ class ImageViewer {
                     case 'window-level':
                         this.toggleWindowLevelMode();
                         break;
+                    case 'optimize-window':
+                        this.toggleOptimizeWindow();
+                        break;
+                    case 'rotate-left':
+                        this.rotate(-90);
+                        break;
+                    case 'rotate-right':
+                        this.rotate(90);
+                        break;
                 }
-                // Close menu after action
                 item.closest('.menu-container').classList.remove('show');
             });
         });
 
-        // Handle mouse wheel for slice navigation in 2D mode
+        // Window/Level drag handling
+        this.canvas.addEventListener("mousedown", (e) => {
+            if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
+                this.isDragging = true;
+                this.dragStart = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        this.canvas.addEventListener("mousemove", (e) => {
+            if (this.isDragging) {
+                const dx = e.clientX - this.dragStart.x;
+                const dy = e.clientY - this.dragStart.y;
+
+                // Adjust window width and center based on drag
+                this.windowWidth = Math.max(0, this.windowWidth + dx);
+                this.windowCenter += dy;
+
+                this.dragStart = { x: e.clientX, y: e.clientY };
+                this.updateSlice();
+                this.updateInfoDisplay();
+            }
+        });
+
+        this.canvas.addEventListener("mouseup", () => {
+            this.isDragging = false;
+        });
+
+        this.canvas.addEventListener("mouseleave", () => {
+            this.isDragging = false;
+        });
+
+        // Mouse wheel for slice navigation in 2D mode
         this.canvas.addEventListener("wheel", (e) => {
             if (!this.is3DMode && this.totalSlices > 1) {
                 e.preventDefault();
                 const delta = Math.sign(e.deltaY);
                 this.currentSlice = Math.max(0, Math.min(this.totalSlices - 1, this.currentSlice + delta));
                 this.updateSlice();
+                this.updateInfoDisplay();
             }
-        });
-    }
-
-    initializeBabylonScene() {
-        // Initialize engine with high precision options
-        const engineOptions = {
-            preserveDrawingBuffer: true,
-            stencil: true,
-            antialias: true,
-            depth: true,
-            powerPreference: "high-performance"
-        };
-        this.engine = new BABYLON.Engine(this.canvas, true, engineOptions, true);
-
-        // Create scene with high precision
-        this.scene = new BABYLON.Scene(this.engine);
-        this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
-        this.scene.useRightHandedSystem = true;
-
-        // Create camera
-        this.camera = new BABYLON.ArcRotateCamera(
-            "camera",
-            0,
-            Math.PI / 3,
-            10,
-            BABYLON.Vector3.Zero(),
-            this.scene
-        );
-        this.camera.setTarget(BABYLON.Vector3.Zero());
-        this.camera.attachControl(this.canvas, true);
-
-        // Create initial gray material
-        const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
-        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-        material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-        material.useFloatValues = true;  // Enable high precision values
-
-        // Create a cube
-        this.cube = BABYLON.MeshBuilder.CreateBox("cube", {size: 2}, this.scene);
-        this.cube.material = material;
-
-        // Add lights for proper visibility
-        const hemisphericLight = new BABYLON.HemisphericLight(
-            "light",
-            new BABYLON.Vector3(0, 1, 0),
-            this.scene
-        );
-        hemisphericLight.intensity = 0.7;
-
-        const pointLight = new BABYLON.PointLight(
-            "pointLight",
-            new BABYLON.Vector3(0, 4, 0),
-            this.scene
-        );
-        pointLight.intensity = 0.5;
-
-        // Start rendering loop
-        this.engine.runRenderLoop(() => {
-            this.scene.render();
-        });
-
-        // Handle window resize
-        window.addEventListener("resize", () => {
-            this.engine.resize();
         });
     }
 
@@ -165,18 +163,15 @@ class ImageViewer {
         this.is3DMode = !this.is3DMode;
         this.viewModeBtn.classList.toggle("active");
         this.windowLevelBtn.classList.remove("active");
+        this.optimizeWindowBtn.classList.remove("active");
 
         if (this.is3DMode) {
-            // Enable camera controls for 3D mode
             this.camera.attachControl(this.canvas, true);
-            // Reset camera position
             this.camera.alpha = 0;
             this.camera.beta = Math.PI / 3;
             this.camera.radius = 10;
         } else {
-            // Disable camera controls for 2D mode
             this.camera.detachControl();
-            // Set camera to front view
             this.camera.alpha = 0;
             this.camera.beta = 0;
             this.camera.radius = 5;
@@ -184,20 +179,41 @@ class ImageViewer {
     }
 
     toggleWindowLevelMode() {
-        this.windowLevelBtn.classList.toggle("active");
-        // Additional window/level mode logic will be implemented here
+        if (!this.is3DMode) {
+            this.windowLevelBtn.classList.toggle("active");
+            this.optimizeWindowBtn.classList.remove("active");
+        }
+    }
+
+    toggleOptimizeWindow() {
+        if (!this.is3DMode) {
+            this.optimizeWindowBtn.classList.toggle("active");
+            this.windowLevelBtn.classList.remove("active");
+        }
+    }
+
+    rotate(degrees) {
+        if (!this.is3DMode) {
+            this.rotation = (this.rotation + degrees) % 360;
+            this.updateSlice();
+        }
+    }
+
+    updateInfoDisplay() {
+        const infoElement = this.container.querySelector(".image-info");
+        if (infoElement) {
+            infoElement.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices}`;
+        }
     }
 
     updateSlice() {
         if (!this.imageData || !this.imageData.length) return;
 
-        // Update the texture with the current slice data
         const currentSliceData = this.imageData[this.currentSlice];
         const binaryString = atob(currentSliceData);
         const len = binaryString.length;
         const pixels = new Float32Array(len / 4);
 
-        // Convert binary string to Float32Array
         for (let i = 0; i < len; i += 4) {
             const value =
                 binaryString.charCodeAt(i) |
@@ -207,31 +223,28 @@ class ImageViewer {
             pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
         }
 
-        // Normalize values to [0,1] range
+        // Apply window/level
         const minVal = this.minVal;
         const maxVal = this.maxVal;
-        const range = maxVal - minVal;
+        const center = this.windowCenter || (maxVal + minVal) / 2;
+        const width = this.windowWidth || (maxVal - minVal);
+        const low = center - width / 2;
+        const high = center + width / 2;
 
         const width = this.width;
         const height = this.height;
         const rgbData = new Float32Array(width * height * 3);
 
-        // Convert grayscale to RGB, maintaining high precision
         for (let i = 0; i < pixels.length; i++) {
-            const normalizedValue = (pixels[i] - minVal) / range;
+            let normalizedValue = (pixels[i] - low) / (high - low);
+            normalizedValue = Math.max(0, Math.min(1, normalizedValue));
             rgbData[i * 3] = normalizedValue;
             rgbData[i * 3 + 1] = normalizedValue;
             rgbData[i * 3 + 2] = normalizedValue;
         }
 
-
         this.texture.update(rgbData);
-
-        // Update info display
-        const infoElement = this.container.querySelector(".image-info");
-        if (infoElement) {
-            infoElement.textContent = `Slice: ${this.currentSlice + 1}/${this.totalSlices}`;
-        }
+        this.updateInfoDisplay();
     }
 
     async uploadFile(file) {
@@ -332,6 +345,70 @@ class ImageViewer {
         } catch (error) {
             console.error("Error uploading file:", error);
         }
+    }
+
+    initializeBabylonScene() {
+        // Initialize engine with high precision options
+        const engineOptions = {
+            preserveDrawingBuffer: true,
+            stencil: true,
+            antialias: true,
+            depth: true,
+            powerPreference: "high-performance"
+        };
+        this.engine = new BABYLON.Engine(this.canvas, true, engineOptions, true);
+
+        // Create scene with high precision
+        this.scene = new BABYLON.Scene(this.engine);
+        this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+        this.scene.useRightHandedSystem = true;
+
+        // Create camera
+        this.camera = new BABYLON.ArcRotateCamera(
+            "camera",
+            0,
+            Math.PI / 3,
+            10,
+            BABYLON.Vector3.Zero(),
+            this.scene
+        );
+        this.camera.setTarget(BABYLON.Vector3.Zero());
+        this.camera.attachControl(this.canvas, true);
+
+        // Create initial gray material
+        const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
+        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+        material.useFloatValues = true;  // Enable high precision values
+
+        // Create a cube
+        this.cube = BABYLON.MeshBuilder.CreateBox("cube", {size: 2}, this.scene);
+        this.cube.material = material;
+
+        // Add lights for proper visibility
+        const hemisphericLight = new BABYLON.HemisphericLight(
+            "light",
+            new BABYLON.Vector3(0, 1, 0),
+            this.scene
+        );
+        hemisphericLight.intensity = 0.7;
+
+        const pointLight = new BABYLON.PointLight(
+            "pointLight",
+            new BABYLON.Vector3(0, 4, 0),
+            this.scene
+        );
+        pointLight.intensity = 0.5;
+
+        // Start rendering loop
+        this.engine.runRenderLoop(() => {
+            this.scene.render();
+        });
+
+        // Handle window resize
+        window.addEventListener("resize", () => {
+            this.engine.resize();
+        });
     }
 }
 
