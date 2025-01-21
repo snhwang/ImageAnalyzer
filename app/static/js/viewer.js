@@ -68,6 +68,13 @@ class ImageViewer {
         this.camera.minZ = 0.1;
         this.camera.maxZ = 100;
 
+        // Set orthographic scale
+        const aspectRatio = this.canvas.width / this.canvas.height;
+        this.camera.orthoTop = 2;
+        this.camera.orthoBottom = -2;
+        this.camera.orthoLeft = -2 * aspectRatio;
+        this.camera.orthoRight = 2 * aspectRatio;
+
         // Lock camera movement
         this.camera.lowerBetaLimit = 0;
         this.camera.upperBetaLimit = 0;
@@ -80,7 +87,6 @@ class ImageViewer {
 
         // Create a plane to display the image
         const plane = BABYLON.MeshBuilder.CreatePlane("plane", {width: 4, height: 4}, this.scene);
-        plane.rotation.z = Math.PI; // Rotate plane to face camera correctly
         plane.position = new BABYLON.Vector3(0, 0, 0);
 
         // Create custom shader material for window/level adjustment
@@ -116,11 +122,7 @@ class ImageViewer {
 
             void main() {
                 float value = texture2D(textureSampler, vUV).r;
-                float windowMin = windowCenter - (windowWidth / 2.0);
-                float windowMax = windowCenter + (windowWidth / 2.0);
-                float displayValue = (value - windowMin) / windowWidth;
-                displayValue = clamp(displayValue, 0.0, 1.0);
-                gl_FragColor = vec4(displayValue, displayValue, displayValue, 1.0);
+                gl_FragColor = vec4(value, value, value, 1.0);
             }
         `;
 
@@ -137,6 +139,11 @@ class ImageViewer {
         // Handle window resize
         window.addEventListener("resize", () => {
             this.engine.resize();
+            const aspectRatio = this.canvas.width / this.canvas.height;
+            this.camera.orthoTop = 2;
+            this.camera.orthoBottom = -2;
+            this.camera.orthoLeft = -2 * aspectRatio;
+            this.camera.orthoRight = 2 * aspectRatio;
         });
     }
 
@@ -281,7 +288,15 @@ class ImageViewer {
     }
 
     updateTexture() {
-        if (!this.volumeData || !this.volumeData[this.currentSlice]) return;
+        if (!this.volumeData || !this.volumeData[this.currentSlice]) {
+            console.error("No volume data available");
+            return;
+        }
+
+        console.log("Updating texture...");
+        console.log("Dimensions:", this.dimensions);
+        console.log("Data size:", this.volumeData[this.currentSlice].length);
+        console.log("First few values:", this.volumeData[this.currentSlice].slice(0, 10));
 
         const width = this.dimensions[0];
         const height = this.dimensions[1];
@@ -304,11 +319,16 @@ class ImageViewer {
             BABYLON.Engine.TEXTURETYPE_FLOAT
         );
 
+        console.log("Texture created successfully");
+
         // Update material
         const material = this.scene.getMaterialByName("shader");
         if (material) {
+            console.log("Updating material with texture");
             material.setTexture("textureSampler", this.texture);
             this.updateShaderParameters();
+        } else {
+            console.error("Material not found");
         }
     }
 
