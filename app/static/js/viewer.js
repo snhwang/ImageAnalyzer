@@ -9,6 +9,8 @@ class ImageViewer {
         this.windowWidth = state ? state.windowWidth : 255;
         this.currentSlice = state ? state.currentSlice : 0;
         this.totalSlices = state ? state.totalSlices : 0;
+        this.imageType = state ? state.imageType : null;
+        this.dimensions = state ? state.dimensions : null;
         this.imageId = state ? state.imageId : null;
         this.lastMouseX = 0;
         this.lastMouseY = 0;
@@ -110,27 +112,6 @@ class ImageViewer {
                 }
             });
         }
-        // Mouse wheel for slice navigation
-        const renderCanvas = this.container.querySelector(".image-container canvas");
-        if(renderCanvas){
-            renderCanvas.addEventListener("wheel", (e) => {
-                if (!this.container.classList.contains("has-image")) return;
-                e.preventDefault();
-                if (this.totalSlices <= 1) return;
-
-                if (e.deltaY < 0) {
-                    this.currentSlice = Math.min(
-                        this.currentSlice + 1,
-                        this.totalSlices - 1,
-                    );
-                } else {
-                    this.currentSlice = Math.max(this.currentSlice - 1, 0);
-                }
-
-                this.updateSliceInfo();
-                this.loadSlice(this.currentSlice);
-            });
-        }
     }
 
     updateDisplayRotation() {
@@ -163,6 +144,15 @@ class ImageViewer {
                     img.src = result.url;
                     img.style.display = "block";
                 }
+
+                // Update metadata
+                if (result.metadata) {
+                    this.totalSlices = result.metadata.total_slices;
+                    this.currentSlice = 0;
+                    this.dimensions = result.metadata.dimensions;
+                    this.imageType = result.metadata.type;
+                    this.updateWindowingInfo();
+                }
             } else {
                 this.showError(result.message || "Upload failed");
             }
@@ -188,8 +178,21 @@ class ImageViewer {
             z-index: 1000;
         `;
         this.container.appendChild(errorDiv);
-
         setTimeout(() => errorDiv.remove(), 3000);
+    }
+
+    updateWindowingInfo() {
+        if (this.imageInfo) {
+            const sliceInfo = this.totalSlices > 1 ? 
+                `Slice: ${this.currentSlice + 1}/${this.totalSlices}` : 
+                "Single Image";
+
+            const dimensionsInfo = this.dimensions ? 
+                ` | ${this.dimensions[0]}x${this.dimensions[1]}` : 
+                "";
+
+            this.imageInfo.textContent = `${this.imageType.toUpperCase()} | ${sliceInfo}${dimensionsInfo}`;
+        }
     }
 
     getState() {
@@ -200,16 +203,11 @@ class ImageViewer {
             totalSlices: this.totalSlices,
             imageId: this.imageId,
             rotation: this.rotation,
-            currentLabel: this.currentLabel
+            currentLabel: this.currentLabel,
+            imageType: this.imageType,
+            dimensions: this.dimensions
         };
     }
-
-    updateWindowingInfo() {
-        if (this.imageInfo) {
-            this.imageInfo.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices}`;
-        }
-    }
-
     loadSlice(sliceNumber) {
         // Implementation will be added when slice handling is needed
         console.log("Load slice:", sliceNumber);

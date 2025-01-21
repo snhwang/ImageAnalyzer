@@ -4,9 +4,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from app.routes import session, upload, image, directory
-from app.config import CORS_ORIGINS, CORS_ALLOW_CREDENTIALS, CORS_ALLOW_METHODS, CORS_ALLOW_HEADERS, LOGGING_LEVEL, LOG_FORMAT
-import os
+import nibabel as nib
+import pydicom
+import numpy as np
 from pathlib import Path
+import os
 
 # Initialize app
 app = FastAPI(title="Medical Image Viewer")
@@ -22,44 +24,74 @@ app.mount("/images", StaticFiles(directory="images"), name="images")
 # Configure CORS with more permissive settings for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # More permissive for development
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Middleware for cookies
-@app.middleware("http")
-async def add_cookie_headers(request, call_next):
-    response = await call_next(request)
-    if "set-cookie" in response.headers:
-        cookie = response.headers["set-cookie"]
-        if "SameSite" not in cookie:
-            response.headers["set-cookie"] = cookie + "; SameSite=None; Secure"
-    return response
-
 # Set up templates
 templates = Jinja2Templates(directory="app/templates")
 
-# Root endpoint to render index.html
+def process_medical_image(file_path):
+    """Process medical image files (DICOM, NIfTI) and return metadata"""
+    ext = file_path.suffix.lower()
+
+    try:
+        if ext == '.dcm':
+            # Handle DICOM
+            ds = pydicom.dcmread(str(file_path))
+            return {
+                'total_slices': 1,  # Single DICOM file
+                'dimensions': [int(ds.Rows), int(ds.Columns)],
+                'type': 'dicom'
+            }
+        elif ext in ['.nii', '.gz']:
+            # Handle NIfTI
+            img = nib.load(str(file_path))
+            shape = img.shape
+            return {
+                'total_slices': shape[2] if len(shape) > 2 else 1,
+                'dimensions': [shape[0], shape[1]],
+                'type': 'nifti'
+            }
+        else:
+            # Regular image file
+            return {
+                'total_slices': 1,
+                'dimensions': None,
+                'type': 'standard'
+            }
+    except Exception as e:
+        print(f"Error processing medical image: {str(e)}")
+        return {
+            'total_slices': 1,
+            'dimensions': None,
+            'type': 'unknown'
+        }
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# File upload endpoint
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         file_path = UPLOAD_DIR / file.filename
 
+        # Save the uploaded file
         with open(file_path, "wb") as f:
             f.write(contents)
+
+        # Process the medical image and get metadata
+        metadata = process_medical_image(file_path)
 
         return JSONResponse({
             "success": True,
             "url": f"/static/uploads/{file.filename}",
-            "filename": file.filename
+            "filename": file.filename,
+            "metadata": metadata
         })
     except Exception as e:
         return JSONResponse({
