@@ -113,7 +113,7 @@ class ImageViewer {
             uniform float maxValue;
 
             void main() {
-                // Get the raw pixel value from the texture (using only R channel for luminance)
+                // Get the raw pixel value from the texture (using R channel for float data)
                 float pixelValue = texture2D(textureSampler, vUV).r;
 
                 // Convert from normalized [0,1] back to original range
@@ -124,7 +124,7 @@ class ImageViewer {
                 float windowMax = windowCenter + (windowWidth / 2.0);
 
                 // Calculate display value
-                float displayValue = (value - windowMin) / (windowWidth);
+                float displayValue = (value - windowMin) / windowWidth;
                 displayValue = clamp(displayValue, 0.0, 1.0);
 
                 gl_FragColor = vec4(displayValue, displayValue, displayValue, 1.0);
@@ -299,12 +299,12 @@ class ImageViewer {
             this.texture.dispose();
         }
 
-        // Create a luminance texture (single channel)
+        // Create a raw texture with proper format for float32 data
         this.texture = new BABYLON.RawTexture(
             data,
             width,
             height,
-            BABYLON.Engine.TEXTUREFORMAT_LUMINANCE,
+            BABYLON.Engine.TEXTUREFORMAT_R,
             this.scene,
             false,
             false,
