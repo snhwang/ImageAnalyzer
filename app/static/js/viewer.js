@@ -61,12 +61,25 @@ class ImageViewer {
         this.engine = new BABYLON.Engine(this.canvas, true);
         this.scene = new BABYLON.Scene(this.engine);
 
-        // Create camera
-        this.camera = new BABYLON.ArcRotateCamera("camera", 0, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene);
-        this.camera.attachControl(this.canvas, true);
+        // Create orthographic camera for 2D viewing
+        this.camera = new BABYLON.ArcRotateCamera("camera", 0, 0, 10, BABYLON.Vector3.Zero(), this.scene);
+        this.camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+        this.camera.minZ = 0.1;
+        this.camera.maxZ = 100;
+
+        // Lock camera movement
+        this.camera.lowerBetaLimit = 0;
+        this.camera.upperBetaLimit = 0;
+        this.camera.lowerAlphaLimit = 0;
+        this.camera.upperAlphaLimit = 0;
+        this.camera.allowUpsideDown = false;
+        this.camera.pinchPrecision = 0;
+        this.camera.wheelPrecision = 0;
+        this.camera.panningSensibility = 0;
 
         // Create a plane to display the image
-        const plane = BABYLON.MeshBuilder.CreatePlane("plane", {width: 1, height: 1}, this.scene);
+        const plane = BABYLON.MeshBuilder.CreatePlane("plane", {width: 2, height: 2}, this.scene);
+        plane.position = new BABYLON.Vector3(0, 0, 0);
 
         // Create custom shader material for window/level adjustment
         const shaderMaterial = new BABYLON.ShaderMaterial("shader", this.scene, {
@@ -100,14 +113,18 @@ class ImageViewer {
             uniform float maxValue;
 
             void main() {
-                // For luminance texture, the value is in the red channel
+                // Get the raw pixel value from the texture (using only R channel for luminance)
                 float pixelValue = texture2D(textureSampler, vUV).r;
 
+                // Convert from normalized [0,1] back to original range
+                float value = pixelValue * (maxValue - minValue) + minValue;
+
                 // Apply window/level
-                float normalizedValue = (pixelValue - minValue) / (maxValue - minValue);
-                float windowMin = (windowCenter - windowWidth / 2.0) / (maxValue - minValue);
-                float windowMax = (windowCenter + windowWidth / 2.0) / (maxValue - minValue);
-                float displayValue = (normalizedValue - windowMin) / (windowMax - windowMin);
+                float windowMin = windowCenter - (windowWidth / 2.0);
+                float windowMax = windowCenter + (windowWidth / 2.0);
+
+                // Calculate display value
+                float displayValue = (value - windowMin) / (windowWidth);
                 displayValue = clamp(displayValue, 0.0, 1.0);
 
                 gl_FragColor = vec4(displayValue, displayValue, displayValue, 1.0);
@@ -115,6 +132,9 @@ class ImageViewer {
         `;
 
         plane.material = shaderMaterial;
+
+        // Disable all scene interaction except what we explicitly handle
+        this.scene.detachControl();
 
         // Start rendering loop
         this.engine.runRenderLoop(() => {
@@ -154,14 +174,19 @@ class ImageViewer {
             const deltaX = e.clientX - this.lastMouseX;
             const deltaY = e.clientY - this.lastMouseY;
 
+            // Calculate new window/level values based on mouse movement
             // Adjust window width with horizontal movement
             this.windowWidth = Math.max(1, this.windowWidth + deltaX);
 
             // Adjust window center with vertical movement
-            this.windowCenter = this.windowCenter - deltaY;
+            this.windowCenter += deltaY;
 
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
+
+            // Prevent any default dragging behavior
+            e.preventDefault();
+            e.stopPropagation();
 
             this.updateWindowingInfo();
             this.updateShaderParameters();
@@ -274,7 +299,7 @@ class ImageViewer {
             this.texture.dispose();
         }
 
-        // Create a luminance texture (single channel) instead of RGB
+        // Create a luminance texture (single channel)
         this.texture = new BABYLON.RawTexture(
             data,
             width,
