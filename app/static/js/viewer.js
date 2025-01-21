@@ -20,6 +20,8 @@ class ImageViewer {
         this.uploadBtn = container.querySelector(".upload-btn");
         this.viewModeBtn = container.querySelector(".view-mode-btn");
         this.windowLevelBtn = container.querySelector(".window-level-btn");
+        this.menuBtn = container.querySelector(".menu-btn");
+        this.menuDropdown = container.querySelector(".menu-dropdown");
 
         // Setup event listeners
         this.setupEventListeners();
@@ -39,9 +41,49 @@ class ImageViewer {
             }
         });
 
-        // Add view mode toggle
+        // View mode toggle
         this.viewModeBtn?.addEventListener("click", () => {
             this.toggleViewMode();
+        });
+
+        // Window level toggle
+        this.windowLevelBtn?.addEventListener("click", () => {
+            this.toggleWindowLevelMode();
+        });
+
+        // Menu button handling
+        this.menuBtn?.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const menuContainer = this.menuBtn.closest('.menu-container');
+            menuContainer.classList.toggle('show');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest('.menu-container')) {
+                const menuContainers = document.querySelectorAll('.menu-container');
+                menuContainers.forEach(container => container.classList.remove('show'));
+            }
+        });
+
+        // Menu item actions
+        this.menuDropdown?.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const action = item.dataset.action;
+                switch (action) {
+                    case 'upload':
+                        this.fileInput?.click();
+                        break;
+                    case 'view-mode':
+                        this.toggleViewMode();
+                        break;
+                    case 'window-level':
+                        this.toggleWindowLevelMode();
+                        break;
+                }
+                // Close menu after action
+                item.closest('.menu-container').classList.remove('show');
+            });
         });
 
         // Handle mouse wheel for slice navigation in 2D mode
@@ -122,6 +164,7 @@ class ImageViewer {
     toggleViewMode() {
         this.is3DMode = !this.is3DMode;
         this.viewModeBtn.classList.toggle("active");
+        this.windowLevelBtn.classList.remove("active");
 
         if (this.is3DMode) {
             // Enable camera controls for 3D mode
@@ -138,6 +181,11 @@ class ImageViewer {
             this.camera.beta = 0;
             this.camera.radius = 5;
         }
+    }
+
+    toggleWindowLevelMode() {
+        this.windowLevelBtn.classList.toggle("active");
+        // Additional window/level mode logic will be implemented here
     }
 
     updateSlice() {
