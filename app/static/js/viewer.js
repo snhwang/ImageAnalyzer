@@ -95,6 +95,8 @@ class ImageViewer {
         window.addEventListener("resize", this.resizeHandler);
 
         this.setupEventListeners();
+        this.dataMin = 0; // Initialize dataMin and dataMax.  These values need to be set correctly elsewhere in your code based on the image data.
+        this.dataMax = 255; //  Ideally this would come from the image metadata or processing step.
     }
 
     getState() {
@@ -273,13 +275,23 @@ class ImageViewer {
             }
 
             const deltaX = e.clientX - this.lastMouseX;
-            const deltaY = this.lastMouseY - e.clientY; // Invert Y for intuitive control
+            const deltaY = this.lastMouseY - e.clientY;
 
-            // Adjust window width with horizontal movement (scale the movement)
-            this.windowWidth = Math.max(1, this.windowWidth + deltaX * 2);
+            // Scale the movements based on the data range
+            const windowDelta = deltaX * (this.dataMax - this.dataMin) / 100;
+            const centerDelta = deltaY * (this.dataMax - this.dataMin) / 100;
 
-            // Adjust window center with vertical movement (scale the movement)
-            this.windowCenter += deltaY * 2;
+            // Adjust window width with horizontal movement
+            this.windowWidth = Math.max(
+                (this.dataMax - this.dataMin) / 1000, // Minimum window width
+                this.windowWidth + windowDelta
+            );
+
+            // Adjust window center with vertical movement
+            this.windowCenter = Math.min(
+                this.dataMax,
+                Math.max(this.dataMin, this.windowCenter + centerDelta)
+            );
 
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
@@ -547,10 +559,13 @@ class ImageViewer {
     applyWindow(value) {
         const windowMin = this.windowCenter - this.windowWidth / 2;
         const windowMax = this.windowCenter + this.windowWidth / 2;
-        return Math.min(
-            255,
-            Math.max(0, ((value - windowMin) * 255) / (windowMax - windowMin)),
-        );
+
+        // First normalize to 0-1
+        let normalized = (value - windowMin) / (windowMax - windowMin);
+        // Then scale to display range (0-255)
+        normalized = Math.min(255, Math.max(0, normalized * 255));
+
+        return normalized;
     }
 
     async uploadFile(file) {
@@ -585,6 +600,8 @@ class ImageViewer {
                 this.imageId = data.image_id;
                 this.windowWidth = data.window_width;
                 this.windowCenter = data.window_center;
+                this.dataMin = data.data_min; // Assuming the server response provides this
+                this.dataMax = data.data_max; // Assuming the server response provides this
                 this.loadSlice(this.currentSlice);
                 this.updateWindowingInfo();
                 this.container.classList.add("has-image");
@@ -836,6 +853,8 @@ class ImageViewer {
                     this.imageId = data.image_id;
                     this.windowWidth = data.window_width;
                     this.windowCenter = data.window_center;
+                    this.dataMin = data.data_min;
+                    this.dataMax = data.data_max;
 
                     // Load first slice
                     await this.loadSlice(0);
