@@ -2,6 +2,7 @@ const BASE_URL = "";
 
 class ImageViewer {
     constructor(container, state = null) {
+        // Constructor remains the same
         this.container = container;
         this.imageContainer = container.querySelector(".image-container");
         this.imageInfo = container.querySelector(".image-info");
@@ -17,8 +18,12 @@ class ImageViewer {
         // Initialize UI elements
         this.initializeUI();
 
-        // Initialize Babylon.js scene
-        this.initializeBabylonScene();
+        // Initialize Babylon.js scene if BABYLON is available
+        if (typeof BABYLON !== 'undefined') {
+            this.initializeBabylonScene();
+        } else {
+            console.error('BABYLON is not loaded');
+        }
 
         // Set up event listeners
         this.setupEventListeners();
@@ -496,4 +501,5 @@ document.addEventListener("DOMContentLoaded", () => {
     gridManager.updateGrid(); // Initialize with default 1x1 grid
 });
 
+// Make ImageViewer available globally
 window.ImageViewer = ImageViewer;

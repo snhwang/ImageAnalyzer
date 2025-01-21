@@ -17,10 +17,9 @@
             crossorigin="anonymous"
             referrerpolicy="no-referrer"
         />
-        <!-- Add Babylon.js CDN with different URL format -->
-        <script src="https://cdn.babylonjs.com/babylon.js"></script>
-        <script src="https://cdn.babylonjs.com/babylonjs.loaders.min.js"></script>
-        <style>
+        <!-- Load Babylon.js with crossorigin and proper order -->
+        <script src="https://cdn.babylonjs.com/babylon.js" crossorigin="anonymous"></script>
+        <script src="https://cdn.babylonjs.com/babylonjs.loaders.min.js" crossorigin="anonymous" integrity="sha512-XXXXXXX"></script> <style>
             :root {
                 --psu-blue: #1e407c;
                 --psu-light-blue: #96bee6;
@@ -755,6 +754,7 @@
         </template>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-        <script type="module" src="/static/js/viewer.js"></script>
+        <!-- Load viewer.js as a regular script after Babylon.js -->
+        <script src="/static/js/viewer.js"></script>
     </body>
 </html>
