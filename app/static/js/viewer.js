@@ -276,24 +276,29 @@ class ImageViewer {
             const deltaX = e.clientX - this.lastMouseX;
             const deltaY = this.lastMouseY - e.clientY;
 
-            // Calculate sensitivity based on data range
-            const dataRange = Math.max(1, this.dataMax - this.dataMin);
-            const sensitivity = dataRange / 500;  // Reduced sensitivity for finer control
+            // Fixed sensitivity value to prevent extreme changes
+            const sensitivity = 2.0;  // Lower value for more gradual changes
 
-            // Update window width (horizontal movement)
+            // Update window width with horizontal movement
+            // Ensure it stays positive and within reasonable bounds
+            const minWidth = 1;  // Minimum window width
+            const maxWidth = this.dataMax - this.dataMin;  // Maximum possible width
             const newWidth = this.windowWidth + (deltaX * sensitivity);
-            this.windowWidth = Math.max(dataRange / 100, newWidth); // Minimum 1% of data range
+            this.windowWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
 
-            // Update window center (vertical movement)
-            const centerDelta = deltaY * sensitivity;
-            const newCenter = this.windowCenter + centerDelta;
+            // Update window center with vertical movement
+            // Keep it within the data range
+            const newCenter = this.windowCenter + (deltaY * sensitivity);
             this.windowCenter = Math.min(this.dataMax, Math.max(this.dataMin, newCenter));
 
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
 
-            this.updateWindowingInfo();
-            this.applyWindowLevel();
+            // Ensure values are valid before updating
+            if (isFinite(this.windowWidth) && isFinite(this.windowCenter)) {
+                this.updateWindowingInfo();
+                this.applyWindowLevel();
+            }
         });
 
         // Handle mouse up and leave for window/level adjustment
@@ -550,19 +555,23 @@ class ImageViewer {
     }
 
     applyWindow(value) {
-        // Ensure window width is always positive
-        this.windowWidth = Math.max(1, this.windowWidth);
+        // Ensure window width is positive and reasonable
+        const minWidth = 1;
+        const maxWidth = this.dataMax - this.dataMin;
+        this.windowWidth = Math.max(minWidth, Math.min(maxWidth, this.windowWidth));
 
-        const windowMin = this.windowCenter - this.windowWidth / 2;
-        const windowMax = this.windowCenter + this.windowWidth / 2;
+        // Calculate window range
+        const windowMin = this.windowCenter - (this.windowWidth / 2);
+        const windowMax = this.windowCenter + (this.windowWidth / 2);
 
-        // Clamp value to window range
+        // Clamp input value to window range
         if (value <= windowMin) return 0;
         if (value >= windowMax) return 255;
 
-        // Linear scaling from window range to display range
-        const normalized = (value - windowMin) / this.windowWidth;
-        return Math.round(normalized * 255);
+        // Safe linear scaling to display range
+        const scale = Math.max(0.001, windowMax - windowMin);  // Prevent division by zero
+        const normalized = (value - windowMin) / scale;
+        return Math.round(Math.max(0, Math.min(255, normalized * 255)));
     }
 
     async uploadFile(file) {
@@ -885,8 +894,7 @@ class ImageViewer {
             const listData = await listResponse.json();
 
             if (listData.status === "success") {
-                this.updateDirectoryList(listData.files || [], listData.directories || []);
-                return;
+                this.updateDirectoryList(listData.files || [], listData.directories || []);                return;
             }
 
             throw new Error("Invalid directory listing response");
