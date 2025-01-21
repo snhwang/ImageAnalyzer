@@ -21,6 +21,7 @@ class ImageViewer {
         this.volumeData = null;
         this.minValue = 0;
         this.maxValue = 255;
+        this.normalizedData = null; //Added to store normalized data
 
         // Initialize Babylon.js components
         this.engine = null;
@@ -121,17 +122,17 @@ class ImageViewer {
             uniform float maxValue;
 
             void main() {
-                // Get the raw pixel value from the texture (using R channel for float data)
-                float pixelValue = texture2D(textureSampler, vUV).r;
+                // Get the normalized value from texture
+                float normalizedValue = texture2D(textureSampler, vUV).r;
 
-                // Convert from normalized [0,1] back to original range
-                float value = pixelValue * (maxValue - minValue) + minValue;
+                // Convert normalized value back to original range
+                float value = normalizedValue * (maxValue - minValue) + minValue;
 
                 // Apply window/level
                 float windowMin = windowCenter - (windowWidth / 2.0);
                 float windowMax = windowCenter + (windowWidth / 2.0);
 
-                // Calculate display value
+                // Calculate display value and clamp to [0,1]
                 float displayValue = (value - windowMin) / windowWidth;
                 displayValue = clamp(displayValue, 0.0, 1.0);
 
@@ -264,6 +265,7 @@ class ImageViewer {
 
             const result = await response.json();
             if (result.success) {
+                console.log("Upload successful, received data:", result);
                 this.container.classList.add("has-image");
                 this.currentFilename = file.name;
 
@@ -275,14 +277,40 @@ class ImageViewer {
                     this.imageType = result.metadata.type;
                     this.minValue = result.metadata.min_value;
                     this.maxValue = result.metadata.max_value;
+
+                    console.log("Image metadata:", {
+                        dimensions: this.dimensions,
+                        minValue: this.minValue,
+                        maxValue: this.maxValue
+                    });
+
                     this.updateWindowingInfo();
 
-                    // Create texture from the received data
+                    // Create normalized texture from the received data
                     if (result.data) {
                         this.volumeData = result.data.map(slice => {
                             const buffer = new Uint8Array(atob(slice).split('').map(c => c.charCodeAt(0)));
-                            return new Float32Array(buffer.buffer);
+                            const floatData = new Float32Array(buffer.buffer);
+
+                            // Log first few values for debugging
+                            console.log("First few pixel values:", floatData.slice(0, 5));
+
+                            return floatData;
                         });
+
+                        // Normalize the data before creating texture
+                        const normalizedData = new Float32Array(this.volumeData[0].length);
+                        for (let i = 0; i < this.volumeData[0].length; i++) {
+                            normalizedData[i] = (this.volumeData[0][i] - this.minValue) / (this.maxValue - this.minValue);
+                        }
+
+                        console.log("First few normalized values:", normalizedData.slice(0, 5));
+
+                        // Store original data
+                        this.volumeData = [this.volumeData[0]];
+                        // Store normalized data for texture
+                        this.normalizedData = [normalizedData];
+
                         this.updateTexture();
                     }
                 }
@@ -296,18 +324,21 @@ class ImageViewer {
     }
 
     updateTexture() {
-        if (!this.volumeData || !this.volumeData[this.currentSlice]) return;
+        if (!this.normalizedData || !this.normalizedData[this.currentSlice]) {
+            console.error("No normalized data available");
+            return;
+        }
 
-        // Create raw texture from slice data
+        console.log("Updating texture with dimensions:", this.dimensions);
         const width = this.dimensions[0];
         const height = this.dimensions[1];
-        const data = this.volumeData[this.currentSlice];
+        const data = this.normalizedData[this.currentSlice];
 
         if (this.texture) {
             this.texture.dispose();
         }
 
-        // Create a raw texture with proper format for float32 data
+        // Create raw texture with normalized float data
         this.texture = new BABYLON.RawTexture(
             data,
             width,
@@ -324,13 +355,6 @@ class ImageViewer {
         const material = this.scene.getMaterialByName("shader");
         if (material) {
             material.setTexture("textureSampler", this.texture);
-
-            // Set initial window/level based on data range
-            if (this.windowCenter === 128 && this.windowWidth === 255) {
-                this.windowCenter = (this.maxValue + this.minValue) / 2;
-                this.windowWidth = this.maxValue - this.minValue;
-            }
-
             this.updateShaderParameters();
         }
     }
