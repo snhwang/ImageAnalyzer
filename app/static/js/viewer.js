@@ -530,16 +530,22 @@ class ImageViewer {
         // Ensure window width is at least 1 to prevent division by zero
         this.windowWidth = Math.max(1, this.windowWidth);
 
-        // Calculate window bounds
+        // Calculate window bounds in original bit depth
         const windowMin = this.windowCenter - (this.windowWidth / 2);
         const windowMax = this.windowCenter + (this.windowWidth / 2);
 
-        // Apply window/level transformation
-        if (value <= windowMin) return 0;
-        if (value >= windowMax) return this.maxValue;
+        // First apply window/level transformation in original bit depth
+        let windowedValue;
+        if (value <= windowMin) {
+            windowedValue = 0;
+        } else if (value >= windowMax) {
+            windowedValue = this.maxValue;
+        } else {
+            windowedValue = Math.round(((value - windowMin) / this.windowWidth) * this.maxValue);
+        }
 
-        // Linear transformation preserving bit depth
-        return Math.round(((value - windowMin) / this.windowWidth) * this.maxValue);
+        // Scale from original bit depth to 8-bit for canvas display
+        return Math.round((windowedValue / this.maxValue) * 255);
     }
 
     async uploadFile(file) {
