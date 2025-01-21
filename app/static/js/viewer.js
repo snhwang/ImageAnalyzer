@@ -119,28 +119,48 @@ class ImageViewer {
             if (result.success) {
                 console.log("Upload successful, creating texture...");
 
-                // Create a URL for the uploaded file
-                const imageUrl = URL.createObjectURL(file);
+                // Create a temporary canvas to draw the image
+                const tempCanvas = document.createElement('canvas');
+                const tempContext = tempCanvas.getContext('2d');
+                const img = new Image();
 
-                // Create a new material with the image texture
-                const material = new BABYLON.StandardMaterial("texturedMaterial", this.scene);
-                material.useFloatValues = true; // Maintain high precision
+                img.onload = () => {
+                    // Set canvas size to match image
+                    tempCanvas.width = img.width;
+                    tempCanvas.height = img.height;
 
-                // Create texture with high precision options
-                const texture = new BABYLON.Texture(imageUrl, this.scene, {
-                    samplingMode: BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-                    format: BABYLON.Engine.TEXTUREFORMAT_RGBA,
-                    type: BABYLON.Engine.TEXTURETYPE_FLOAT
-                });
+                    // Draw image to canvas
+                    tempContext.drawImage(img, 0, 0);
 
-                material.diffuseTexture = texture;
-                material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                    // Create dynamic texture from canvas
+                    const texture = new BABYLON.DynamicTexture(
+                        "imageTexture",
+                        {width: img.width, height: img.height},
+                        this.scene,
+                        true,
+                        BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+                    );
 
-                // Apply the textured material to the cube
-                this.cube.material = material;
+                    // Update texture with canvas content
+                    texture.updateSamplingMode(BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+                    texture.update(false, false);
+                    texture.getContext().drawImage(img, 0, 0);
 
-                // Mark the viewer as having an image
-                this.container.classList.add("has-image");
+                    // Create new material with the texture
+                    const material = new BABYLON.StandardMaterial("texturedMaterial", this.scene);
+                    material.diffuseTexture = texture;
+                    material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                    material.useFloatValues = true;
+
+                    // Apply material to cube
+                    this.cube.material = material;
+
+                    // Mark viewer as having image
+                    this.container.classList.add("has-image");
+                };
+
+                // Set image source to file
+                img.src = URL.createObjectURL(file);
             } else {
                 console.error("Upload failed:", result.message);
             }
