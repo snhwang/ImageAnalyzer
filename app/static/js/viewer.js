@@ -64,6 +64,8 @@ class ImageViewer {
         this.rotateRightBtn = container.querySelector(".rotate-right-btn");
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
+        this.browseBtn = container.querySelector(".browse-btn");
+
 
         this.pixelCache = new Map(); // Cache for processed pixel data
         this.wheelThrottleTimeout = null;
@@ -213,7 +215,93 @@ class ImageViewer {
         window.addEventListener("resize", () => {
             this.resizeCanvases();
         });
+
+        // Add browse button handler
+        this.browseBtn?.addEventListener("click", () => {
+            console.log("Browse button clicked");
+            document.getElementById('urlImportModal').classList.add('show');
+            this.loadDirectoryContents('images');
+        });
     }
+
+    // ... rest of the original ImageViewer methods ...
+
+    async loadDirectoryContents(path) {
+        const directoryList = document.getElementById('directoryList');
+        directoryList.innerHTML = '<div class="loading">Loading...</div>';
+
+        try {
+            const response = await fetch(`${BASE_URL}/directory?path=${encodeURIComponent(path)}`);
+            if (!response.ok) throw new Error('Failed to load directory contents');
+
+            const data = await response.json();
+            directoryList.innerHTML = '';
+
+            data.contents.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `directory-item ${item.type}`;
+
+                const icon = document.createElement('i');
+                icon.className = item.type === 'folder' ? 'fas fa-folder' : 'fas fa-file-image';
+
+                div.appendChild(icon);
+                div.appendChild(document.createTextNode(item.name));
+
+                div.addEventListener('click', () => {
+                    if (item.type === 'folder') {
+                        document.getElementById('currentPath').textContent = item.path;
+                        this.loadDirectoryContents(item.path);
+                    } else {
+                        this.loadRemoteFile(item.path);
+                    }
+                });
+
+                directoryList.appendChild(div);
+            });
+        } catch (error) {
+            console.error('Error loading directory:', error);
+            directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
+        }
+    }
+
+    async loadRemoteFile(path) {
+        try {
+            const response = await fetch(`${BASE_URL}/image?path=${encodeURIComponent(path)}`);
+            if (!response.ok) throw new Error('Failed to load image');
+
+            const result = await response.json();
+            if (result.success && result.data) {
+                this.imageData = result.data;
+                this.totalSlices = this.imageData.length;
+                this.currentSlice = 0;
+                this.minVal = result.metadata.min_value;
+                this.maxVal = result.metadata.max_value;
+                this.width = result.metadata.dimensions[0];
+                this.height = result.metadata.dimensions[1];
+
+                // Hide modal
+                document.getElementById('urlImportModal').classList.remove('show');
+
+                // Update view
+                if (this.is3DMode) {
+                    this.toggleViewMode();
+                }
+                this.resizeCanvases();
+                this.updateSlice();
+
+                // Hide upload overlay
+                if (this.uploadOverlay) {
+                    this.uploadOverlay.style.display = 'none';
+                }
+            } else {
+                throw new Error(result.message || 'Failed to load image');
+            }
+        } catch (error) {
+            console.error('Error loading remote file:', error);
+            alert(`Error loading image: ${error.message}`);
+        }
+    }
+
 
     resizeCanvases() {
         const container = this.imageContainer.querySelector(".canvas-container");
@@ -312,7 +400,6 @@ class ImageViewer {
         console.log(`Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`);
         this.updateSlice();
     }
-
 
     rotate(degrees) {
         if (!this.is3DMode) {
@@ -422,16 +509,44 @@ class ImageViewer {
     drawROI() {
         if (!this.roiStart || !this.roiEnd) return;
 
+        // Clear previous ROI
         this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
+
+        // Get the canvas container dimensions and position
+        const container = this.imageContainer.querySelector(".canvas-container");
+        const containerRect = container.getBoundingClientRect();
+        const canvasRect = this.canvas2D.getBoundingClientRect();
+
+        // Calculate scaling factors
+        const scaleX = this.canvas2D.width / canvasRect.width;
+        const scaleY = this.canvas2D.height / canvasRect.height;
+
+        // Calculate the image display area within the canvas
+        const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
+        const displayWidth = this.width * scale;
+        const displayHeight = this.height * scale;
+        const offsetX = (this.canvas2D.width - displayWidth) / 2;
+        const offsetY = (this.canvas2D.height - displayHeight) / 2;
+
+        // Adjust coordinates for the actual image position
+        const adjustedStart = {
+            x: (this.roiStart.x - offsetX) * scaleX,
+            y: (this.roiStart.y - offsetY) * scaleY
+        };
+
+        const adjustedEnd = {
+            x: (this.roiEnd.x - offsetX) * scaleX,
+            y: (this.roiEnd.y - offsetY) * scaleY
+        };
+
+        // Draw the ROI rectangle
         this.roiCtx.strokeStyle = 'yellow';
         this.roiCtx.lineWidth = 2;
-
-        const width = this.roiEnd.x - this.roiStart.x;
-        const height = this.roiEnd.y - this.roiStart.y;
-
+        const width = adjustedEnd.x - adjustedStart.x;
+        const height = adjustedEnd.y - adjustedStart.y;
         this.roiCtx.strokeRect(
-            this.roiStart.x,
-            this.roiStart.y,
+            adjustedStart.x,
+            adjustedStart.y,
             width,
             height
         );
@@ -440,28 +555,31 @@ class ImageViewer {
     optimizeWindowFromROI() {
         if (!this.roiStart || !this.roiEnd) return;
 
-        // Convert ROI coordinates to image coordinates
-        const scaleX = this.width / this.canvas2D.width;
-        const scaleY = this.height / this.canvas2D.height;
+        // Get the canvas container dimensions
+        const container = this.imageContainer.querySelector(".canvas-container");
+        const containerRect = container.getBoundingClientRect();
+        const canvasRect = this.canvas2D.getBoundingClientRect();
 
-        const x1 = Math.floor(Math.min(this.roiStart.x, this.roiEnd.x) * scaleX);
-        const y1 = Math.floor(Math.min(this.roiStart.y, this.roiEnd.y) * scaleY);
-        const x2 = Math.floor(Math.max(this.roiStart.x, this.roiEnd.x) * scaleX);
-        const y2 = Math.floor(Math.max(this.roiStart.y, this.roiEnd.y) * scaleY);
+        // Calculate scaling factors between screen and image coordinates
+        const scaleX = this.width / canvasRect.width;
+        const scaleY = this.height / canvasRect.height;
+
+        // Calculate the image display area within the canvas
+        const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
+        const displayWidth = this.width * scale;
+        const displayHeight = this.height * scale;
+        const offsetX = (this.canvas2D.width - displayWidth) / 2;
+        const offsetY = (this.canvas2D.height - displayHeight) / 2;
+
+        // Convert ROI coordinates to image coordinates
+        const x1 = Math.floor((Math.min(this.roiStart.x, this.roiEnd.x) - offsetX) * scaleX);
+        const y1 = Math.floor((Math.min(this.roiStart.y, this.roiEnd.y) - offsetY) * scaleY);
+        const x2 = Math.floor((Math.max(this.roiStart.x, this.roiEnd.x) - offsetX) * scaleX);
+        const y2 = Math.floor((Math.max(this.roiStart.y, this.roiEnd.y) - offsetY) * scaleY);
 
         // Get pixel data from current slice
-        const currentSliceData = this.imageData[this.currentSlice];
-        const binaryString = atob(currentSliceData);
-        const pixels = new Float32Array(binaryString.length / 4);
+        const pixels = await this.loadSliceData(this.currentSlice);
 
-        for (let i = 0; i < binaryString.length; i += 4) {
-            const value =
-                binaryString.charCodeAt(i) |
-                (binaryString.charCodeAt(i + 1) << 8) |
-                (binaryString.charCodeAt(i + 2) << 16) |
-                (binaryString.charCodeAt(i + 3) << 24);
-            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
-        }
 
         // Calculate min and max within ROI
         let min = Infinity;
@@ -469,9 +587,11 @@ class ImageViewer {
 
         for (let y = y1; y < y2; y++) {
             for (let x = x1; x < x2; x++) {
-                const value = pixels[y * this.width + x];
-                min = Math.min(min, value);
-                max = Math.max(max, value);
+                if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+                    const value = pixels[y * this.width + x];
+                    min = Math.min(min, value);
+                    max = Math.max(max, value);
+                }
             }
         }
 
