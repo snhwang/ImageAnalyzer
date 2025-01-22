@@ -158,19 +158,14 @@ class ImageViewer {
                 this.dragStart = { x: e.clientX, y: e.clientY };
                 this.startWindowCenter = this.windowCenter;
                 this.startWindowWidth = this.windowWidth;
+                e.preventDefault(); // Prevent text selection
             }
         });
 
         this.canvas2D.addEventListener("mousemove", (e) => {
-            if (this.isDragging) {
-                const dx = e.clientX - this.dragStart.x;
-                const dy = this.dragStart.y - e.clientY;
-
-                this.windowWidth = Math.max(1, this.startWindowWidth + dx);
-                this.windowCenter = this.startWindowCenter + dy;
-
-                console.log(`Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`);
-                this.updateSlice();
+            if (this.isDragging && this.windowLevelBtn.classList.contains("active")) {
+                this.handleWindowLevelDrag(e);
+                e.preventDefault(); // Prevent text selection
             }
         });
 
@@ -252,6 +247,7 @@ class ImageViewer {
             this.windowLevelBtn.classList.toggle("active");
             this.optimizeWindowBtn.classList.remove("active");
             this.canvas2D.style.cursor = this.windowLevelBtn.classList.contains("active") ? "crosshair" : "default";
+            this.roiCanvas.style.pointerEvents = "none";
         }
     }
 
@@ -264,6 +260,27 @@ class ImageViewer {
             this.canvas2D.style.cursor = "default";
         }
     }
+
+    handleWindowLevelDrag(e) {
+        if (!this.isDragging) return;
+
+        const dx = e.clientX - this.dragStart.x;
+        const dy = this.dragStart.y - e.clientY;
+
+        // Scale the adjustments based on the image's data range
+        const windowWidthScale = (this.maxVal - this.minVal) / 500; // Adjust window over 500 pixels
+        const windowCenterScale = (this.maxVal - this.minVal) / 500; // Adjust center over 500 pixels
+
+        this.windowWidth = Math.max(1, this.startWindowWidth + dx * windowWidthScale);
+        this.windowCenter = this.startWindowCenter + dy * windowCenterScale;
+
+        // Clamp window center between min and max values
+        this.windowCenter = Math.max(this.minVal, Math.min(this.maxVal, this.windowCenter));
+
+        console.log(`Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`);
+        this.updateSlice();
+    }
+
 
     rotate(degrees) {
         if (!this.is3DMode) {
