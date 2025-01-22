@@ -278,6 +278,15 @@ class ImageViewer {
         cancelBtn?.addEventListener('click', () => {
             this.urlImportModal.classList.remove('show');
         });
+
+        // Image label selection
+        const imageLabel = this.container.querySelector('.image-label');
+        imageLabel?.addEventListener('change', (e) => {
+            // Store the label without affecting image display
+            const selectedLabel = e.target.value;
+            // Don't modify any display properties or window/level values
+            console.log(`Image label changed to: ${selectedLabel}`);
+        });
     }
 
     resizeCanvases() {
@@ -633,8 +642,13 @@ class ImageViewer {
         this.imageData = state.imageData ? [...state.imageData] : null;
         this.currentSlice = state.currentSlice || 0;
         this.totalSlices = state.totalSlices || 1;
-        this.windowCenter = state.windowCenter || 128;
-        this.windowWidth = state.windowWidth || 256;
+        // Only set window/level if they are valid numbers
+        if (!isNaN(state.windowCenter)) {
+            this.windowCenter = state.windowCenter;
+        }
+        if (!isNaN(state.windowWidth) && state.windowWidth > 0) {
+            this.windowWidth = state.windowWidth;
+        }
         this.rotation = state.rotation || 0;
         this.width = state.width || 0;
         this.height = state.height || 0;
