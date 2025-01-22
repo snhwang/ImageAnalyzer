@@ -824,7 +824,7 @@ class ImageViewer {
             data.directories?.forEach(dir => {
                 const dirElement = document.createElement('div');
                 dirElement.className = 'directory-item folder';
-                dirElement.innerHTML = `<i class="fas fa-folder"></i> ${dir}`;
+                dirElement.innerHTML = `<iclass="fas fa-folder"></i> ${dir}`;
                 dirElement.addEventListener('click', () => {
                     this.showDirectoryBrowser(`${path}/${dir}`);
                 });
@@ -957,8 +957,14 @@ document.getElementById("gridLayout")?.addEventListener("change", updateGridLayo
 
 // Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
-    const gridManager = new GridManager();
-    gridManager.updateGrid();
+    // Initialize the first viewer
+    const firstContainer = document.querySelector(".image-window");
+    if (firstContainer) {
+        firstContainer.viewer = new ImageViewer(firstContainer);
+    }
+
+    // Initialize grid layout functionality
+    updateGridLayout();
 });
 
 // Make ImageViewer available globally
