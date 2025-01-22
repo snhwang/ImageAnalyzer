@@ -473,7 +473,6 @@ class ImageViewer {
         this.updateSlice();
     }
 
-
     updateTexture() {
         if (!this.imageData || !this.imageData.length) return;
 
@@ -530,6 +529,35 @@ class ImageViewer {
             this.cube.material = material;
         } else {
             this.texture.update(rgbData);
+        }
+    }
+
+    getState() {
+        return {
+            imageData: this.imageData,
+            currentSlice: this.currentSlice,
+            totalSlices: this.totalSlices,
+            windowCenter: this.windowCenter,
+            windowWidth: this.windowWidth,
+            rotation: this.rotation,
+            width: this.width,
+            height: this.height,
+            minVal: this.minVal,
+            maxVal: this.maxVal,
+            is3DMode: this.is3DMode
+        };
+    }
+
+    setState(state) {
+        if (!state) return;
+
+        Object.assign(this, state);
+        if (this.imageData) {
+            this.updateSlice();
+            // Hide upload overlay since we have an image
+            if (this.uploadOverlay) {
+                this.uploadOverlay.style.display = 'none';
+            }
         }
     }
 
@@ -634,6 +662,9 @@ class GridManager {
         const [rows, cols] = this.gridLayout.value.split("x").map(Number);
         const totalCells = rows * cols;
 
+        // Save states of existing viewers
+        const oldStates = this.viewers.map(viewer => viewer.getState());
+
         this.imageGrid.innerHTML = "";
         this.viewers = [];
 
@@ -644,7 +675,13 @@ class GridManager {
             const clone = template.content.cloneNode(true);
             const container = clone.querySelector(".image-window");
             this.imageGrid.appendChild(container);
-            this.viewers.push(new ImageViewer(container));
+            const viewer = new ImageViewer(container);
+            this.viewers.push(viewer);
+
+            // Restore state if available
+            if (oldStates[i]) {
+                viewer.setState(oldStates[i]);
+            }
         }
     }
 }
