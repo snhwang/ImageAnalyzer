@@ -44,17 +44,3 @@ numpy
 pillow
 pydicom
 openai
-aiofiles
-fastapi
-jinja2
-nibabel
-pillow
-pydicom
-python-multipart
-uvicorn
-fastapi
-nibabel
-numpy
-pillow
-pydicom
-python-multipart

@@ -1,4 +1,4 @@
-const BASE_URL = ''; // Use relative URLs since we're on the same server
+const BASE_URL = window.location.origin;
 
 class ImageViewer {
     constructor(container) {
@@ -57,7 +57,6 @@ class ImageViewer {
         // Initialize buttons and inputs
         this.fileInput = container.querySelector(".hidden-file-input");
         this.uploadBtn = container.querySelector(".upload-btn");
-        this.browseBtn = container.querySelector(".browse-btn");
         this.viewModeBtn = container.querySelector(".view-mode-btn");
         this.windowLevelBtn = container.querySelector(".window-level-btn");
         this.optimizeWindowBtn = container.querySelector(".optimize-window-btn");
@@ -65,7 +64,6 @@ class ImageViewer {
         this.rotateRightBtn = container.querySelector(".rotate-right-btn");
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
-
 
         this.pixelCache = new Map(); // Cache for processed pixel data
         this.wheelThrottleTimeout = null;
@@ -79,56 +77,15 @@ class ImageViewer {
         // File upload handling
         this.uploadBtn?.addEventListener("click", () => {
             console.log("Upload button clicked");
-            if (this.fileInput) {
-                console.log("Triggering file input");
-                this.fileInput.click();
-            } else {
-                console.error("File input element not found");
-            }
+            this.fileInput?.click();
         });
 
         this.fileInput?.addEventListener("change", (e) => {
             console.log("File input changed");
             const file = e.target.files[0];
             if (file) {
-                console.log("Selected file:", file.name);
                 this.uploadFile(file);
             }
-        });
-
-        // Browse button handling
-        this.browseBtn?.addEventListener("click", () => {
-            console.log("Browse button clicked");
-            const modal = document.getElementById('urlImportModal');
-            if (modal) {
-                console.log("Showing URL import modal");
-                modal.classList.add('show');
-                this.loadDirectoryContents('images');
-            } else {
-                console.error("URL import modal not found");
-            }
-        });
-
-        // Add click handlers for menu items
-        this.container.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const action = item.dataset.action;
-                console.log("Menu item clicked:", action);
-                switch (action) {
-                    case 'upload':
-                        this.fileInput?.click();
-                        break;
-                    case 'browse':
-                        const modal = document.getElementById('urlImportModal');
-                        if (modal) {
-                            modal.classList.add('show');
-                            this.loadDirectoryContents('images');
-                        }
-                        break;
-                    // ... other menu item actions ...
-                }
-                e.stopPropagation();
-            });
         });
 
         // View mode toggle
@@ -172,33 +129,23 @@ class ImageViewer {
             if (this.optimizeWindowBtn.classList.contains("active")) {
                 this.isDrawingROI = true;
                 const rect = this.roiCanvas.getBoundingClientRect();
-
-                // Store the initial mouse position in canvas coordinates
-                const scaleX = this.roiCanvas.width / rect.width;
-                const scaleY = this.roiCanvas.height / rect.height;
-
                 this.roiStart = {
-                    x: (e.clientX - rect.left) * scaleX,
-                    y: (e.clientY - rect.top) * scaleY
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
                 };
-                this.roiEnd = {...this.roiStart}; // Initialize end position same as start
-                e.stopPropagation();
+                e.stopPropagation(); // Only stop propagation for mouse events
             }
         });
 
         this.roiCanvas.addEventListener("mousemove", (e) => {
             if (this.isDrawingROI) {
                 const rect = this.roiCanvas.getBoundingClientRect();
-                // Update only the end position while dragging
-                const scaleX = this.roiCanvas.width / rect.width;
-                const scaleY = this.roiCanvas.height / rect.height;
-
                 this.roiEnd = {
-                    x: (e.clientX - rect.left) * scaleX,
-                    y: (e.clientY - rect.top) * scaleY
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
                 };
                 this.drawROI();
-                e.stopPropagation();
+                e.stopPropagation(); // Only stop propagation for mouse events
             }
         });
 
@@ -206,7 +153,7 @@ class ImageViewer {
             if (this.isDrawingROI) {
                 this.isDrawingROI = false;
                 this.optimizeWindowFromROI();
-                e.stopPropagation();
+                e.stopPropagation(); // Only stop propagation for mouse events
             }
         });
 
@@ -266,118 +213,6 @@ class ImageViewer {
         window.addEventListener("resize", () => {
             this.resizeCanvases();
         });
-    }
-
-    async loadDirectoryContents(path) {
-        const directoryList = document.getElementById('directoryList');
-        directoryList.innerHTML = '<div class="loading">Loading...</div>';
-
-        try {
-            const response = await fetch('/api/directory/list-directory', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ url: path })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to load directory: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (data.status === 'success') {
-                directoryList.innerHTML = '';
-
-                // Create and append a back button if we're not in the root directory
-                if (path !== 'images') {
-                    const backDiv = document.createElement('div');
-                    backDiv.className = 'directory-item folder';
-                    backDiv.innerHTML = '<i class="fas fa-arrow-up"></i> ..';
-                    backDiv.addEventListener('click', () => {
-                        const parentPath = path.split('/').slice(0, -1).join('/') || 'images';
-                        this.loadDirectoryContents(parentPath);
-                    });
-                    directoryList.appendChild(backDiv);
-                }
-
-                // Add directories
-                data.directories.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'directory-item folder';
-                    div.innerHTML = `<i class="fas fa-folder"></i> ${item.name}`;
-                    div.addEventListener('click', () => {
-                        this.loadDirectoryContents(item.url);
-                    });
-                    directoryList.appendChild(div);
-                });
-
-                // Add files
-                data.files.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'directory-item file';
-                    div.innerHTML = `<i class="fas fa-file-image"></i> ${item.name}`;
-                    div.addEventListener('click', () => {
-                        this.loadRemoteFile(item.url);
-                    });
-                    directoryList.appendChild(div);
-                });
-
-                // Update current path display
-                const currentPathElement = document.getElementById('currentPath');
-                if (currentPathElement) {
-                    currentPathElement.textContent = data.current_path;
-                }
-            } else {
-                throw new Error(data.message || 'Failed to load directory contents');
-            }
-        } catch (error) {
-            console.error('Error loading directory:', error);
-            directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
-        }
-    }
-
-    async loadRemoteFile(path) {
-        try {
-            const response = await fetch(`/api/directory/import-from-url`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `path=${encodeURIComponent(path)}`
-            });
-
-            if (!response.ok) throw new Error('Failed to load image');
-
-            const result = await response.json();
-            if (result.status === 'success') {
-                this.imageData = result.slices;
-                this.totalSlices = result.total_slices;
-                this.currentSlice = 0;
-                this.windowWidth = result.window_width;
-                this.windowCenter = result.window_center;
-
-                // Hide modal
-                document.getElementById('urlImportModal').classList.remove('show');
-
-                // Update view
-                if (this.is3DMode) {
-                    this.toggleViewMode();
-                }
-                this.resizeCanvases();
-                await this.updateSlice();
-
-                // Hide upload overlay
-                if (this.uploadOverlay) {
-                    this.uploadOverlay.style.display = 'none';
-                }
-            } else {
-                throw new Error(result.message || 'Failed to load image');
-            }
-        } catch (error) {
-            console.error('Error loading remote file:', error);
-            alert(`Error loading image: ${error.message}`);
-        }
     }
 
     resizeCanvases() {
@@ -478,6 +313,7 @@ class ImageViewer {
         this.updateSlice();
     }
 
+
     rotate(degrees) {
         if (!this.is3DMode) {
             this.rotation = (this.rotation + degrees) % 360;
@@ -487,35 +323,25 @@ class ImageViewer {
     }
 
     async loadSliceData(sliceIndex) {
-        if (this.imageId) {
-            try {
-                const response = await fetch(`/api/upload/slice/${this.imageId}/${sliceIndex}`);
-                if (!response.ok) {
-                    console.error(`Failed to fetch slice data: ${response.status} ${response.statusText}`);
-                    throw new Error('Failed to fetch slice data');
-                }
-
-                const arrayBuffer = await response.arrayBuffer();
-                const shape = response.headers.get('X-Image-Shape').split(',').map(Number);
-                const dtype = response.headers.get('X-Image-Dtype');
-
-                // Convert array buffer to Float32Array
-                const pixels = new Float32Array(arrayBuffer);
-
-                console.log(`Loaded slice ${sliceIndex}: shape=${shape}, dtype=${dtype}`);
-
-                // Cache the processed data
-                this.pixelCache.set(sliceIndex, pixels);
-                this.width = shape[0];
-                this.height = shape[1];
-
-                return pixels;
-            } catch (error) {
-                console.error('Error loading slice data:', error);
-                throw error;
-            }
+        if (this.pixelCache.has(sliceIndex)) {
+            return this.pixelCache.get(sliceIndex);
         }
-        return null;
+
+        const sliceData = this.imageData[sliceIndex];
+        const binaryString = atob(sliceData);
+        const pixels = new Float32Array(binaryString.length / 4);
+
+        for (let i = 0; i < binaryString.length; i += 4) {
+            const value =
+                binaryString.charCodeAt(i) |
+                (binaryString.charCodeAt(i + 1) << 8) |
+                (binaryString.charCodeAt(i + 2) << 16) |
+                (binaryString.charCodeAt(i + 3) << 24);
+            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+        }
+
+        this.pixelCache.set(sliceIndex, pixels);
+        return pixels;
     }
 
     async updateSlice() {
@@ -596,14 +422,10 @@ class ImageViewer {
     drawROI() {
         if (!this.roiStart || !this.roiEnd) return;
 
-        // Clear previous ROI
         this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
-
-        // Draw the ROI rectangle
         this.roiCtx.strokeStyle = 'yellow';
         this.roiCtx.lineWidth = 2;
 
-        // Calculate rectangle dimensions
         const width = this.roiEnd.x - this.roiStart.x;
         const height = this.roiEnd.y - this.roiStart.y;
 
@@ -615,166 +437,113 @@ class ImageViewer {
         );
     }
 
-    async optimizeWindowFromROI() {
+    optimizeWindowFromROI() {
         if (!this.roiStart || !this.roiEnd) return;
 
-        // Get the canvas container dimensions
-        const container = this.imageContainer.querySelector(".canvas-container");
-        const containerRect = container.getBoundingClientRect();
-        const canvasRect = this.canvas2D.getBoundingClientRect();
-
-        // Calculate scaling factors between screen and image coordinates
-        const scaleX = this.width / canvasRect.width;
-        const scaleY = this.height / canvasRect.height;
-
-        // Calculate the image display area within the canvas
-        const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
-        const displayWidth = this.width * scale;
-        const displayHeight = this.height * scale;
-        const offsetX = (this.canvas2D.width - displayWidth) / 2;
-        const offsetY = (this.canvas2D.height - displayHeight) / 2;
-
         // Convert ROI coordinates to image coordinates
-        const x1 = Math.floor((Math.min(this.roiStart.x, this.roiEnd.x) - offsetX) * scaleX);
-        const y1 = Math.floor((Math.min(this.roiStart.y, this.roiEnd.y) - offsetY) * scaleY);
-        const x2 = Math.floor((Math.max(this.roiStart.x, this.roiEnd.x) - offsetX) * scaleX);
-        const y2 = Math.floor((Math.max(this.roiStart.y, this.roiEnd.y) - offsetY) * scaleY);
+        const scaleX = this.width / this.canvas2D.width;
+        const scaleY = this.height / this.canvas2D.height;
 
-        try {
-            // Get pixel data from current slice
-            const pixels = await this.loadSliceData(this.currentSlice);
+        const x1 = Math.floor(Math.min(this.roiStart.x, this.roiEnd.x) * scaleX);
+        const y1 = Math.floor(Math.min(this.roiStart.y, this.roiEnd.y) * scaleY);
+        const x2 = Math.floor(Math.max(this.roiStart.x, this.roiEnd.x) * scaleX);
+        const y2 = Math.floor(Math.max(this.roiStart.y, this.roiEnd.y) * scaleY);
 
-            // Calculate min and max within ROI
-            let min = Infinity;
-            let max = -Infinity;
+        // Get pixel data from current slice
+        const currentSliceData = this.imageData[this.currentSlice];
+        const binaryString = atob(currentSliceData);
+        const pixels = new Float32Array(binaryString.length / 4);
 
-            for (let y = y1; y < y2; y++) {
-                for (let x = x1; x < x2; x++) {
-                    if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-                        const value = pixels[y * this.width + x];
-                        if (!isNaN(value)) {
-                            min = Math.min(min, value);
-                            max = Math.max(max, value);
-                        }
-                    }
-                }
-            }
-
-            // Update window/level based on ROI
-            if (min !== Infinity && max !== -Infinity) {
-                this.windowCenter = (min + max) / 2;
-                this.windowWidth = max - min;
-
-                // Clear ROI and update display
-                this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
-                this.roiStart = null;
-                this.roiEnd = null;
-
-                await this.updateSlice();
-            }
-        } catch (error) {
-            console.error('Error optimizing window from ROI:', error);
+        for (let i = 0; i < binaryString.length; i += 4) {
+            const value =
+                binaryString.charCodeAt(i) |
+                (binaryString.charCodeAt(i + 1) << 8) |
+                (binaryString.charCodeAt(i + 2) << 16) |
+                (binaryString.charCodeAt(i + 3) << 24);
+            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
         }
-    }
 
-    async uploadFile(file) {
-        console.log("Starting file upload for:", file.name);
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
+        // Calculate min and max within ROI
+        let min = Infinity;
+        let max = -Infinity;
 
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                throw new Error(`Upload failed: ${response.statusText}`);
+        for (let y = y1; y < y2; y++) {
+            for (let x = x1; x < x2; x++) {
+                const value = pixels[y * this.width + x];
+                min = Math.min(min, value);
+                max = Math.max(max, value);
             }
-
-            const result = await response.json();
-            console.log("Upload response:", result);
-
-            if (result.status === 'success') {
-                console.log("Upload successful, processing image data...");
-
-                // Hide upload overlay
-                if (this.uploadOverlay) {
-                    this.uploadOverlay.style.display = 'none';
-                }
-
-                // Store image metadata
-                this.imageId = result.image_id;
-                this.totalSlices = result.total_slices;
-                this.currentSlice = 0;
-                this.windowWidth = result.window_width;
-                this.windowCenter = result.window_center;
-                this.width = result.dimensions[0];
-                this.height = result.dimensions[1];
-                this.textureData = result.texture_data;  // Store texture data for 3D view
-
-                // Switch to 2D mode if not already
-                if (this.is3DMode) {
-                    this.updateTexture();  // Update 3D view immediately if in 3D mode
-                } else {
-                    this.resizeCanvases();
-                    await this.updateSlice();
-                }
-
-                console.log("Image successfully loaded and displayed");
-            } else {
-                console.error("Upload failed:", result.message);
-                alert("Failed to process uploaded image");
-            }
-        } catch (error) {
-            console.error("Error uploading file:", error);
-            alert(`Error uploading file: ${error.message}`);
         }
+
+        // Update window/level based on ROI
+        this.windowCenter = (min + max) / 2;
+        this.windowWidth = max - min;
+
+        // Clear ROI and update display
+        this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
+        this.roiStart = null;
+        this.roiEnd = null;
+
+        this.updateSlice();
     }
 
     updateTexture() {
-        if (!this.textureData || !this.textureData.length) return;
+        if (!this.imageData || !this.imageData.length) return;
 
-        const currentTextureData = this.textureData[this.currentSlice];
+        const currentSliceData = this.imageData[this.currentSlice];
+        const binaryString = atob(currentSliceData);
+        const pixels = new Float32Array(binaryString.length / 4);
 
-        // Create a new image to load the texture
-        const img = new Image();
-        img.onload = () => {
-            // Create or update the texture
-            if (!this.texture) {
-                this.texture = new BABYLON.Texture.CreateFromBase64String(
-                    currentTextureData.split(',')[1],
-                    "volumeSlice",
-                    this.scene,
-                    false,
-                    false,
-                    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
-                );
+        for (let i = 0; i < binaryString.length; i += 4) {
+            const value =
+                binaryString.charCodeAt(i) |
+                (binaryString.charCodeAt(i + 1) << 8) |
+                (binaryString.charCodeAt(i + 2) << 16) |
+                (binaryString.charCodeAt(i + 3) << 24);
+            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+        }
 
-                // Create material for the cube
-                const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
-                material.diffuseTexture = this.texture;
-                material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-                material.backFaceCulling = false;
+        // Apply window/level
+        const low = this.windowCenter - this.windowWidth / 2;
+        const high = this.windowCenter + this.windowWidth / 2;
 
-                // Apply material to cube
-                this.cube.material = material;
-            } else {
-                // Update existing texture
-                BABYLON.Texture.CreateFromBase64String(
-                    currentTextureData.split(',')[1],
-                    "volumeSlice",
-                    this.scene,
-                    false,
-                    false,
-                    BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-                    () => {
-                        this.texture.updateURL(currentTextureData);
-                    }
-                );
-            }
-        };
-        img.src = currentTextureData;
+        // Create RGB data for the texture
+        const rgbData = new Float32Array(this.width * this.height * 3);
+        for (let i = 0; i < pixels.length; i++) {
+            const value = pixels[i];
+            let normalizedValue = (value - low) / (high - low);
+            normalizedValue = Math.max(0, Math.min(1, normalizedValue));
+
+            rgbData[i * 3] = normalizedValue;
+            rgbData[i * 3 + 1] = normalizedValue;
+            rgbData[i * 3 + 2] = normalizedValue;
+        }
+
+        // Create or update the texture
+        if (!this.texture) {
+            this.texture = new BABYLON.RawTexture(
+                rgbData,
+                this.width,
+                this.height,
+                BABYLON.Engine.TEXTUREFORMAT_RGB,
+                this.scene,
+                false,
+                false,
+                BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+                BABYLON.Engine.TEXTURETYPE_FLOAT
+            );
+
+            // Create new material with the texture
+            const material = new BABYLON.StandardMaterial("imageMaterial", this.scene);
+            material.diffuseTexture = this.texture;
+            material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            material.useFloatValues = true;
+
+            // Apply material to cube
+            this.cube.material = material;
+        } else {
+            this.texture.update(rgbData);
+        }
     }
 
     getState() {
@@ -789,9 +558,7 @@ class ImageViewer {
             height: this.height,
             minVal: this.minVal,
             maxVal: this.maxVal,
-            is3DMode: this.is3DMode,
-            imageId: this.imageId,
-            textureData: this.textureData
+            is3DMode: this.is3DMode
         };
     }
 
@@ -810,8 +577,6 @@ class ImageViewer {
         this.minVal = state.minVal || 0;
         this.maxVal = state.maxVal || 255;
         this.is3DMode = state.is3DMode || false;
-        this.imageId = state.imageId;
-        this.textureData = state.textureData;
 
         // Initialize canvases before updating
         if (this.imageData) {
@@ -836,10 +601,8 @@ class ImageViewer {
     }
 
     initializeBabylonScene() {
-        // Create engine
+        // Initialize Babylon.js scene using canvas3D
         this.engine = new BABYLON.Engine(this.canvas3D, true);
-
-        // Create scene
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
@@ -855,30 +618,69 @@ class ImageViewer {
         this.camera.setTarget(BABYLON.Vector3.Zero());
         this.camera.attachControl(this.canvas3D, true);
 
-        // Create cube
-        this.cube = BABYLON.MeshBuilder.CreateBox(
-            "cube",
-            { size: 2 },
-            this.scene
-        );
+        // Create a cube
+        const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
+        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+        this.cube = BABYLON.MeshBuilder.CreateBox("cube", { size: 2 }, this.scene);
+        this.cube.material = material;
 
         // Add lights
-        const light = new BABYLON.HemisphericLight(
-            "light",
-            new BABYLON.Vector3(0, 1, 0),
-            this.scene
-        );
-        light.intensity = 0.7;
+        new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), this.scene);
 
         // Start rendering loop
         this.engine.runRenderLoop(() => {
             this.scene.render();
         });
+    }
 
-        // Handle window resize
-        window.addEventListener("resize", () => {
-            this.engine.resize();
-        });
+    async uploadFile(file) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(`${BASE_URL}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log("Upload response:", result);
+
+            if (result.success && result.data) {
+                console.log("Upload successful, processing image data...");
+
+                // Hide upload overlay
+                if (this.uploadOverlay) {
+                    this.uploadOverlay.style.display = 'none';
+                }
+
+                this.imageData = result.data;
+                this.totalSlices = this.imageData.length;
+                this.currentSlice = 0;
+                this.minVal = result.metadata.min_value;
+                this.maxVal = result.metadata.max_value;
+                this.width = result.metadata.dimensions[0];
+                this.height = result.metadata.dimensions[1];
+
+                // Switch to 2D mode if not already
+                if (this.is3DMode) {
+                    this.toggleViewMode();
+                }
+
+                this.resizeCanvases();
+                this.updateSlice();
+            } else {
+                console.error("Upload failed:", result.message);
+            }
+        } catch (error) {
+            console.error("Error uploading file:", error);
+        }
     }
 }
 
@@ -889,30 +691,15 @@ class GridManager {
         this.imageGrid = document.getElementById("imageGrid");
         this.viewers = [];
         this.setupEventListeners();
-        // Initialize grid on construction
-        this.updateGrid();
     }
 
     setupEventListeners() {
-        if (this.gridLayout) {
-            console.log("Setting up grid layout event listener");
-            this.gridLayout.addEventListener("change", () => {
-                console.log("Grid layout changed to:", this.gridLayout.value);
-                this.updateGrid();
-            });
-        }
+        this.gridLayout?.addEventListener("change", () => this.updateGrid());
     }
 
     updateGrid() {
-        if (!this.gridLayout || !this.imageGrid) {
-            console.error("Required elements not found for grid update");
-            return;
-        }
-
         const [rows, cols] = this.gridLayout.value.split("x").map(Number);
         const totalCells = rows * cols;
-
-        console.log(`Updating grid to ${rows}x${cols} layout`);
 
         // Save states of existing viewers
         const oldStates = this.viewers.map(viewer => viewer.getState());
@@ -923,11 +710,6 @@ class GridManager {
         this.viewers = [];
 
         const template = document.getElementById("imageWindowTemplate");
-        if (!template) {
-            console.error("Image window template not found");
-            return;
-        }
-
         for (let i = 0; i < totalCells; i++) {
             const clone = template.content.cloneNode(true);
             const container = clone.querySelector(".image-window");
@@ -941,136 +723,14 @@ class GridManager {
                 viewer.setState(oldStates[i]);
             }
         }
-
-        console.log(`Grid updated with ${totalCells} cells`);
     }
 }
 
 // Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("Initializing application");
     const gridManager = new GridManager();
+    gridManager.updateGrid();
 });
 
 // Make ImageViewer available globally
 window.ImageViewer = ImageViewer;
-
-async function loadDirectoryContents(path) {
-    const directoryList = document.getElementById('directoryList');
-    directoryList.innerHTML = '<div class="loading">Loading...</div>';
-
-    try {
-        const response = await fetch('/api/directory/list-directory', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ url: path })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to load directory: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        if (data.status === 'success') {
-            directoryList.innerHTML = '';
-
-            // Create and append a back button if we're not in the root directory
-            if (path !== 'images') {
-                const backDiv = document.createElement('div');
-                backDiv.className = 'directory-item folder';
-                backDiv.innerHTML = '<i class="fas fa-arrow-up"></i> ..';
-                backDiv.addEventListener('click', () => {
-                    const parentPath = path.split('/').slice(0, -1).join('/') || 'images';
-                    this.loadDirectoryContents(parentPath);
-                });
-                directoryList.appendChild(backDiv);
-            }
-
-            // Add directories
-            data.directories.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'directory-item folder';
-                div.innerHTML = `<i class="fas fa-folder"></i> ${item.name}`;
-                div.addEventListener('click', () => {
-                    this.loadDirectoryContents(item.url);
-                });
-                directoryList.appendChild(div);
-            });
-
-            // Add files
-            data.files.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'directory-item file';
-                div.innerHTML = `<i class="fas fa-file-image"></i> ${item.name}`;
-                div.addEventListener('click', () => {
-                    this.loadRemoteFile(item.url);
-                });
-                directoryList.appendChild(div);
-            });
-
-            // Update current path display
-            const currentPathElement = document.getElementById('currentPath');
-            if (currentPathElement) {
-                currentPathElement.textContent = data.current_path;
-            }
-        } else {
-            throw new Error(data.message || 'Failed to load directory contents');
-        }
-    } catch (error) {
-        console.error('Error loading directory:', error);
-        directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
-    }
-}
-
-async function uploadFile(file) {
-    console.log("Starting file upload for:", file.name);
-    try {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!response.ok) {
-            throw new Error(`Upload failed: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        console.log("Upload response:", result);
-
-        if (result.status === 'success') {
-            console.log("Upload successful, processing image data...");
-
-            // Hide upload overlay
-            if (this.uploadOverlay) {
-                this.uploadOverlay.style.display = 'none';
-            }
-
-            this.imageData = result.slices;
-            this.totalSlices = result.total_slices;
-            this.currentSlice = 0;
-            this.windowWidth = result.window_width;
-            this.windowCenter = result.window_center;
-
-            // Switch to 2D mode if not already
-            if (this.is3DMode) {
-                this.toggleViewMode();
-            }
-
-            this.resizeCanvases();
-            await this.updateSlice();
-
-            console.log("Image successfully loaded and displayed");
-        } else {
-            console.error("Upload failed:", result.message);
-            alert("Failed to process uploaded image");
-        }
-    } catch (error) {
-        console.error("Error uploading file:", error);
-        alert(`Error uploading file: ${error.message}`);
-    }
-}
