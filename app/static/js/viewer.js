@@ -79,13 +79,19 @@ class ImageViewer {
         // File upload handling
         this.uploadBtn?.addEventListener("click", () => {
             console.log("Upload button clicked");
-            this.fileInput?.click();
+            if (this.fileInput) {
+                console.log("Triggering file input");
+                this.fileInput.click();
+            } else {
+                console.error("File input element not found");
+            }
         });
 
         this.fileInput?.addEventListener("change", (e) => {
             console.log("File input changed");
             const file = e.target.files[0];
             if (file) {
+                console.log("Selected file:", file.name);
                 this.uploadFile(file);
             }
         });
@@ -95,9 +101,34 @@ class ImageViewer {
             console.log("Browse button clicked");
             const modal = document.getElementById('urlImportModal');
             if (modal) {
+                console.log("Showing URL import modal");
                 modal.classList.add('show');
                 this.loadDirectoryContents('images');
+            } else {
+                console.error("URL import modal not found");
             }
+        });
+
+        // Add click handlers for menu items
+        this.container.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const action = item.dataset.action;
+                console.log("Menu item clicked:", action);
+                switch (action) {
+                    case 'upload':
+                        this.fileInput?.click();
+                        break;
+                    case 'browse':
+                        const modal = document.getElementById('urlImportModal');
+                        if (modal) {
+                            modal.classList.add('show');
+                            this.loadDirectoryContents('images');
+                        }
+                        break;
+                    // ... other menu item actions ...
+                }
+                e.stopPropagation();
+            });
         });
 
         // View mode toggle
@@ -581,7 +612,7 @@ class ImageViewer {
         const y2 = Math.floor((Math.max(this.roiStart.y, this.roiEnd.y) - offsetY) * scaleY);
 
         // Get pixel data from current slice
-        const pixels = await this.loadSliceData(this.currentSlice);
+        const pixels = this.loadSliceData(this.currentSlice);
 
 
         // Calculate min and max within ROI
@@ -611,6 +642,7 @@ class ImageViewer {
     }
 
     async uploadFile(file) {
+        console.log("Starting file upload for:", file.name);
         try {
             const formData = new FormData();
             formData.append('file', file);
@@ -649,12 +681,15 @@ class ImageViewer {
                 }
 
                 this.resizeCanvases();
-                this.updateSlice();
+                await this.updateSlice();
+                console.log("Image successfully loaded and displayed");
             } else {
                 console.error("Upload failed:", result.message);
+                alert("Failed to process uploaded image");
             }
         } catch (error) {
             console.error("Error uploading file:", error);
+            alert(`Error uploading file: ${error.message}`);
         }
     }
 
@@ -789,7 +824,7 @@ class ImageViewer {
         this.camera.setTarget(BABYLON.Vector3.Zero());
         this.camera.attachControl(this.canvas3D, true);
 
-        // Create a cube
+        //        // Create a cube
         const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
         material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
         material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
@@ -814,15 +849,30 @@ class GridManager {
         this.imageGrid = document.getElementById("imageGrid");
         this.viewers = [];
         this.setupEventListeners();
+        // Initialize grid on construction
+        this.updateGrid();
     }
 
     setupEventListeners() {
-        this.gridLayout?.addEventListener("change", () => this.updateGrid());
+        if (this.gridLayout) {
+            console.log("Setting up grid layout event listener");
+            this.gridLayout.addEventListener("change", () => {
+                console.log("Grid layout changed to:", this.gridLayout.value);
+                this.updateGrid();
+            });
+        }
     }
 
     updateGrid() {
+        if (!this.gridLayout || !this.imageGrid) {
+            console.error("Required elements not found for grid update");
+            return;
+        }
+
         const [rows, cols] = this.gridLayout.value.split("x").map(Number);
         const totalCells = rows * cols;
+
+        console.log(`Updating grid to ${rows}x${cols} layout`);
 
         // Save states of existing viewers
         const oldStates = this.viewers.map(viewer => viewer.getState());
@@ -833,6 +883,11 @@ class GridManager {
         this.viewers = [];
 
         const template = document.getElementById("imageWindowTemplate");
+        if (!template) {
+            console.error("Image window template not found");
+            return;
+        }
+
         for (let i = 0; i < totalCells; i++) {
             const clone = template.content.cloneNode(true);
             const container = clone.querySelector(".image-window");
@@ -846,13 +901,15 @@ class GridManager {
                 viewer.setState(oldStates[i]);
             }
         }
+
+        console.log(`Grid updated with ${totalCells} cells`);
     }
 }
 
 // Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
+    console.log("Initializing application");
     const gridManager = new GridManager();
-    gridManager.updateGrid();
 });
 
 // Make ImageViewer available globally
