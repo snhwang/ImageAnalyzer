@@ -52,3 +52,9 @@ pillow
 pydicom
 python-multipart
 uvicorn
+fastapi
+nibabel
+numpy
+pillow
+pydicom
+python-multipart
