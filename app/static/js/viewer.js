@@ -7,20 +7,15 @@ class ImageViewer {
         this.is3DMode = true;
         this.currentSlice = 0;
         this.totalSlices = 1;
-        this.windowCenter = 0;
-        this.windowWidth = 0;
+        this.windowCenter = 128;
+        this.windowWidth = 256;
         this.isDragging = false;
         this.dragStart = { x: 0, y: 0 };
         this.rotation = 0;
-
-        // Initialize canvas
         this.canvas = document.createElement("canvas");
-        this.canvas.style.width = "100%";
-        this.canvas.style.height = "100%";
-        this.canvas.style.outline = "none";
-        this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas);
+        this.ctx = this.canvas.getContext("2d");
 
-        // Initialize buttons
+        // Initialize buttons and inputs
         this.fileInput = container.querySelector(".hidden-file-input");
         this.uploadBtn = container.querySelector(".upload-btn");
         this.viewModeBtn = container.querySelector(".view-mode-btn");
@@ -31,7 +26,6 @@ class ImageViewer {
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
 
-        // Setup event listeners
         this.setupEventListeners();
         this.initializeBabylonScene();
     }
@@ -39,10 +33,12 @@ class ImageViewer {
     setupEventListeners() {
         // File upload handling
         this.uploadBtn?.addEventListener("click", () => {
+            console.log("Upload button clicked");
             this.fileInput?.click();
         });
 
         this.fileInput?.addEventListener("change", (e) => {
+            console.log("File input changed");
             const file = e.target.files[0];
             if (file) {
                 this.uploadFile(file);
@@ -51,25 +47,30 @@ class ImageViewer {
 
         // View mode toggle
         this.viewModeBtn?.addEventListener("click", () => {
+            console.log("View mode toggled");
             this.toggleViewMode();
         });
 
         // Window level toggle
         this.windowLevelBtn?.addEventListener("click", () => {
+            console.log("Window level toggled");
             this.toggleWindowLevelMode();
         });
 
         // Optimize window with ROI
         this.optimizeWindowBtn?.addEventListener("click", () => {
+            console.log("Optimize window toggled");
             this.toggleOptimizeWindow();
         });
 
         // Rotation buttons
         this.rotateLeftBtn?.addEventListener("click", () => {
+            console.log("Rotate left clicked");
             this.rotate(-90);
         });
 
         this.rotateRightBtn?.addEventListener("click", () => {
+            console.log("Rotate right clicked");
             this.rotate(90);
         });
 
@@ -78,6 +79,49 @@ class ImageViewer {
             e.stopPropagation();
             const menuContainer = this.menuBtn.closest('.menu-container');
             menuContainer.classList.toggle('show');
+        });
+
+        // Window/Level drag handling
+        this.canvas.addEventListener("mousedown", (e) => {
+            if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
+                this.isDragging = true;
+                this.dragStart = { x: e.clientX, y: e.clientY };
+                console.log("Started window/level drag");
+            }
+        });
+
+        this.canvas.addEventListener("mousemove", (e) => {
+            if (this.isDragging) {
+                const dx = e.clientX - this.dragStart.x;
+                const dy = this.dragStart.y - e.clientY;  // Invert Y for natural feel
+
+                // Scale factors for more precise control
+                this.windowWidth = Math.max(1, this.windowWidth + dx * 2);
+                this.windowCenter += dy * 2;
+
+                this.dragStart = { x: e.clientX, y: e.clientY };
+                console.log(`Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`);
+                this.updateSlice();
+            }
+        });
+
+        this.canvas.addEventListener("mouseup", () => {
+            this.isDragging = false;
+        });
+
+        this.canvas.addEventListener("mouseleave", () => {
+            this.isDragging = false;
+        });
+
+        // Mouse wheel for slice navigation
+        this.canvas.addEventListener("wheel", (e) => {
+            if (!this.is3DMode && this.totalSlices > 1) {
+                e.preventDefault();
+                const delta = Math.sign(e.deltaY);
+                this.currentSlice = Math.max(0, Math.min(this.totalSlices - 1, this.currentSlice + delta));
+                console.log(`Slice changed to ${this.currentSlice + 1}/${this.totalSlices}`);
+                this.updateSlice();
+            }
         });
 
         // Close menu when clicking outside
@@ -115,48 +159,6 @@ class ImageViewer {
                 item.closest('.menu-container').classList.remove('show');
             });
         });
-
-        // Window/Level drag handling
-        this.canvas.addEventListener("mousedown", (e) => {
-            if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
-                this.isDragging = true;
-                this.dragStart = { x: e.clientX, y: e.clientY };
-            }
-        });
-
-        this.canvas.addEventListener("mousemove", (e) => {
-            if (this.isDragging) {
-                const dx = e.clientX - this.dragStart.x;
-                const dy = e.clientY - this.dragStart.y;
-
-                // Adjust window width and center based on drag
-                this.windowWidth = Math.max(0, this.windowWidth + dx);
-                this.windowCenter += dy;
-
-                this.dragStart = { x: e.clientX, y: e.clientY };
-                this.updateSlice();
-                this.updateInfoDisplay();
-            }
-        });
-
-        this.canvas.addEventListener("mouseup", () => {
-            this.isDragging = false;
-        });
-
-        this.canvas.addEventListener("mouseleave", () => {
-            this.isDragging = false;
-        });
-
-        // Mouse wheel for slice navigation in 2D mode
-        this.canvas.addEventListener("wheel", (e) => {
-            if (!this.is3DMode && this.totalSlices > 1) {
-                e.preventDefault();
-                const delta = Math.sign(e.deltaY);
-                this.currentSlice = Math.max(0, Math.min(this.totalSlices - 1, this.currentSlice + delta));
-                this.updateSlice();
-                this.updateInfoDisplay();
-            }
-        });
     }
 
     toggleViewMode() {
@@ -176,6 +178,8 @@ class ImageViewer {
             this.camera.beta = 0;
             this.camera.radius = 5;
         }
+
+        this.updateSlice();
     }
 
     toggleWindowLevelMode() {
@@ -189,12 +193,14 @@ class ImageViewer {
         if (!this.is3DMode) {
             this.optimizeWindowBtn.classList.toggle("active");
             this.windowLevelBtn.classList.remove("active");
+            // ROI optimization will be implemented here
         }
     }
 
     rotate(degrees) {
         if (!this.is3DMode) {
             this.rotation = (this.rotation + degrees) % 360;
+            console.log(`Rotating image by ${degrees} degrees, total rotation: ${this.rotation}`);
             this.updateSlice();
         }
     }
@@ -235,12 +241,43 @@ class ImageViewer {
         const imgHeight = this.height;
         const rgbData = new Float32Array(imgWidth * imgHeight * 3);
 
+        // Apply window/level and handle rotation
         for (let i = 0; i < pixels.length; i++) {
             let normalizedValue = (pixels[i] - low) / (high - low);
             normalizedValue = Math.max(0, Math.min(1, normalizedValue));
-            rgbData[i * 3] = normalizedValue;
-            rgbData[i * 3 + 1] = normalizedValue;
-            rgbData[i * 3 + 2] = normalizedValue;
+
+            // Calculate rotated position
+            const x = i % imgWidth;
+            const y = Math.floor(i / imgWidth);
+            let rotatedIndex = i;
+
+            if (this.rotation !== 0) {
+                const angle = (this.rotation * Math.PI) / 180;
+                const centerX = imgWidth / 2;
+                const centerY = imgHeight / 2;
+
+                // Translate to origin, rotate, then translate back
+                const rotatedX = Math.round(
+                    centerX + (x - centerX) * Math.cos(angle) - (y - centerY) * Math.sin(angle)
+                );
+                const rotatedY = Math.round(
+                    centerY + (x - centerX) * Math.sin(angle) + (y - centerY) * Math.cos(angle)
+                );
+
+                // Check if the rotated position is within bounds
+                if (
+                    rotatedX >= 0 &&
+                    rotatedX < imgWidth &&
+                    rotatedY >= 0 &&
+                    rotatedY < imgHeight
+                ) {
+                    rotatedIndex = rotatedY * imgWidth + rotatedX;
+                }
+            }
+
+            rgbData[rotatedIndex * 3] = normalizedValue;
+            rgbData[rotatedIndex * 3 + 1] = normalizedValue;
+            rgbData[rotatedIndex * 3 + 2] = normalizedValue;
         }
 
         this.texture.update(rgbData);
