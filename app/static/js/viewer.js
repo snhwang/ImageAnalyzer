@@ -25,6 +25,7 @@ class ImageViewer {
         this.canvas2D.style.top = "0";
         this.canvas2D.style.left = "0";
         this.canvas2D.style.display = "none"; // Initially hidden
+        this.canvas2D.style.userSelect = "none"; // Prevent text selection
         this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas2D);
 
         // Initialize 3D canvas
@@ -34,6 +35,7 @@ class ImageViewer {
         this.canvas3D.style.position = "absolute";
         this.canvas3D.style.top = "0";
         this.canvas3D.style.left = "0";
+        this.canvas3D.style.userSelect = "none"; // Prevent text selection
         this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas3D);
 
         // ROI canvas
@@ -46,7 +48,11 @@ class ImageViewer {
         this.roiCanvas.style.left = "0";
         this.roiCanvas.style.pointerEvents = "none";
         this.roiCanvas.style.display = "none"; // Initially hidden
+        this.roiCanvas.style.userSelect = "none"; // Prevent text selection
         this.imageContainer.querySelector(".canvas-container").appendChild(this.roiCanvas);
+
+        // Get upload overlay reference
+        this.uploadOverlay = this.container.querySelector(".upload-overlay");
 
         // Initialize buttons and inputs
         this.fileInput = container.querySelector(".hidden-file-input");
@@ -106,7 +112,7 @@ class ImageViewer {
             console.log("Rotate right button clicked");
             this.rotate(90);
         });
-        
+
         // Menu button handling
         this.menuBtn?.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -220,15 +226,16 @@ class ImageViewer {
         this.canvas3D.style.display = this.is3DMode ? 'block' : 'none';
         this.roiCanvas.style.display = this.is3DMode ? 'none' : 'block';
 
+        // Update pointer events
+        this.canvas2D.style.pointerEvents = this.is3DMode ? 'none' : 'auto';
+        this.canvas3D.style.pointerEvents = this.is3DMode ? 'auto' : 'none';
+
         this.viewModeBtn.classList.toggle("active");
         this.windowLevelBtn.classList.remove("active");
         this.optimizeWindowBtn.classList.remove("active");
 
         if (this.is3DMode) {
             this.camera.attachControl(this.canvas3D, true);
-            this.camera.alpha = 0;
-            this.camera.beta = Math.PI / 3;
-            this.camera.radius = 10;
         } else {
             this.camera.detachControl();
             this.resizeCanvases();
@@ -315,9 +322,9 @@ class ImageViewer {
         // Handle rotation if needed
         if (this.rotation !== 0) {
             this.ctx2D.save();
-            this.ctx2D.translate(this.canvas2D.width/2, this.canvas2D.height/2);
+            this.ctx2D.translate(this.canvas2D.width / 2, this.canvas2D.height / 2);
             this.ctx2D.rotate(this.rotation * Math.PI / 180);
-            this.ctx2D.translate(-this.canvas2D.width/2, -this.canvas2D.height/2);
+            this.ctx2D.translate(-this.canvas2D.width / 2, -this.canvas2D.height / 2);
         }
 
         // Draw the image centered and scaled
@@ -430,7 +437,7 @@ class ImageViewer {
         material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
         material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 
-        this.cube = BABYLON.MeshBuilder.CreateBox("cube", {size: 2}, this.scene);
+        this.cube = BABYLON.MeshBuilder.CreateBox("cube", { size: 2 }, this.scene);
         this.cube.material = material;
 
         // Add lights
@@ -461,6 +468,11 @@ class ImageViewer {
 
             if (result.success && result.data) {
                 console.log("Upload successful, processing image data...");
+
+                // Hide upload overlay
+                if (this.uploadOverlay) {
+                    this.uploadOverlay.style.display = 'none';
+                }
 
                 this.imageData = result.data;
                 this.totalSlices = this.imageData.length;
