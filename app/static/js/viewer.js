@@ -711,14 +711,15 @@ class ImageViewer {
                 this.windowCenter = result.window_center;
                 this.width = result.dimensions[0];
                 this.height = result.dimensions[1];
+                this.textureData = result.texture_data;  // Store texture data for 3D view
 
                 // Switch to 2D mode if not already
                 if (this.is3DMode) {
-                    this.toggleViewMode();
+                    this.updateTexture();  // Update 3D view immediately if in 3D mode
+                } else {
+                    this.resizeCanvases();
+                    await this.updateSlice();
                 }
-
-                this.resizeCanvases();
-                await this.updateSlice();
 
                 console.log("Image successfully loaded and displayed");
             } else {
@@ -732,62 +733,48 @@ class ImageViewer {
     }
 
     updateTexture() {
-        if (!this.imageData || !this.imageData.length) return;
+        if (!this.textureData || !this.textureData.length) return;
 
-        const currentSliceData = this.imageData[this.currentSlice];
-        const binaryString = atob(currentSliceData);
-        const pixels = new Float32Array(binaryString.length / 4);
+        const currentTextureData = this.textureData[this.currentSlice];
 
-        for (let i = 0; i < binaryString.length; i += 4) {
-            const value =
-                binaryString.charCodeAt(i) |
-                (binaryString.charCodeAt(i + 1) << 8) |
-                (binaryString.charCodeAt(i + 2) << 16) |
-                (binaryString.charCodeAt(i + 3) << 24);
-            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
-        }
+        // Create a new image to load the texture
+        const img = new Image();
+        img.onload = () => {
+            // Create or update the texture
+            if (!this.texture) {
+                this.texture = new BABYLON.Texture.CreateFromBase64String(
+                    currentTextureData.split(',')[1],
+                    "volumeSlice",
+                    this.scene,
+                    false,
+                    false,
+                    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+                );
 
-        // Apply window/level
-        const low = this.windowCenter - this.windowWidth / 2;
-        const high = this.windowCenter + this.windowWidth / 2;
+                // Create material for the cube
+                const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
+                material.diffuseTexture = this.texture;
+                material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                material.backFaceCulling = false;
 
-        // Create RGB data for the texture
-        const rgbData = new Float32Array(this.width * this.height * 3);
-        for (let i = 0; i < pixels.length; i++) {
-            const value = pixels[i];
-            let normalizedValue = (value - low) / (high - low);
-            normalizedValue = Math.max(0, Math.min(1, normalizedValue));
-
-            rgbData[i * 3] = normalizedValue;
-            rgbData[i * 3 + 1] = normalizedValue;
-            rgbData[i * 3 + 2] = normalizedValue;
-        }
-
-        // Create or update the texture
-        if (!this.texture) {
-            this.texture = new BABYLON.RawTexture(
-                rgbData,
-                this.width,
-                this.height,
-                BABYLON.Engine.TEXTUREFORMAT_RGB,
-                this.scene,
-                false,
-                false,
-                BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-                BABYLON.Engine.TEXTURETYPE_FLOAT
-            );
-
-            // Create new material with the texture
-            const material = new BABYLON.StandardMaterial("imageMaterial", this.scene);
-            material.diffuseTexture = this.texture;
-            material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-            material.useFloatValues = true;
-
-            // Apply material to cube
-            this.cube.material = material;
-        } else {
-            this.texture.update(rgbData);
-        }
+                // Apply material to cube
+                this.cube.material = material;
+            } else {
+                // Update existing texture
+                BABYLON.Texture.CreateFromBase64String(
+                    currentTextureData.split(',')[1],
+                    "volumeSlice",
+                    this.scene,
+                    false,
+                    false,
+                    BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+                    () => {
+                        this.texture.updateURL(currentTextureData);
+                    }
+                );
+            }
+        };
+        img.src = currentTextureData;
     }
 
     getState() {
@@ -803,7 +790,8 @@ class ImageViewer {
             minVal: this.minVal,
             maxVal: this.maxVal,
             is3DMode: this.is3DMode,
-            imageId: this.imageId
+            imageId: this.imageId,
+            textureData: this.textureData
         };
     }
 
@@ -823,6 +811,7 @@ class ImageViewer {
         this.maxVal = state.maxVal || 255;
         this.is3DMode = state.is3DMode || false;
         this.imageId = state.imageId;
+        this.textureData = state.textureData;
 
         // Initialize canvases before updating
         if (this.imageData) {
@@ -830,7 +819,7 @@ class ImageViewer {
             // Ensure proper canvas visibility based on mode
             this.canvas2D.style.display = this.is3DMode ? 'none' : 'block';
             this.canvas3D.style.display = this.is3DMode ? 'block' : 'none';
-            this.roiCanvas.style.display = this.is3DMode ? 'none' : ''block';
+            this.roiCanvas.style.display = this.is3DMode ? 'none' : 'block';
 
             // Update the view
             if (this.is3DMode) {
@@ -847,8 +836,10 @@ class ImageViewer {
     }
 
     initializeBabylonScene() {
-        // Initialize Babylon.js scene using canvas3D
+        // Create engine
         this.engine = new BABYLON.Engine(this.canvas3D, true);
+
+        // Create scene
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
@@ -864,20 +855,29 @@ class ImageViewer {
         this.camera.setTarget(BABYLON.Vector3.Zero());
         this.camera.attachControl(this.canvas3D, true);
 
-        //        // Create a cube
-        const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
-        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-        material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-
-        this.cube = BABYLON.MeshBuilder.CreateBox("cube", { size: 2 }, this.scene);
-        this.cube.material = material;
+        // Create cube
+        this.cube = BABYLON.MeshBuilder.CreateBox(
+            "cube",
+            { size: 2 },
+            this.scene
+        );
 
         // Add lights
-        new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), this.scene);
+        const light = new BABYLON.HemisphericLight(
+            "light",
+            new BABYLON.Vector3(0, 1, 0),
+            this.scene
+        );
+        light.intensity = 0.7;
 
         // Start rendering loop
         this.engine.runRenderLoop(() => {
             this.scene.render();
+        });
+
+        // Handle window resize
+        window.addEventListener("resize", () => {
+            this.engine.resize();
         });
     }
 }

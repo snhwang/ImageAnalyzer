@@ -11,6 +11,7 @@ import tempfile
 import uuid
 import os
 import logging
+import base64
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -34,9 +35,6 @@ async def upload_file(file: UploadFile = File(...)):
                 status_code=400,
                 detail=f"Unsupported file type. Supported formats are: {', '.join(valid_extensions)}"
             )
-
-        # Log file information
-        logger.info(f"Receiving file: {filename}")
 
         # Create a temporary file
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -90,24 +88,49 @@ async def upload_file(file: UploadFile = File(...)):
                 window_width, window_center = calculate_optimal_window_settings(data)
                 logger.info(f"Window settings - Width: {window_width}, Center: {window_center}")
 
-                # Store raw data in memory
+                # Prepare normalized slices for 3D view
+                normalized_slices = []
+                data_min = float(np.min(data))
+                data_max = float(np.max(data))
+
+                # Process each slice for 3D view
+                if len(data.shape) == 3:
+                    for i in range(data.shape[2]):
+                        slice_data = data[:, :, i]
+                        # Normalize to 0-255 range
+                        normalized = ((slice_data - data_min) / (data_max - data_min) * 255).astype(np.uint8)
+                        normalized_slices.append(normalized)
+                else:
+                    normalized = ((data - data_min) / (data_max - data_min) * 255).astype(np.uint8)
+                    normalized_slices.append(normalized)
+
+                # Convert normalized slices to base64 for 3D view
+                texture_data = []
+                for normalized in normalized_slices:
+                    img_byte_arr = io.BytesIO()
+                    Image.fromarray(normalized).save(img_byte_arr, format='PNG')
+                    img_base64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+                    texture_data.append(f"data:image/png;base64,{img_base64}")
+
+                # Store raw data in memory for 2D view
                 image_storage[image_id] = {
                     'data': data,
                     'window_width': float(window_width),
                     'window_center': float(window_center),
                     'total_slices': total_slices,
-                    'data_min': float(np.min(data)),
-                    'data_max': float(np.max(data))
+                    'data_min': data_min,
+                    'data_max': data_max
                 }
 
-                # Return metadata only - actual image data will be fetched via separate endpoint
+                # Return both metadata and texture data
                 return {
                     "status": "success",
                     "image_id": image_id,
                     "total_slices": total_slices,
                     "window_width": float(window_width),
                     "window_center": float(window_center),
-                    "dimensions": list(data.shape[:2])
+                    "dimensions": list(data.shape[:2]),
+                    "texture_data": texture_data  # For 3D view
                 }
 
             except Exception as e:
