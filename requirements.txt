@@ -44,3 +44,11 @@ numpy
 pillow
 pydicom
 openai
+aiofiles
+fastapi
+jinja2
+nibabel
+pillow
+pydicom
+python-multipart
+uvicorn

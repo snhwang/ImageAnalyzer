@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from pathlib import Path
 from typing import Optional
+from app.routes import router
 
 # Create FastAPI app
 app = FastAPI(
@@ -46,14 +47,8 @@ async def home(request: Request):
     """Serve the main application page"""
     return templates.TemplateResponse("index.html", {"request": request})
 
-# Import routes after app initialization to avoid circular imports
-from app.routes import directory, upload, image, session
-
-# Include routes with proper prefixes
-app.include_router(directory.router, prefix="/api/directory", tags=["directory"])
-app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
-app.include_router(image.router, prefix="/api/image", tags=["image"])
-app.include_router(session.router, prefix="/api/session", tags=["session"])
+# Include all routes from app/routes
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
