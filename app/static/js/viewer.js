@@ -673,7 +673,7 @@ class ImageViewer {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await fetch(`/upload`, {
+            const response = await fetch('/api/upload/', {
                 method: 'POST',
                 body: formData
             });
@@ -694,7 +694,7 @@ class ImageViewer {
                 }
 
                 this.imageData = result.data;
-                this.totalSlices = this.imageData.length;
+                this.totalSlices = result.metadata.total_slices;
                 this.currentSlice = 0;
                 this.minVal = result.metadata.min_value;
                 this.maxVal = result.metadata.max_value;
@@ -830,7 +830,7 @@ class ImageViewer {
                 this.uploadOverlay.style.display = 'none';
             }
         }
-    }}
+    }
 
     initializeBabylonScene() {
         // Initialize Babylon.js scene using canvas3D
