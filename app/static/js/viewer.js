@@ -144,16 +144,19 @@ class ImageViewer {
             this.rotate(90);
         });
 
-        // Menu button handling
+        // Menu button and dropdown handling
         this.menuBtn?.addEventListener("click", (e) => {
             e.stopPropagation();
             const menuContainer = this.menuBtn.closest('.menu-container');
             menuContainer.classList.toggle('show');
         });
 
-        // Handle menu item clicks
+        // Handle menu item clicks with proper binding
         this.menuDropdown?.addEventListener("click", (e) => {
-            const action = e.target.dataset.action;
+            const menuItem = e.target.closest('.menu-item');
+            if (!menuItem) return;
+
+            const action = menuItem.dataset.action;
             if (action) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -164,14 +167,13 @@ class ImageViewer {
 
                 // Execute corresponding action
                 switch (action) {
-                    case 'toggle-view':
-                        this.toggleViewMode();
+                    case 'upload-file':
+                        if (this.fileInput) {
+                            this.fileInput.click();
+                        }
                         break;
-                    case 'window-level':
-                        this.toggleWindowLevelMode();
-                        break;
-                    case 'optimize-window':
-                        this.toggleOptimizeWindow();
+                    case 'browse-remote':
+                        this.showDirectoryBrowser();
                         break;
                     case 'rotate-left':
                         this.rotate(-90);
@@ -179,11 +181,14 @@ class ImageViewer {
                     case 'rotate-right':
                         this.rotate(90);
                         break;
-                    case 'upload-file':
-                        this.fileInput?.click();
+                    case 'optimize-window':
+                        this.toggleOptimizeWindow();
                         break;
-                    case 'browse-remote':
-                        this.showDirectoryBrowser();
+                    case 'window-level':
+                        this.toggleWindowLevelMode();
+                        break;
+                    case 'toggle-view':
+                        this.toggleViewMode();
                         break;
                 }
             }
@@ -889,7 +894,7 @@ class ImageViewer {
     }
 }
 
-// Update grid layout change handler
+// Update grid layout change handler to properly initialize new viewers
 function updateGridLayout() {
     const layout = document.getElementById("gridLayout").value;
     const [rows, cols] = layout.split("x").map(Number);
@@ -921,6 +926,9 @@ function updateGridLayout() {
             const viewer = new ImageViewer(container);
             container.viewer = viewer;
 
+            // Ensure event listeners are properly initialized
+            viewer.setupEventListeners();
+
             if (existingStates[i]) {
                 viewer.setState(existingStates[i]);
             }
@@ -932,15 +940,19 @@ function updateGridLayout() {
         }
     }
 
-    // Restore states to remaining cells
+    // Restore states to remaining cells and ensure event listeners
     Array.from(imageGrid.children).forEach((container, index) => {
+        if (!container.viewer) {
+            container.viewer = new ImageViewer(container);
+            container.viewer.setupEventListeners();
+        }
         if (existingStates[index]) {
             container.viewer.setState(existingStates[index]);
         }
     });
 }
 
-// Update event listener for grid layout changes
+// Initialize grid layout change listener
 document.getElementById("gridLayout")?.addEventListener("change", updateGridLayout);
 
 // Initialize the application
