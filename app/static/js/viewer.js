@@ -15,15 +15,13 @@ class ImageViewer {
         this.isDrawingROI = false;
         this.roiStart = null;
         this.roiEnd = null;
-        this.imageLabel = ''; // Add image label storage
+        this.imageLabel = ''; 
 
-        // Initialize image label from select if exists
         const labelSelect = this.container.querySelector('.image-label');
         if (labelSelect) {
             this.imageLabel = labelSelect.value;
         }
 
-        // Initialize 2D canvas
         this.canvas2D = document.createElement("canvas");
         this.ctx2D = this.canvas2D.getContext("2d");
         this.canvas2D.style.width = "100%";
@@ -31,21 +29,19 @@ class ImageViewer {
         this.canvas2D.style.position = "absolute";
         this.canvas2D.style.top = "0";
         this.canvas2D.style.left = "0";
-        this.canvas2D.style.display = "none"; // Initially hidden
-        this.canvas2D.style.userSelect = "none"; // Prevent text selection
+        this.canvas2D.style.display = "none"; 
+        this.canvas2D.style.userSelect = "none"; 
         this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas2D);
 
-        // Initialize 3D canvas
         this.canvas3D = document.createElement("canvas");
         this.canvas3D.style.width = "100%";
         this.canvas3D.style.height = "100%";
         this.canvas3D.style.position = "absolute";
         this.canvas3D.style.top = "0";
         this.canvas3D.style.left = "0";
-        this.canvas3D.style.userSelect = "none"; // Prevent text selection
+        this.canvas3D.style.userSelect = "none"; 
         this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas3D);
 
-        // ROI canvas
         this.roiCanvas = document.createElement("canvas");
         this.roiCtx = this.roiCanvas.getContext("2d");
         this.roiCanvas.style.width = "100%";
@@ -54,14 +50,12 @@ class ImageViewer {
         this.roiCanvas.style.top = "0";
         this.roiCanvas.style.left = "0";
         this.roiCanvas.style.pointerEvents = "none";
-        this.roiCanvas.style.display = "none"; // Initially hidden
-        this.roiCanvas.style.userSelect = "none"; // Prevent text selection
+        this.roiCanvas.style.display = "none"; 
+        this.roiCanvas.style.userSelect = "none"; 
         this.imageContainer.querySelector(".canvas-container").appendChild(this.roiCanvas);
 
-        // Get upload overlay reference
         this.uploadOverlay = this.container.querySelector(".upload-overlay");
 
-        // Initialize buttons and inputs
         this.fileInput = container.querySelector(".hidden-file-input");
         this.uploadBtn = container.querySelector(".upload-btn");
         this.viewModeBtn = container.querySelector(".view-mode-btn");
@@ -71,23 +65,20 @@ class ImageViewer {
         this.rotateRightBtn = container.querySelector(".rotate-right-btn");
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
-        this.browseBtn = container.querySelector('.browse-btn'); // Added browse button
+        this.browseBtn = container.querySelector('.browse-btn'); 
 
-        this.pixelCache = new Map(); // Cache for processed pixel data
+        this.pixelCache = new Map(); 
         this.wheelThrottleTimeout = null;
         this.isProcessingWheel = false;
 
-        // Initialize modal references
         this.urlImportModal = document.getElementById('urlImportModal');
         this.directoryList = document.getElementById('directoryList');
         this.currentPathElement = document.getElementById('currentPath');
-
 
         this.setupEventListeners();
         this.initializeBabylonScene();
     }
 
-    // Add label getter and setter
     getLabel() {
         return this.imageLabel;
     }
@@ -101,7 +92,6 @@ class ImageViewer {
     }
 
     setupEventListeners() {
-        // File upload handling
         this.uploadBtn?.addEventListener("click", () => {
             console.log("Upload button clicked");
             this.fileInput?.click();
@@ -115,25 +105,21 @@ class ImageViewer {
             }
         });
 
-        // View mode toggle
         this.viewModeBtn?.addEventListener("click", () => {
             console.log("View mode button clicked");
             this.toggleViewMode();
         });
 
-        // Window level toggle
         this.windowLevelBtn?.addEventListener("click", () => {
             console.log("Window level button clicked");
             this.toggleWindowLevelMode();
         });
 
-        // Optimize window with ROI
         this.optimizeWindowBtn?.addEventListener("click", () => {
             console.log("Optimize window button clicked");
             this.toggleOptimizeWindow();
         });
 
-        // Rotation buttons
         this.rotateLeftBtn?.addEventListener("click", () => {
             console.log("Rotate left button clicked");
             this.rotate(-90);
@@ -144,14 +130,12 @@ class ImageViewer {
             this.rotate(90);
         });
 
-        // Menu button and dropdown handling
         this.menuBtn?.addEventListener("click", (e) => {
             e.stopPropagation();
             const menuContainer = this.menuBtn.closest('.menu-container');
             menuContainer.classList.toggle('show');
         });
 
-        // Handle menu item clicks with proper binding
         this.menuDropdown?.addEventListener("click", (e) => {
             const menuItem = e.target.closest('.menu-item');
             if (!menuItem) return;
@@ -161,11 +145,9 @@ class ImageViewer {
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Hide menu after action
                 const menuContainer = this.menuBtn.closest('.menu-container');
                 menuContainer.classList.remove('show');
 
-                // Execute corresponding action
                 switch (action) {
                     case 'upload-file':
                         if (this.fileInput) {
@@ -194,7 +176,6 @@ class ImageViewer {
             }
         });
 
-        // Close menu when clicking outside
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.menu-container')) {
                 const menuContainers = document.querySelectorAll('.menu-container');
@@ -202,7 +183,6 @@ class ImageViewer {
             }
         });
 
-        // ROI selection
         this.roiCanvas.addEventListener("mousedown", (e) => {
             if (this.optimizeWindowBtn.classList.contains("active")) {
                 this.isDrawingROI = true;
@@ -211,7 +191,7 @@ class ImageViewer {
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top
                 };
-                e.stopPropagation(); // Only stop propagation for mouse events
+                e.stopPropagation(); 
             }
         });
 
@@ -223,7 +203,7 @@ class ImageViewer {
                     y: e.clientY - rect.top
                 };
                 this.drawROI();
-                e.stopPropagation(); // Only stop propagation for mouse events
+                e.stopPropagation(); 
             }
         });
 
@@ -231,11 +211,10 @@ class ImageViewer {
             if (this.isDrawingROI) {
                 this.isDrawingROI = false;
                 this.optimizeWindowFromROI();
-                e.stopPropagation(); // Only stop propagation for mouse events
+                e.stopPropagation(); 
             }
         });
 
-        // Mouse wheel for slice navigation - Keep at container level and ensure it works independent of tool state
         this.imageContainer.addEventListener("wheel", (e) => {
             if (!this.is3DMode && this.totalSlices > 1) {
                 e.preventDefault();
@@ -258,9 +237,8 @@ class ImageViewer {
                     this.isProcessingWheel = false;
                 }
             }
-        }, { passive: false }); // Ensure wheel events are captured
+        }, { passive: false }); 
 
-        // Window/Level drag handling
         this.canvas2D.addEventListener("mousedown", (e) => {
             if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
                 console.log("Starting window/level adjustment");
@@ -287,24 +265,20 @@ class ImageViewer {
             this.isDragging = false;
         });
 
-        // Handle window resize
         window.addEventListener("resize", () => {
             this.resizeCanvases();
         });
 
-        // Browse button click handler
         this.browseBtn?.addEventListener("click", () => {
             console.log("Browse button clicked");
             this.showDirectoryBrowser();
         });
 
-        // Close modal when clicking cancel
         const cancelBtn = this.urlImportModal?.querySelector('.cancel-btn');
         cancelBtn?.addEventListener('click', () => {
             this.urlImportModal.classList.remove('show');
         });
 
-        // Update image label selection handler
         const imageLabel = this.container.querySelector('.image-label');
         imageLabel?.addEventListener('change', (e) => {
             const selectedLabel = e.target.value;
@@ -317,7 +291,6 @@ class ImageViewer {
         const container = this.imageContainer.querySelector(".canvas-container");
         const rect = container.getBoundingClientRect();
 
-        // Resize all canvases
         [this.canvas2D, this.canvas3D, this.roiCanvas].forEach(canvas => {
             canvas.width = rect.width;
             canvas.height = rect.height;
@@ -335,12 +308,10 @@ class ImageViewer {
         this.is3DMode = !this.is3DMode;
         console.log(`Switching to ${this.is3DMode ? '3D' : '2D'} mode`);
 
-        // Toggle visibility of canvases
         this.canvas2D.style.display = this.is3DMode ? 'none' : 'block';
         this.canvas3D.style.display = this.is3DMode ? 'block' : 'none';
         this.roiCanvas.style.display = this.is3DMode ? 'none' : 'block';
 
-        // Update pointer events
         this.canvas2D.style.pointerEvents = this.is3DMode ? 'none' : 'auto';
         this.canvas3D.style.pointerEvents = this.is3DMode ? 'auto' : 'none';
 
@@ -376,10 +347,8 @@ class ImageViewer {
             this.optimizeWindowBtn.classList.toggle("active");
             this.windowLevelBtn.classList.remove("active");
 
-            // Configure ROI canvas for drawing while allowing wheel events to pass through
             if (this.optimizeWindowBtn.classList.contains("active")) {
                 this.roiCanvas.style.pointerEvents = "auto";
-                // Only capture mouse events, not wheel events
                 this.roiCanvas.style.touchAction = "none";
                 this.roiCanvas.style.zIndex = "1";
             } else {
@@ -397,14 +366,12 @@ class ImageViewer {
         const dx = e.clientX - this.dragStart.x;
         const dy = this.dragStart.y - e.clientY;
 
-        // Scale the adjustments based on the image's data range
-        const windowWidthScale = (this.maxVal - this.minVal) / 500; // Adjust window over 500 pixels
-        const windowCenterScale = (this.maxVal - this.minVal) / 500; // Adjust center over 500 pixels
+        const windowWidthScale = (this.maxVal - this.minVal) / 500; 
+        const windowCenterScale = (this.maxVal - this.minVal) / 500; 
 
         this.windowWidth = Math.max(1, this.startWindowWidth + dx * windowWidthScale);
         this.windowCenter = this.startWindowCenter + dy * windowCenterScale;
 
-        // Clamp window center between min and max values
         this.windowCenter = Math.max(this.minVal, Math.min(this.maxVal, this.windowCenter));
 
         console.log(`Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`);
@@ -449,47 +416,38 @@ class ImageViewer {
             return;
         }
 
-        // Load and process pixel data
         const pixels = await this.loadSliceData(this.currentSlice);
 
-        // Create a temporary canvas for processing
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = this.width;
         tempCanvas.height = this.height;
         const tempCtx = tempCanvas.getContext('2d');
 
-        // Create ImageData with window/level applied
         const imageData = new ImageData(this.width, this.height);
         const data = imageData.data;
 
-        // Pre-compute window/level values
         const low = this.windowCenter - this.windowWidth / 2;
         const high = this.windowCenter + this.windowWidth / 2;
         const range = high - low;
         const scale = 255 / range;
 
-        // Optimize pixel processing loop
         const length = pixels.length;
         for (let i = 0; i < length; i++) {
             const value = pixels[i];
             const normalizedValue = Math.max(0, Math.min(1, (value - low) / range));
             const pixelValue = Math.round(normalizedValue * 255);
-            const index = i << 2; // Multiply by 4 using bit shift
-            data[index] = pixelValue;     // R
-            data[index + 1] = pixelValue; // G
-            data[index + 2] = pixelValue; // B
-            data[index + 3] = 255;        // A
+            const index = i << 2; 
+            data[index] = pixelValue;     
+            data[index + 1] = pixelValue; 
+            data[index + 2] = pixelValue; 
+            data[index + 3] = 255;        
         }
 
-        // Put the processed image data on the temporary canvas
         tempCtx.putImageData(imageData, 0, 0);
 
-        // Use requestAnimationFrame for smooth rendering
         requestAnimationFrame(() => {
-            // Clear the main canvas
             this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
 
-            // Handle rotation if needed
             if (this.rotation !== 0) {
                 this.ctx2D.save();
                 this.ctx2D.translate(this.canvas2D.width / 2, this.canvas2D.height / 2);
@@ -497,7 +455,6 @@ class ImageViewer {
                 this.ctx2D.translate(-this.canvas2D.width / 2, -this.canvas2D.height / 2);
             }
 
-            // Draw the image centered and scaled
             const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
             const x = (this.canvas2D.width - this.width * scale) / 2;
             const y = (this.canvas2D.height - this.height * scale) / 2;
@@ -508,7 +465,6 @@ class ImageViewer {
                 this.ctx2D.restore();
             }
 
-            // Update info display
             const infoElement = this.container.querySelector(".image-info");
             if (infoElement) {
                 infoElement.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices}`;
@@ -537,7 +493,6 @@ class ImageViewer {
     optimizeWindowFromROI() {
         if (!this.roiStart || !this.roiEnd) return;
 
-        // Convert ROI coordinates to image coordinates
         const scaleX = this.width / this.canvas2D.width;
         const scaleY = this.height / this.canvas2D.height;
 
@@ -546,7 +501,6 @@ class ImageViewer {
         const x2 = Math.floor(Math.max(this.roiStart.x, this.roiEnd.x) * scaleX);
         const y2 = Math.floor(Math.max(this.roiStart.y, this.roiEnd.y) * scaleY);
 
-        // Get pixel data from current slice
         const currentSliceData = this.imageData[this.currentSlice];
         const binaryString = atob(currentSliceData);
         const pixels = new Float32Array(binaryString.length / 4);
@@ -560,7 +514,6 @@ class ImageViewer {
             pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
         }
 
-        // Calculate min and max within ROI
         let min = Infinity;
         let max = -Infinity;
 
@@ -572,11 +525,9 @@ class ImageViewer {
             }
         }
 
-        // Update window/level based on ROI
         this.windowCenter = (min + max) / 2;
         this.windowWidth = max - min;
 
-        // Clear ROI and update display
         this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
         this.roiStart = null;
         this.roiEnd = null;
@@ -600,11 +551,9 @@ class ImageViewer {
             pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
         }
 
-        // Apply window/level
         const low = this.windowCenter - this.windowWidth / 2;
         const high = this.windowCenter + this.windowWidth / 2;
 
-        // Create RGB data for the texture
         const rgbData = new Float32Array(this.width * this.height * 3);
         for (let i = 0; i < pixels.length; i++) {
             const value = pixels[i];
@@ -616,7 +565,6 @@ class ImageViewer {
             rgbData[i * 3 + 2] = normalizedValue;
         }
 
-        // Create or update the texture
         if (!this.texture) {
             this.texture = new BABYLON.RawTexture(
                 rgbData,
@@ -630,13 +578,11 @@ class ImageViewer {
                 BABYLON.Engine.TEXTURETYPE_FLOAT
             );
 
-            // Create new material with the texture
             const material = new BABYLON.StandardMaterial("imageMaterial", this.scene);
             material.diffuseTexture = this.texture;
             material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
             material.useFloatValues = true;
 
-            // Apply material to cube
             this.cube.material = material;
         } else {
             this.texture.update(rgbData);
@@ -656,18 +602,16 @@ class ImageViewer {
             minVal: this.minVal,
             maxVal: this.maxVal,
             is3DMode: this.is3DMode,
-            imageLabel: this.imageLabel // Add label to state
+            imageLabel: this.imageLabel 
         };
     }
 
     setState(state) {
         if (!state) return;
 
-        // Deep copy the state to prevent reference issues
         this.imageData = state.imageData ? [...state.imageData] : null;
         this.currentSlice = state.currentSlice || 0;
         this.totalSlices = state.totalSlices || 1;
-        // Only set window/level if they are valid numbers
         if (!isNaN(state.windowCenter)) {
             this.windowCenter = state.windowCenter;
         }
@@ -681,39 +625,32 @@ class ImageViewer {
         this.maxVal = state.maxVal || 255;
         this.is3DMode = state.is3DMode || false;
 
-        // Initialize canvases before updating
         if (this.imageData) {
             this.resizeCanvases();
-            // Ensure proper canvas visibility based on mode
             this.canvas2D.style.display = this.is3DMode ? 'none' : 'block';
             this.canvas3D.style.display = this.is3DMode ? 'block' : 'none';
             this.roiCanvas.style.display = this.is3DMode ? 'none' : 'block';
 
-            // Update the view
             if (this.is3DMode) {
                 this.updateTexture();
             } else {
                 this.updateSlice();
             }
 
-            // Hide upload overlay
             if (this.uploadOverlay) {
                 this.uploadOverlay.style.display = 'none';
             }
         }
-        // Restore label if available
         if (state.imageLabel) {
             this.setLabel(state.imageLabel);
         }
     }
 
     initializeBabylonScene() {
-        // Initialize Babylon.js scene using canvas3D
         this.engine = new BABYLON.Engine(this.canvas3D, true);
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
-        // Create camera
         this.camera = new BABYLON.ArcRotateCamera(
             "camera",
             0,
@@ -725,7 +662,6 @@ class ImageViewer {
         this.camera.setTarget(BABYLON.Vector3.Zero());
         this.camera.attachControl(this.canvas3D, true);
 
-        // Create a cube
         const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
         material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
         material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
@@ -733,10 +669,8 @@ class ImageViewer {
         this.cube = BABYLON.MeshBuilder.CreateBox("cube", { size: 2 }, this.scene);
         this.cube.material = material;
 
-        // Add lights
         new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), this.scene);
 
-        // Start rendering loop
         this.engine.runRenderLoop(() => {
             this.scene.render();
         });
@@ -744,6 +678,8 @@ class ImageViewer {
 
     async uploadFile(file) {
         try {
+            this.clearImageState();
+
             const formData = new FormData();
             formData.append('file', file);
 
@@ -762,26 +698,11 @@ class ImageViewer {
             if (result.success && result.data) {
                 console.log("Upload successful, processing image data...");
 
-                // Hide upload overlay
                 if (this.uploadOverlay) {
                     this.uploadOverlay.style.display = 'none';
                 }
 
-                this.imageData = result.data;
-                this.totalSlices = this.imageData.length;
-                this.currentSlice = 0;
-                this.minVal = result.metadata.min_value;
-                this.maxVal = result.metadata.max_value;
-                this.width = result.metadata.dimensions[0];
-                this.height = result.metadata.dimensions[1];
-
-                // Switch to 2D mode if not already
-                if (this.is3DMode) {
-                    this.toggleViewMode();
-                }
-
-                this.resizeCanvases();
-                this.updateSlice();
+                this.loadImageData(result);
             } else {
                 console.error("Upload failed:", result.message);
             }
@@ -790,69 +711,11 @@ class ImageViewer {
         }
     }
 
-    async showDirectoryBrowser(path = 'images') {
-        console.log("Showing directory browser for path:", path);
-        this.urlImportModal.classList.add('show');
-        this.currentPathElement.textContent = path;
-
-        try {
-            // Show loading state
-            this.directoryList.innerHTML = '<div class="loading">Loading...</div>';
-
-            const response = await fetch(`${BASE_URL}/directory?path=${encodeURIComponent(path)}`);
-            if (!response.ok) {
-                throw new Error(`Failed to load directory: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            console.log("Directory contents:", data);
-
-            // Clear loading state and populate directory list
-            this.directoryList.innerHTML = '';
-
-            // Add parent directory link if not in root
-            if (path !== 'images') {
-                const parentPath = path.split('/').slice(0, -1).join('/') || 'images';
-                const parentDir = document.createElement('div');
-                parentDir.className = 'directory-item folder';
-                parentDir.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
-                parentDir.addEventListener('click', () => this.showDirectoryBrowser(parentPath));
-                this.directoryList.appendChild(parentDir);
-            }
-
-            // Add directories first
-            data.directories?.forEach(dir => {
-                const dirElement = document.createElement('div');
-                dirElement.className = 'directory-item folder';
-                dirElement.innerHTML = `<iclass="fas fa-folder"></i> ${dir}`;
-                dirElement.addEventListener('click', () => {
-                    this.showDirectoryBrowser(`${path}/${dir}`);
-                });
-                this.directoryList.appendChild(dirElement);
-            });
-
-            // Then add files
-            data.files?.forEach(file => {
-                if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
-                    const fileElement = document.createElement('div');
-                    fileElement.className = 'directory-item image';
-                    fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
-                    fileElement.addEventListener('click', () => {
-                        this.loadRemoteFile(`${path}/${file}`);
-                    });
-                    this.directoryList.appendChild(fileElement);
-                }
-            });
-
-        } catch (error) {
-            console.error("Error loading directory:", error);
-            this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
-        }
-    }
-
     async loadRemoteFile(path) {
         console.log("Loading remote file:", path);
         try {
+            this.clearImageState();
+
             const response = await fetch(`${BASE_URL}/load?path=${encodeURIComponent(path)}`);
             if (!response.ok) {
                 throw new Error(`Failed to load file: ${response.statusText}`);
@@ -860,91 +723,108 @@ class ImageViewer {
 
             const result = await response.json();
             if (result.success && result.data) {
-                // Hide modal
+                this.loadImageData(result);
                 this.urlImportModal.classList.remove('show');
-
-                // Process the image data
-                this.imageData = result.data;
-                this.totalSlices = this.imageData.length;
-                this.currentSlice = 0;
-                this.minVal = result.metadata.min_value;
-                this.maxVal = result.metadata.max_value;
-                this.width = result.metadata.dimensions[0];
-                this.height = result.metadata.dimensions[1];
-
-                // Switch to 2D mode if not already
-                if (this.is3DMode) {
-                    this.toggleViewMode();
-                }
-
-                this.resizeCanvases();
-                this.updateSlice();
-
-                // Hide upload overlay
-                if (this.uploadOverlay) {
-                    this.uploadOverlay.style.display = 'none';
-                }
             } else {
-                throw new Error(result.message || 'Failed to load image');
+                throw new Error(result.message || 'Failed to load image data');
             }
         } catch (error) {
             console.error("Error loading remote file:", error);
-            alert(`Error loading file: ${error.message}`);
         }
+    }
+
+    clearImageState() {
+        this.imageData = null;
+        this.currentSlice = 0;
+        this.totalSlices = 1;
+        this.windowCenter = 128;
+        this.windowWidth = 256;
+        this.rotation = 0;
+        this.width = 0;
+        this.height = 0;
+        this.minVal = 0;
+        this.maxVal = 255;
+
+        this.pixelCache.clear();
+
+        this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+        this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
+
+        this.isDrawingROI = false;
+        this.roiStart = null;
+        this.roiEnd = null;
+
+        if (this.texture) {
+            this.texture.dispose();
+            this.texture = null;
+        }
+
+        const infoElement = this.container.querySelector(".image-info");
+        if (infoElement) {
+            infoElement.textContent = 'Window: C: 0 W: 0 | Slice: 0/0';
+        }
+    }
+
+    loadImageData(result) {
+        this.imageData = result.data;
+        this.totalSlices = this.imageData.length;
+        this.currentSlice = 0;
+        this.minVal = result.metadata.min_value;
+        this.maxVal = result.metadata.max_value;
+        this.width = result.metadata.dimensions[0];
+        this.height = result.metadata.dimensions[1];
+
+        this.windowWidth = (this.maxVal - this.minVal) / 2;
+        this.windowCenter = this.minVal + this.windowWidth;
+
+        if (this.is3DMode) {
+            this.toggleViewMode();
+        }
+
+        this.resizeCanvases();
+        this.updateSlice();
     }
 }
 
-// Update grid layout change handler to properly initialize new viewers
 function updateGridLayout() {
     const layout = document.getElementById("gridLayout").value;
     const [rows, cols] = layout.split("x").map(Number);
     const imageGrid = document.getElementById("imageGrid");
 
-    // Store existing viewer states including labels
     const existingStates = Array.from(imageGrid.children).map(container => {
         const viewer = container.viewer;
         return viewer ? viewer.getState() : null;
     });
 
-    // Update grid template
     imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
 
-    // Calculate total needed cells
     const totalCells = rows * cols;
     const currentCells = imageGrid.children.length;
 
     if (totalCells > currentCells) {
-        // Add new cells
         const template = document.getElementById("imageWindowTemplate");
         for (let i = currentCells; i < totalCells; i++) {
             const clone = template.content.cloneNode(true);
             const container = clone.querySelector(".image-window");
             imageGrid.appendChild(container);
 
-            // Initialize new viewer with state from existing cell if available
             const viewer = new ImageViewer(container);
             container.viewer = viewer;
-
-            // Ensure event listeners are properly initialized
-            viewer.setupEventListeners();
 
             if (existingStates[i]) {
                 viewer.setState(existingStates[i]);
             }
         }
     } else if (totalCells < currentCells) {
-        // Remove excess cells
         for (let i = currentCells - 1; i >= totalCells; i--) {
             imageGrid.removeChild(imageGrid.children[i]);
         }
     }
 
-    // Restore states to remaining cells and ensure event listeners
     Array.from(imageGrid.children).forEach((container, index) => {
         if (!container.viewer) {
             container.viewer = new ImageViewer(container);
-            container.viewer.setupEventListeners();
         }
         if (existingStates[index]) {
             container.viewer.setState(existingStates[index]);
@@ -952,20 +832,15 @@ function updateGridLayout() {
     });
 }
 
-// Initialize grid layout change listener
 document.getElementById("gridLayout")?.addEventListener("change", updateGridLayout);
 
-// Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
-    // Initialize the first viewer
     const firstContainer = document.querySelector(".image-window");
     if (firstContainer) {
         firstContainer.viewer = new ImageViewer(firstContainer);
     }
 
-    // Initialize grid layout functionality
     updateGridLayout();
 });
 
-// Make ImageViewer available globally
 window.ImageViewer = ImageViewer;
