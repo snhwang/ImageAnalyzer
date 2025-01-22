@@ -159,6 +159,12 @@ class ImageViewer {
                     case 'rotate-right':
                         this.rotate(90);
                         break;
+                    case 'upload-file':
+                        this.fileInput?.click();
+                        break;
+                    case 'browse-remote':
+                        this.showDirectoryBrowser();
+                        break;
                 }
             }
         });
