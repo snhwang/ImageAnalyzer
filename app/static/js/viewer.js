@@ -15,6 +15,13 @@ class ImageViewer {
         this.isDrawingROI = false;
         this.roiStart = null;
         this.roiEnd = null;
+        this.imageLabel = ''; // Add image label storage
+
+        // Initialize image label from select if exists
+        const labelSelect = this.container.querySelector('.image-label');
+        if (labelSelect) {
+            this.imageLabel = labelSelect.value;
+        }
 
         // Initialize 2D canvas
         this.canvas2D = document.createElement("canvas");
@@ -78,6 +85,19 @@ class ImageViewer {
 
         this.setupEventListeners();
         this.initializeBabylonScene();
+    }
+
+    // Add label getter and setter
+    getLabel() {
+        return this.imageLabel;
+    }
+
+    setLabel(label) {
+        this.imageLabel = label;
+        const labelSelect = this.container.querySelector('.image-label');
+        if (labelSelect) {
+            labelSelect.value = label;
+        }
     }
 
     setupEventListeners() {
@@ -279,12 +299,11 @@ class ImageViewer {
             this.urlImportModal.classList.remove('show');
         });
 
-        // Image label selection
+        // Update image label selection handler
         const imageLabel = this.container.querySelector('.image-label');
         imageLabel?.addEventListener('change', (e) => {
-            // Store the label without affecting image display
             const selectedLabel = e.target.value;
-            // Don't modify any display properties or window/level values
+            this.setLabel(selectedLabel);
             console.log(`Image label changed to: ${selectedLabel}`);
         });
     }
@@ -631,7 +650,8 @@ class ImageViewer {
             height: this.height,
             minVal: this.minVal,
             maxVal: this.maxVal,
-            is3DMode: this.is3DMode
+            is3DMode: this.is3DMode,
+            imageLabel: this.imageLabel // Add label to state
         };
     }
 
@@ -675,6 +695,10 @@ class ImageViewer {
             if (this.uploadOverlay) {
                 this.uploadOverlay.style.display = 'none';
             }
+        }
+        // Restore label if available
+        if (state.imageLabel) {
+            this.setLabel(state.imageLabel);
         }
     }
 
@@ -865,47 +889,59 @@ class ImageViewer {
     }
 }
 
-// Grid layout management
-class GridManager {
-    constructor() {
-        this.gridLayout = document.getElementById("gridLayout");
-        this.imageGrid = document.getElementById("imageGrid");
-        this.viewers = [];
-        this.setupEventListeners();
-    }
+// Update grid layout change handler
+function updateGridLayout() {
+    const layout = document.getElementById("gridLayout").value;
+    const [rows, cols] = layout.split("x").map(Number);
+    const imageGrid = document.getElementById("imageGrid");
 
-    setupEventListeners() {
-        this.gridLayout?.addEventListener("change", () => this.updateGrid());
-    }
+    // Store existing viewer states including labels
+    const existingStates = Array.from(imageGrid.children).map(container => {
+        const viewer = container.viewer;
+        return viewer ? viewer.getState() : null;
+    });
 
-    updateGrid() {
-        const [rows, cols] = this.gridLayout.value.split("x").map(Number);
-        const totalCells = rows * cols;
+    // Update grid template
+    imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
 
-        // Save states of existing viewers
-        const oldStates = this.viewers.map(viewer => viewer.getState());
+    // Calculate total needed cells
+    const totalCells = rows * cols;
+    const currentCells = imageGrid.children.length;
 
-        // Clear and rebuild grid
-        this.imageGrid.innerHTML = '';
-        this.imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-        this.viewers = [];
-
+    if (totalCells > currentCells) {
+        // Add new cells
         const template = document.getElementById("imageWindowTemplate");
-        for (let i = 0; i < totalCells; i++) {
+        for (let i = currentCells; i < totalCells; i++) {
             const clone = template.content.cloneNode(true);
             const container = clone.querySelector(".image-window");
-            this.imageGrid.appendChild(container);
+            imageGrid.appendChild(container);
 
+            // Initialize new viewer with state from existing cell if available
             const viewer = new ImageViewer(container);
-            this.viewers.push(viewer);
+            container.viewer = viewer;
 
-            // Restore state if available
-            if (oldStates[i]) {
-                viewer.setState(oldStates[i]);
+            if (existingStates[i]) {
+                viewer.setState(existingStates[i]);
             }
         }
+    } else if (totalCells < currentCells) {
+        // Remove excess cells
+        for (let i = currentCells - 1; i >= totalCells; i--) {
+            imageGrid.removeChild(imageGrid.children[i]);
+        }
     }
+
+    // Restore states to remaining cells
+    Array.from(imageGrid.children).forEach((container, index) => {
+        if (existingStates[index]) {
+            container.viewer.setState(existingStates[index]);
+        }
+    });
 }
+
+// Update event listener for grid layout changes
+document.getElementById("gridLayout")?.addEventListener("change", updateGridLayout);
 
 // Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
