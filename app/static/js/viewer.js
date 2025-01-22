@@ -131,6 +131,46 @@ class ImageViewer {
             menuContainer.classList.toggle('show');
         });
 
+        // Handle menu item clicks
+        this.menuDropdown?.addEventListener("click", (e) => {
+            const action = e.target.dataset.action;
+            if (action) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Hide menu after action
+                const menuContainer = this.menuBtn.closest('.menu-container');
+                menuContainer.classList.remove('show');
+
+                // Execute corresponding action
+                switch (action) {
+                    case 'toggle-view':
+                        this.toggleViewMode();
+                        break;
+                    case 'window-level':
+                        this.toggleWindowLevelMode();
+                        break;
+                    case 'optimize-window':
+                        this.toggleOptimizeWindow();
+                        break;
+                    case 'rotate-left':
+                        this.rotate(-90);
+                        break;
+                    case 'rotate-right':
+                        this.rotate(90);
+                        break;
+                }
+            }
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.menu-container')) {
+                const menuContainers = document.querySelectorAll('.menu-container');
+                menuContainers.forEach(container => container.classList.remove('show'));
+            }
+        });
+
         // ROI selection
         this.roiCanvas.addEventListener("mousedown", (e) => {
             if (this.optimizeWindowBtn.classList.contains("active")) {
