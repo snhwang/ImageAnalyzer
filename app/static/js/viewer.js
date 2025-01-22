@@ -138,7 +138,8 @@ class ImageViewer {
             if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
                 this.isDragging = true;
                 this.dragStart = { x: e.clientX, y: e.clientY };
-                console.log("Started window/level drag");
+                this.startWindowCenter = this.windowCenter;
+                this.startWindowWidth = this.windowWidth;
             }
         });
 
@@ -147,12 +148,11 @@ class ImageViewer {
                 const dx = e.clientX - this.dragStart.x;
                 const dy = this.dragStart.y - e.clientY;  // Invert Y for natural feel
 
-                // Scale factors for more precise control
-                this.windowWidth = Math.max(1, this.windowWidth + dx * 2);
-                this.windowCenter += dy * 2;
+                // Adjust window/level based on drag distance
+                this.windowWidth = Math.max(1, this.startWindowWidth + dx);
+                this.windowCenter = this.startWindowCenter + dy;
 
-                this.dragStart = { x: e.clientX, y: e.clientY };
-                console.log(`Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`);
+                console.log(`Window/Level: C=${this.windowCenter}, W=${this.windowWidth}`);
                 this.updateSlice();
             }
         });
@@ -218,7 +218,7 @@ class ImageViewer {
         const pixels = new Float32Array(binaryString.length / 4);
 
         for (let i = 0; i < binaryString.length; i += 4) {
-            const value = 
+            const value =
                 binaryString.charCodeAt(i) |
                 (binaryString.charCodeAt(i + 1) << 8) |
                 (binaryString.charCodeAt(i + 2) << 16) |
@@ -333,10 +333,10 @@ class ImageViewer {
 
         const currentSliceData = this.imageData[this.currentSlice];
         const binaryString = atob(currentSliceData);
-        const len = binaryString.length;
-        const pixels = new Float32Array(len / 4);
+        const pixels = new Float32Array(binaryString.length / 4);
 
-        for (let i = 0; i < len; i += 4) {
+        // Convert binary string to Float32Array
+        for (let i = 0; i < binaryString.length; i += 4) {
             const value =
                 binaryString.charCodeAt(i) |
                 (binaryString.charCodeAt(i + 1) << 8) |
@@ -348,60 +348,67 @@ class ImageViewer {
         // Apply window/level
         const minVal = this.minVal;
         const maxVal = this.maxVal;
-        const center = this.windowCenter || (maxVal + minVal) / 2;
+        const windowCenter = this.windowCenter || (maxVal + minVal) / 2;
         const windowWidth = this.windowWidth || (maxVal - minVal);
-        const low = center - windowWidth / 2;
-        const high = center + windowWidth / 2;
+        const low = windowCenter - windowWidth / 2;
+        const high = windowCenter + windowWidth / 2;
 
         const imgWidth = this.width;
         const imgHeight = this.height;
-        const rgbData = new Float32Array(imgWidth * imgHeight * 3);
 
-        // Apply window/level and handle rotation
+        // Create a temporary canvas for rotation
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = imgWidth;
+        tempCanvas.height = imgHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // Create ImageData for the original orientation
+        const imageData = new ImageData(imgWidth, imgHeight);
+        const data = imageData.data;
+
+        // Apply window/level to pixel data
         for (let i = 0; i < pixels.length; i++) {
-            let normalizedValue = (pixels[i] - low) / (high - low);
+            const value = pixels[i];
+            let normalizedValue = (value - low) / (high - low);
             normalizedValue = Math.max(0, Math.min(1, normalizedValue));
 
-            // Calculate rotated position
-            const x = i % imgWidth;
-            const y = Math.floor(i / imgWidth);
-            let rotatedIndex = i;
-
-            if (this.rotation !== 0) {
-                const angle = (this.rotation * Math.PI) / 180;
-                const centerX = imgWidth / 2;
-                const centerY = imgHeight / 2;
-
-                // Translate to origin, rotate, then translate back
-                const rotatedX = Math.round(
-                    centerX + (x - centerX) * Math.cos(angle) - (y - centerY) * Math.sin(angle)
-                );
-                const rotatedY = Math.round(
-                    centerY + (x - centerX) * Math.sin(angle) + (y - centerY) * Math.cos(angle)
-                );
-
-                // Check if the rotated position is within bounds
-                if (
-                    rotatedX >= 0 &&
-                    rotatedX < imgWidth &&
-                    rotatedY >= 0 &&
-                    rotatedY < imgHeight
-                ) {
-                    rotatedIndex = rotatedY * imgWidth + rotatedX;
-                }
-            }
-
-            rgbData[rotatedIndex * 3] = normalizedValue;
-            rgbData[rotatedIndex * 3 + 1] = normalizedValue;
-            rgbData[rotatedIndex * 3 + 2] = normalizedValue;
+            const pixelValue = Math.round(normalizedValue * 255);
+            const index = i * 4;
+            data[index] = pixelValue;     // R
+            data[index + 1] = pixelValue; // G
+            data[index + 2] = pixelValue; // B
+            data[index + 3] = 255;        // A
         }
 
-        this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
-        const imageData = new ImageData(new Uint8ClampedArray(rgbData.buffer), this.width, this.height);
-        this.ctx.putImageData(imageData,0,0);
+        // Put the image data on the temporary canvas
+        tempCtx.putImageData(imageData, 0, 0);
 
+        // Clear the main canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.updateInfoDisplay();
+        // Set up the transform for rotation
+        if (this.rotation !== 0) {
+            this.ctx.save();
+            this.ctx.translate(this.canvas.width/2, this.canvas.height/2);
+            this.ctx.rotate(this.rotation * Math.PI / 180);
+            this.ctx.translate(-this.canvas.width/2, -this.canvas.height/2);
+        }
+
+        // Draw the image centered
+        const scale = Math.min(this.canvas.width / imgWidth, this.canvas.height / imgHeight);
+        const x = (this.canvas.width - imgWidth * scale) / 2;
+        const y = (this.canvas.height - imgHeight * scale) / 2;
+        this.ctx.drawImage(tempCanvas, x, y, imgWidth * scale, imgHeight * scale);
+
+        if (this.rotation !== 0) {
+            this.ctx.restore();
+        }
+
+        // Update display info
+        const infoElement = this.container.querySelector(".image-info");
+        if (infoElement) {
+            infoElement.textContent = `Window: C: ${Math.round(windowCenter)} W: ${Math.round(windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices}`;
+        }
     }
 
     async uploadFile(file) {
