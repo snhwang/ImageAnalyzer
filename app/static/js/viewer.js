@@ -196,6 +196,7 @@ class ImageViewer {
 
                 if (newSlice !== this.currentSlice) {
                     this.currentSlice = newSlice;
+                    console.log(`Navigating to slice ${this.currentSlice + 1}/${this.totalSlices}`);
                     requestAnimationFrame(() => {
                         this.updateSlice();
                         this.isProcessingWheel = false;
@@ -551,8 +552,21 @@ class ImageViewer {
     setState(state) {
         if (!state) return;
 
-        Object.assign(this, state);
+        // Deep copy the state to prevent reference issues
+        this.imageData = state.imageData ? [...state.imageData] : null;
+        this.currentSlice = state.currentSlice || 0;
+        this.totalSlices = state.totalSlices || 1;
+        this.windowCenter = state.windowCenter || 128;
+        this.windowWidth = state.windowWidth || 256;
+        this.rotation = state.rotation || 0;
+        this.width = state.width || 0;
+        this.height = state.height || 0;
+        this.minVal = state.minVal || 0;
+        this.maxVal = state.maxVal || 255;
+        this.is3DMode = state.is3DMode || false;
+
         if (this.imageData) {
+            this.resizeCanvases();
             this.updateSlice();
             // Hide upload overlay since we have an image
             if (this.uploadOverlay) {
@@ -665,16 +679,17 @@ class GridManager {
         // Save states of existing viewers
         const oldStates = this.viewers.map(viewer => viewer.getState());
 
-        this.imageGrid.innerHTML = "";
-        this.viewers = [];
-
+        // Clear and rebuild grid
+        this.imageGrid.innerHTML = '';
         this.imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        this.viewers = [];
 
         const template = document.getElementById("imageWindowTemplate");
         for (let i = 0; i < totalCells; i++) {
             const clone = template.content.cloneNode(true);
             const container = clone.querySelector(".image-window");
             this.imageGrid.appendChild(container);
+
             const viewer = new ImageViewer(container);
             this.viewers.push(viewer);
 
