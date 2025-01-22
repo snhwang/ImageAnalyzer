@@ -128,16 +128,18 @@ async def load_remote_file(path: str):
                 data_type = header.get_data_dtype()
                 logger.info(f"NIfTI header data type: {data_type}")
 
-                # Load data with correct data type
-                data = img.get_fdata(dtype=data_type)
-                logger.info(f"Loaded data type: {data.dtype}, shape: {data.shape}")
+                # Load data without specifying dtype
+                data = img.get_fdata()
+                logger.info(f"Data shape: {data.shape}")
 
-                # Convert data while preserving bit depth
-                if np.issubdtype(data_type, np.integer):
-                    data = data.astype(np.float32)
-                    # If unsigned, ensure we don't convert negative
-                    if np.issubdtype(data_type, np.unsignedinteger):
-                        data = np.abs(data)
+                # Sample some values for debugging
+                sample_values = data.flatten()[:10]
+                logger.info(f"Sample values: {sample_values}")
+
+                # Convert to float32
+                data = np.array(data, dtype=np.float32)
+                logger.info(f"Image array shape: {data.shape}")
+                logger.info(f"Min value: {np.min(data)}, Max value: {np.max(data)}")
 
                 dimensions = data.shape[:2]
                 if len(data.shape) > 3:
@@ -163,10 +165,6 @@ async def load_remote_file(path: str):
             else:  # Standard image formats
                 logger.info("Processing standard image file")
                 with Image.open(file_path) as img:
-                    # Get bit depth
-                    bit_depth = img.bits
-                    logger.info(f"Image bit depth: {bit_depth}")
-
                     if img.mode in ['RGB', 'RGBA']:
                         img = img.convert('L')
                     data = np.array(img, dtype=np.float32)
