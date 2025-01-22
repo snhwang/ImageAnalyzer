@@ -64,10 +64,17 @@ class ImageViewer {
         this.rotateRightBtn = container.querySelector(".rotate-right-btn");
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
+        this.browseBtn = container.querySelector('.browse-btn'); // Added browse button
 
         this.pixelCache = new Map(); // Cache for processed pixel data
         this.wheelThrottleTimeout = null;
         this.isProcessingWheel = false;
+
+        // Initialize modal references
+        this.urlImportModal = document.getElementById('urlImportModal');
+        this.directoryList = document.getElementById('directoryList');
+        this.currentPathElement = document.getElementById('currentPath');
+
 
         this.setupEventListeners();
         this.initializeBabylonScene();
@@ -213,6 +220,18 @@ class ImageViewer {
         window.addEventListener("resize", () => {
             this.resizeCanvases();
         });
+
+        // Browse button click handler
+        this.browseBtn?.addEventListener("click", () => {
+            console.log("Browse button clicked");
+            this.showDirectoryBrowser();
+        });
+
+        // Close modal when clicking cancel
+        const cancelBtn = this.urlImportModal?.querySelector('.cancel-btn');
+        cancelBtn?.addEventListener('click', () => {
+            this.urlImportModal.classList.remove('show');
+        });
     }
 
     resizeCanvases() {
@@ -312,7 +331,6 @@ class ImageViewer {
         console.log(`Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`);
         this.updateSlice();
     }
-
 
     rotate(degrees) {
         if (!this.is3DMode) {
@@ -680,6 +698,109 @@ class ImageViewer {
             }
         } catch (error) {
             console.error("Error uploading file:", error);
+        }
+    }
+
+    async showDirectoryBrowser(path = 'images') {
+        console.log("Showing directory browser for path:", path);
+        this.urlImportModal.classList.add('show');
+        this.currentPathElement.textContent = path;
+
+        try {
+            // Show loading state
+            this.directoryList.innerHTML = '<div class="loading">Loading...</div>';
+
+            const response = await fetch(`${BASE_URL}/directory?path=${encodeURIComponent(path)}`);
+            if (!response.ok) {
+                throw new Error(`Failed to load directory: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log("Directory contents:", data);
+
+            // Clear loading state and populate directory list
+            this.directoryList.innerHTML = '';
+
+            // Add parent directory link if not in root
+            if (path !== 'images') {
+                const parentPath = path.split('/').slice(0, -1).join('/') || 'images';
+                const parentDir = document.createElement('div');
+                parentDir.className = 'directory-item folder';
+                parentDir.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
+                parentDir.addEventListener('click', () => this.showDirectoryBrowser(parentPath));
+                this.directoryList.appendChild(parentDir);
+            }
+
+            // Add directories first
+            data.directories?.forEach(dir => {
+                const dirElement = document.createElement('div');
+                dirElement.className = 'directory-item folder';
+                dirElement.innerHTML = `<i class="fas fa-folder"></i> ${dir}`;
+                dirElement.addEventListener('click', () => {
+                    this.showDirectoryBrowser(`${path}/${dir}`);
+                });
+                this.directoryList.appendChild(dirElement);
+            });
+
+            // Then add files
+            data.files?.forEach(file => {
+                if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
+                    const fileElement = document.createElement('div');
+                    fileElement.className = 'directory-item image';
+                    fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
+                    fileElement.addEventListener('click', () => {
+                        this.loadRemoteFile(`${path}/${file}`);
+                    });
+                    this.directoryList.appendChild(fileElement);
+                }
+            });
+
+        } catch (error) {
+            console.error("Error loading directory:", error);
+            this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
+        }
+    }
+
+    async loadRemoteFile(path) {
+        console.log("Loading remote file:", path);
+        try {
+            const response = await fetch(`${BASE_URL}/load?path=${encodeURIComponent(path)}`);
+            if (!response.ok) {
+                throw new Error(`Failed to load file: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (result.success && result.data) {
+                // Hide modal
+                this.urlImportModal.classList.remove('show');
+
+                // Process the image data
+                this.imageData = result.data;
+                this.totalSlices = this.imageData.length;
+                this.currentSlice = 0;
+                this.minVal = result.metadata.min_value;
+                this.maxVal = result.metadata.max_value;
+                this.width = result.metadata.dimensions[0];
+                this.height = result.metadata.dimensions[1];
+
+                // Switch to 2D mode if not already
+                if (this.is3DMode) {
+                    this.toggleViewMode();
+                }
+
+                this.resizeCanvases();
+                this.updateSlice();
+
+                // Hide upload overlay
+                if (this.uploadOverlay) {
+                    this.uploadOverlay.style.display = 'none';
+                }
+            } else {
+                throw new Error(result.message || 'Failed to load image');
+            }
+        } catch (error) {
+            console.error("Error loading remote file:", error);
+            alert(`Error loading file: ${error.message}`);
         }
     }
 }

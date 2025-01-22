@@ -44,3 +44,5 @@ numpy
 pillow
 pydicom
 openai
+nibabel
+pydicom
