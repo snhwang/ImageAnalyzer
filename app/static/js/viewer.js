@@ -269,13 +269,12 @@ class ImageViewer {
     }
 
     // ... rest of the original ImageViewer methods ...
-
     async loadDirectoryContents(path) {
         const directoryList = document.getElementById('directoryList');
         directoryList.innerHTML = '<div class="loading">Loading...</div>';
 
         try {
-            const response = await fetch(`/api/directory/list-directory`, {
+            const response = await fetch('/api/directory/list-directory', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -283,7 +282,9 @@ class ImageViewer {
                 body: JSON.stringify({ url: path })
             });
 
-            if (!response.ok) throw new Error('Failed to load directory contents');
+            if (!response.ok) {
+                throw new Error(`Failed to load directory: ${response.statusText}`);
+            }
 
             const data = await response.json();
             if (data.status === 'success') {
@@ -673,7 +674,7 @@ class ImageViewer {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await fetch('/api/upload/', {
+            const response = await fetch('/api/upload/upload', {
                 method: 'POST',
                 body: formData
             });
@@ -685,7 +686,7 @@ class ImageViewer {
             const result = await response.json();
             console.log("Upload response:", result);
 
-            if (result.success && result.data) {
+            if (result.status === 'success') {
                 console.log("Upload successful, processing image data...");
 
                 // Hide upload overlay
@@ -693,13 +694,11 @@ class ImageViewer {
                     this.uploadOverlay.style.display = 'none';
                 }
 
-                this.imageData = result.data;
-                this.totalSlices = result.metadata.total_slices;
+                this.imageData = result.slices;
+                this.totalSlices = result.total_slices;
                 this.currentSlice = 0;
-                this.minVal = result.metadata.min_value;
-                this.maxVal = result.metadata.max_value;
-                this.width = result.metadata.dimensions[0];
-                this.height = result.metadata.dimensions[1];
+                this.windowWidth = result.window_width;
+                this.windowCenter = result.window_center;
 
                 // Switch to 2D mode if not already
                 if (this.is3DMode) {
@@ -708,6 +707,7 @@ class ImageViewer {
 
                 this.resizeCanvases();
                 await this.updateSlice();
+
                 console.log("Image successfully loaded and displayed");
             } else {
                 console.error("Upload failed:", result.message);
@@ -940,3 +940,123 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Make ImageViewer available globally
 window.ImageViewer = ImageViewer;
+
+async function loadDirectoryContents(path) {
+    const directoryList = document.getElementById('directoryList');
+    directoryList.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+        const response = await fetch('/api/directory/list-directory', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: path })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load directory: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            directoryList.innerHTML = '';
+
+            // Create and append a back button if we're not in the root directory
+            if (path !== 'images') {
+                const backDiv = document.createElement('div');
+                backDiv.className = 'directory-item folder';
+                backDiv.innerHTML = '<i class="fas fa-arrow-up"></i> ..';
+                backDiv.addEventListener('click', () => {
+                    const parentPath = path.split('/').slice(0, -1).join('/') || 'images';
+                    this.loadDirectoryContents(parentPath);
+                });
+                directoryList.appendChild(backDiv);
+            }
+
+            // Add directories
+            data.directories.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'directory-item folder';
+                div.innerHTML = `<i class="fas fa-folder"></i> ${item.name}`;
+                div.addEventListener('click', () => {
+                    this.loadDirectoryContents(item.url);
+                });
+                directoryList.appendChild(div);
+            });
+
+            // Add files
+            data.files.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'directory-item file';
+                div.innerHTML = `<i class="fas fa-file-image"></i> ${item.name}`;
+                div.addEventListener('click', () => {
+                    this.loadRemoteFile(item.url);
+                });
+                directoryList.appendChild(div);
+            });
+
+            // Update current path display
+            const currentPathElement = document.getElementById('currentPath');
+            if (currentPathElement) {
+                currentPathElement.textContent = data.current_path;
+            }
+        } else {
+            throw new Error(data.message || 'Failed to load directory contents');
+        }
+    } catch (error) {
+        console.error('Error loading directory:', error);
+        directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
+    }
+}
+
+async function uploadFile(file) {
+    console.log("Starting file upload for:", file.name);
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/upload/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`Upload failed: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log("Upload response:", result);
+
+        if (result.status === 'success') {
+            console.log("Upload successful, processing image data...");
+
+            // Hide upload overlay
+            if (this.uploadOverlay) {
+                this.uploadOverlay.style.display = 'none';
+            }
+
+            this.imageData = result.slices;
+            this.totalSlices = result.total_slices;
+            this.currentSlice = 0;
+            this.windowWidth = result.window_width;
+            this.windowCenter = result.window_center;
+
+            // Switch to 2D mode if not already
+            if (this.is3DMode) {
+                this.toggleViewMode();
+            }
+
+            this.resizeCanvases();
+            await this.updateSlice();
+
+            console.log("Image successfully loaded and displayed");
+        } else {
+            console.error("Upload failed:", result.message);
+            alert("Failed to process uploaded image");
+        }
+    } catch (error) {
+        console.error("Error uploading file:", error);
+        alert(`Error uploading file: ${error.message}`);
+    }
+}
