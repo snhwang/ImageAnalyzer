@@ -236,6 +236,9 @@ class ImageViewer {
 
         if (this.is3DMode) {
             this.camera.attachControl(this.canvas3D, true);
+            if (this.imageData) {
+                this.updateTexture();
+            }
         } else {
             this.camera.detachControl();
             this.resizeCanvases();
@@ -273,69 +276,74 @@ class ImageViewer {
     updateSlice() {
         if (!this.imageData || !this.imageData.length) return;
 
-        const currentSliceData = this.imageData[this.currentSlice];
-        const binaryString = atob(currentSliceData);
-        const pixels = new Float32Array(binaryString.length / 4);
+        // Update both 2D and 3D views
+        if (this.is3DMode) {
+            this.updateTexture();
+        } else {
+            const currentSliceData = this.imageData[this.currentSlice];
+            const binaryString = atob(currentSliceData);
+            const pixels = new Float32Array(binaryString.length / 4);
 
-        for (let i = 0; i < binaryString.length; i += 4) {
-            const value =
-                binaryString.charCodeAt(i) |
-                (binaryString.charCodeAt(i + 1) << 8) |
-                (binaryString.charCodeAt(i + 2) << 16) |
-                (binaryString.charCodeAt(i + 3) << 24);
-            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
-        }
+            for (let i = 0; i < binaryString.length; i += 4) {
+                const value =
+                    binaryString.charCodeAt(i) |
+                    (binaryString.charCodeAt(i + 1) << 8) |
+                    (binaryString.charCodeAt(i + 2) << 16) |
+                    (binaryString.charCodeAt(i + 3) << 24);
+                pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+            }
 
-        // Create a temporary canvas for processing
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = this.width;
-        tempCanvas.height = this.height;
-        const tempCtx = tempCanvas.getContext('2d');
+            // Create a temporary canvas for processing
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = this.width;
+            tempCanvas.height = this.height;
+            const tempCtx = tempCanvas.getContext('2d');
 
-        // Create ImageData with window/level applied
-        const imageData = new ImageData(this.width, this.height);
-        const data = imageData.data;
+            // Create ImageData with window/level applied
+            const imageData = new ImageData(this.width, this.height);
+            const data = imageData.data;
 
-        const low = this.windowCenter - this.windowWidth / 2;
-        const high = this.windowCenter + this.windowWidth / 2;
+            const low = this.windowCenter - this.windowWidth / 2;
+            const high = this.windowCenter + this.windowWidth / 2;
 
-        // Apply window/level to pixel data
-        for (let i = 0; i < pixels.length; i++) {
-            const value = pixels[i];
-            let normalizedValue = (value - low) / (high - low);
-            normalizedValue = Math.max(0, Math.min(1, normalizedValue));
+            // Apply window/level to pixel data
+            for (let i = 0; i < pixels.length; i++) {
+                const value = pixels[i];
+                let normalizedValue = (value - low) / (high - low);
+                normalizedValue = Math.max(0, Math.min(1, normalizedValue));
 
-            const pixelValue = Math.round(normalizedValue * 255);
-            const index = i * 4;
-            data[index] = pixelValue;     // R
-            data[index + 1] = pixelValue; // G
-            data[index + 2] = pixelValue; // B
-            data[index + 3] = 255;        // A
-        }
+                const pixelValue = Math.round(normalizedValue * 255);
+                const index = i * 4;
+                data[index] = pixelValue;     // R
+                data[index + 1] = pixelValue; // G
+                data[index + 2] = pixelValue; // B
+                data[index + 3] = 255;        // A
+            }
 
-        // Put the processed image data on the temporary canvas
-        tempCtx.putImageData(imageData, 0, 0);
+            // Put the processed image data on the temporary canvas
+            tempCtx.putImageData(imageData, 0, 0);
 
-        // Clear the main canvas
-        this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+            // Clear the main canvas
+            this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
 
-        // Handle rotation if needed
-        if (this.rotation !== 0) {
-            this.ctx2D.save();
-            this.ctx2D.translate(this.canvas2D.width / 2, this.canvas2D.height / 2);
-            this.ctx2D.rotate(this.rotation * Math.PI / 180);
-            this.ctx2D.translate(-this.canvas2D.width / 2, -this.canvas2D.height / 2);
-        }
+            // Handle rotation if needed
+            if (this.rotation !== 0) {
+                this.ctx2D.save();
+                this.ctx2D.translate(this.canvas2D.width / 2, this.canvas2D.height / 2);
+                this.ctx2D.rotate(this.rotation * Math.PI / 180);
+                this.ctx2D.translate(-this.canvas2D.width / 2, -this.canvas2D.height / 2);
+            }
 
-        // Draw the image centered and scaled
-        const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
-        const x = (this.canvas2D.width - this.width * scale) / 2;
-        const y = (this.canvas2D.height - this.height * scale) / 2;
+            // Draw the image centered and scaled
+            const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
+            const x = (this.canvas2D.width - this.width * scale) / 2;
+            const y = (this.canvas2D.height - this.height * scale) / 2;
 
-        this.ctx2D.drawImage(tempCanvas, x, y, this.width * scale, this.height * scale);
+            this.ctx2D.drawImage(tempCanvas, x, y, this.width * scale, this.height * scale);
 
-        if (this.rotation !== 0) {
-            this.ctx2D.restore();
+            if (this.rotation !== 0) {
+                this.ctx2D.restore();
+            }
         }
 
         // Update info display
@@ -413,6 +421,65 @@ class ImageViewer {
         this.updateSlice();
     }
 
+
+    updateTexture() {
+        if (!this.imageData || !this.imageData.length) return;
+
+        const currentSliceData = this.imageData[this.currentSlice];
+        const binaryString = atob(currentSliceData);
+        const pixels = new Float32Array(binaryString.length / 4);
+
+        for (let i = 0; i < binaryString.length; i += 4) {
+            const value =
+                binaryString.charCodeAt(i) |
+                (binaryString.charCodeAt(i + 1) << 8) |
+                (binaryString.charCodeAt(i + 2) << 16) |
+                (binaryString.charCodeAt(i + 3) << 24);
+            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+        }
+
+        // Apply window/level
+        const low = this.windowCenter - this.windowWidth / 2;
+        const high = this.windowCenter + this.windowWidth / 2;
+
+        // Create RGB data for the texture
+        const rgbData = new Float32Array(this.width * this.height * 3);
+        for (let i = 0; i < pixels.length; i++) {
+            const value = pixels[i];
+            let normalizedValue = (value - low) / (high - low);
+            normalizedValue = Math.max(0, Math.min(1, normalizedValue));
+
+            rgbData[i * 3] = normalizedValue;
+            rgbData[i * 3 + 1] = normalizedValue;
+            rgbData[i * 3 + 2] = normalizedValue;
+        }
+
+        // Create or update the texture
+        if (!this.texture) {
+            this.texture = new BABYLON.RawTexture(
+                rgbData,
+                this.width,
+                this.height,
+                BABYLON.Engine.TEXTUREFORMAT_RGB,
+                this.scene,
+                false,
+                false,
+                BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+                BABYLON.Engine.TEXTURETYPE_FLOAT
+            );
+
+            // Create new material with the texture
+            const material = new BABYLON.StandardMaterial("imageMaterial", this.scene);
+            material.diffuseTexture = this.texture;
+            material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            material.useFloatValues = true;
+
+            // Apply material to cube
+            this.cube.material = material;
+        } else {
+            this.texture.update(rgbData);
+        }
+    }
 
     initializeBabylonScene() {
         // Initialize Babylon.js scene using canvas3D
