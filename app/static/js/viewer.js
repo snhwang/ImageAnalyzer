@@ -488,25 +488,30 @@ class ImageViewer {
     }
 
     async loadSliceData(sliceIndex) {
-        if (this.pixelCache.has(sliceIndex)) {
-            return this.pixelCache.get(sliceIndex);
+        if (this.imageId) {
+            try {
+                const response = await fetch(`/api/upload/slice/${this.imageId}/${sliceIndex}`);
+                if (!response.ok) throw new Error('Failed to fetch slice data');
+
+                const arrayBuffer = await response.arrayBuffer();
+                const shape = response.headers.get('X-Image-Shape').split(',').map(Number);
+                const dtype = response.headers.get('X-Image-Dtype');
+
+                // Convert array buffer to Float32Array
+                const pixels = new Float32Array(arrayBuffer);
+
+                // Cache the processed data
+                this.pixelCache.set(sliceIndex, pixels);
+                this.width = shape[0];
+                this.height = shape[1];
+
+                return pixels;
+            } catch (error) {
+                console.error('Error loading slice data:', error);
+                throw error;
+            }
         }
-
-        const sliceData = this.imageData[sliceIndex];
-        const binaryString = atob(sliceData);
-        const pixels = new Float32Array(binaryString.length / 4);
-
-        for (let i = 0; i < binaryString.length; i += 4) {
-            const value =
-                binaryString.charCodeAt(i) |
-                (binaryString.charCodeAt(i + 1) << 8) |
-                (binaryString.charCodeAt(i + 2) << 16) |
-                (binaryString.charCodeAt(i + 3) << 24);
-            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
-        }
-
-        this.pixelCache.set(sliceIndex, pixels);
-        return pixels;
+        return null;
     }
 
     async updateSlice() {
@@ -694,11 +699,14 @@ class ImageViewer {
                     this.uploadOverlay.style.display = 'none';
                 }
 
-                this.imageData = result.slices;
+                // Store image metadata
+                this.imageId = result.image_id;
                 this.totalSlices = result.total_slices;
                 this.currentSlice = 0;
                 this.windowWidth = result.window_width;
                 this.windowCenter = result.window_center;
+                this.width = result.dimensions[0];
+                this.height = result.dimensions[1];
 
                 // Switch to 2D mode if not already
                 if (this.is3DMode) {
@@ -790,7 +798,8 @@ class ImageViewer {
             height: this.height,
             minVal: this.minVal,
             maxVal: this.maxVal,
-            is3DMode: this.is3DMode
+            is3DMode: this.is3DMode,
+            imageId: this.imageId
         };
     }
 
@@ -809,6 +818,7 @@ class ImageViewer {
         this.minVal = state.minVal || 0;
         this.maxVal = state.maxVal || 255;
         this.is3DMode = state.is3DMode || false;
+        this.imageId = state.imageId;
 
         // Initialize canvases before updating
         if (this.imageData) {
