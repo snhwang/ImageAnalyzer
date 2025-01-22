@@ -489,7 +489,7 @@ class ImageViewer {
     async loadSliceData(sliceIndex) {
         if (this.imageId) {
             try {
-                const response = await fetch(`/slice/${this.imageId}/${sliceIndex}`);
+                const response = await fetch(`/api/upload/slice/${this.imageId}/${sliceIndex}`);
                 if (!response.ok) {
                     console.error(`Failed to fetch slice data: ${response.status} ${response.statusText}`);
                     throw new Error('Failed to fetch slice data');
@@ -683,7 +683,7 @@ class ImageViewer {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await fetch('/api/upload/upload', {
+            const response = await fetch('/api/upload', {
                 method: 'POST',
                 body: formData
             });
@@ -830,7 +830,7 @@ class ImageViewer {
             // Ensure proper canvas visibility based on mode
             this.canvas2D.style.display = this.is3DMode ? 'none' : 'block';
             this.canvas3D.style.display = this.is3DMode ? 'block' : 'none';
-            this.roiCanvas.style.display = this.is3DMode ? 'none' : 'block';
+            this.roiCanvas.style.display = this.is3DMode ? 'none' : ''block';
 
             // Update the view
             if (this.is3DMode) {
@@ -1030,7 +1030,7 @@ async function uploadFile(file) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('/api/upload/upload', {
+        const response = await fetch('/api/upload', {
             method: 'POST',
             body: formData
         });
