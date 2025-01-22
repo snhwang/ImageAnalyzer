@@ -1,4 +1,4 @@
-const BASE_URL = window.location.origin;
+const BASE_URL = ''; // Use relative URLs since we're on the same server
 
 class ImageViewer {
     constructor(container) {
@@ -172,16 +172,16 @@ class ImageViewer {
             if (this.optimizeWindowBtn.classList.contains("active")) {
                 this.isDrawingROI = true;
                 const rect = this.roiCanvas.getBoundingClientRect();
-                const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
-                const displayWidth = this.width * scale;
-                const displayHeight = this.height * scale;
-                const offsetX = (this.canvas2D.width - displayWidth) / 2;
-                const offsetY = (this.canvas2D.height - displayHeight) / 2;
+
+                // Store the initial mouse position in canvas coordinates
+                const scaleX = this.roiCanvas.width / rect.width;
+                const scaleY = this.roiCanvas.height / rect.height;
 
                 this.roiStart = {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
+                    x: (e.clientX - rect.left) * scaleX,
+                    y: (e.clientY - rect.top) * scaleY
                 };
+                this.roiEnd = {...this.roiStart}; // Initialize end position same as start
                 e.stopPropagation();
             }
         });
@@ -189,9 +189,13 @@ class ImageViewer {
         this.roiCanvas.addEventListener("mousemove", (e) => {
             if (this.isDrawingROI) {
                 const rect = this.roiCanvas.getBoundingClientRect();
+                // Update only the end position while dragging
+                const scaleX = this.roiCanvas.width / rect.width;
+                const scaleY = this.roiCanvas.height / rect.height;
+
                 this.roiEnd = {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
+                    x: (e.clientX - rect.left) * scaleX,
+                    y: (e.clientY - rect.top) * scaleY
                 };
                 this.drawROI();
                 e.stopPropagation();
@@ -271,7 +275,7 @@ class ImageViewer {
         directoryList.innerHTML = '<div class="loading">Loading...</div>';
 
         try {
-            const response = await fetch(`${BASE_URL}/api/directory/list-directory`, {
+            const response = await fetch(`/api/directory/list-directory`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -335,7 +339,7 @@ class ImageViewer {
 
     async loadRemoteFile(path) {
         try {
-            const response = await fetch(`${BASE_URL}/api/directory/import-from-url`, {
+            const response = await fetch(`/api/directory/import-from-url`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -585,32 +589,20 @@ class ImageViewer {
         // Clear previous ROI
         this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
 
-        // Get the canvas container dimensions
-        const canvasRect = this.canvas2D.getBoundingClientRect();
-
-        // Calculate the image display area within the canvas
-        const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
-        const displayWidth = this.width * scale;
-        const displayHeight = this.height * scale;
-        const offsetX = (this.canvas2D.width - displayWidth) / 2;
-        const offsetY = (this.canvas2D.height - displayHeight) / 2;
-
-        // Calculate scale factors between screen and canvas coordinates
-        const scaleX = this.roiCanvas.width / canvasRect.width;
-        const scaleY = this.roiCanvas.height / canvasRect.height;
-
-        // Convert screen coordinates to canvas coordinates
-        const startX = this.roiStart.x * scaleX;
-        const startY = this.roiStart.y * scaleY;
-        const endX = this.roiEnd.x * scaleX;
-        const endY = this.roiEnd.y * scaleY;
-
         // Draw the ROI rectangle
         this.roiCtx.strokeStyle = 'yellow';
         this.roiCtx.lineWidth = 2;
-        const width = endX - startX;
-        const height = endY - startY;
-        this.roiCtx.strokeRect(startX, startY, width, height);
+
+        // Calculate rectangle dimensions
+        const width = this.roiEnd.x - this.roiStart.x;
+        const height = this.roiEnd.y - this.roiStart.y;
+
+        this.roiCtx.strokeRect(
+            this.roiStart.x,
+            this.roiStart.y,
+            width,
+            height
+        );
     }
 
     async optimizeWindowFromROI() {
@@ -681,7 +673,7 @@ class ImageViewer {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await fetch(`${BASE_URL}/upload`, {
+            const response = await fetch(`/upload`, {
                 method: 'POST',
                 body: formData
             });
@@ -838,7 +830,7 @@ class ImageViewer {
                 this.uploadOverlay.style.display = 'none';
             }
         }
-    }
+    }}
 
     initializeBabylonScene() {
         // Initialize Babylon.js scene using canvas3D
