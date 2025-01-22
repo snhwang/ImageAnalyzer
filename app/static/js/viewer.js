@@ -172,11 +172,17 @@ class ImageViewer {
             if (this.optimizeWindowBtn.classList.contains("active")) {
                 this.isDrawingROI = true;
                 const rect = this.roiCanvas.getBoundingClientRect();
+                const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
+                const displayWidth = this.width * scale;
+                const displayHeight = this.height * scale;
+                const offsetX = (this.canvas2D.width - displayWidth) / 2;
+                const offsetY = (this.canvas2D.height - displayHeight) / 2;
+
                 this.roiStart = {
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top
                 };
-                e.stopPropagation(); // Only stop propagation for mouse events
+                e.stopPropagation();
             }
         });
 
@@ -188,7 +194,7 @@ class ImageViewer {
                     y: e.clientY - rect.top
                 };
                 this.drawROI();
-                e.stopPropagation(); // Only stop propagation for mouse events
+                e.stopPropagation();
             }
         });
 
@@ -196,7 +202,7 @@ class ImageViewer {
             if (this.isDrawingROI) {
                 this.isDrawingROI = false;
                 this.optimizeWindowFromROI();
-                e.stopPropagation(); // Only stop propagation for mouse events
+                e.stopPropagation();
             }
         });
 
@@ -579,14 +585,8 @@ class ImageViewer {
         // Clear previous ROI
         this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
 
-        // Get the canvas container dimensions and position
-        const container = this.imageContainer.querySelector(".canvas-container");
-        const containerRect = container.getBoundingClientRect();
+        // Get the canvas container dimensions
         const canvasRect = this.canvas2D.getBoundingClientRect();
-
-        // Calculate scaling factors
-        const scaleX = this.canvas2D.width / canvasRect.width;
-        const scaleY = this.canvas2D.height / canvasRect.height;
 
         // Calculate the image display area within the canvas
         const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
@@ -595,28 +595,22 @@ class ImageViewer {
         const offsetX = (this.canvas2D.width - displayWidth) / 2;
         const offsetY = (this.canvas2D.height - displayHeight) / 2;
 
-        // Adjust coordinates for the actual image position
-        const adjustedStart = {
-            x: (this.roiStart.x - offsetX) * scaleX,
-            y: (this.roiStart.y - offsetY) * scaleY
-        };
+        // Calculate scale factors between screen and canvas coordinates
+        const scaleX = this.roiCanvas.width / canvasRect.width;
+        const scaleY = this.roiCanvas.height / canvasRect.height;
 
-        const adjustedEnd = {
-            x: (this.roiEnd.x - offsetX) * scaleX,
-            y: (this.roiEnd.y - offsetY) * scaleY
-        };
+        // Convert screen coordinates to canvas coordinates
+        const startX = this.roiStart.x * scaleX;
+        const startY = this.roiStart.y * scaleY;
+        const endX = this.roiEnd.x * scaleX;
+        const endY = this.roiEnd.y * scaleY;
 
         // Draw the ROI rectangle
         this.roiCtx.strokeStyle = 'yellow';
         this.roiCtx.lineWidth = 2;
-        const width = adjustedEnd.x - adjustedStart.x;
-        const height = adjustedEnd.y - adjustedStart.y;
-        this.roiCtx.strokeRect(
-            adjustedStart.x,
-            adjustedStart.y,
-            width,
-            height
-        );
+        const width = endX - startX;
+        const height = endY - startY;
+        this.roiCtx.strokeRect(startX, startY, width, height);
     }
 
     async optimizeWindowFromROI() {
@@ -825,7 +819,8 @@ class ImageViewer {
         this.is3DMode = state.is3DMode || false;
 
         // Initialize canvases before updating
-        if (this.imageData) {            this.resizeCanvases();
+        if (this.imageData) {
+            this.resizeCanvases();
             // Ensure proper canvas visibility based on mode
             this.canvas2D.style.display = this.is3DMode ? 'none' : 'block';
             this.canvas3D.style.display = this.is3DMode ? 'block' : 'none';
