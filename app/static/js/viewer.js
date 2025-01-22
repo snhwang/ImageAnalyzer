@@ -12,8 +12,30 @@ class ImageViewer {
         this.isDragging = false;
         this.dragStart = { x: 0, y: 0 };
         this.rotation = 0;
+        this.isDrawingROI = false;
+        this.roiStart = null;
+        this.roiEnd = null;
+
+        // Initialize canvas
         this.canvas = document.createElement("canvas");
         this.ctx = this.canvas.getContext("2d");
+        this.canvas.style.width = "100%";
+        this.canvas.style.height = "100%";
+        this.canvas.style.position = "absolute";
+        this.canvas.style.top = "0";
+        this.canvas.style.left = "0";
+        this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas);
+
+        // ROI canvas
+        this.roiCanvas = document.createElement("canvas");
+        this.roiCtx = this.roiCanvas.getContext("2d");
+        this.roiCanvas.style.width = "100%";
+        this.roiCanvas.style.height = "100%";
+        this.roiCanvas.style.position = "absolute";
+        this.roiCanvas.style.top = "0";
+        this.roiCanvas.style.left = "0";
+        this.roiCanvas.style.pointerEvents = "none";
+        this.imageContainer.querySelector(".canvas-container").appendChild(this.roiCanvas);
 
         // Initialize buttons and inputs
         this.fileInput = container.querySelector(".hidden-file-input");
@@ -81,6 +103,36 @@ class ImageViewer {
             menuContainer.classList.toggle('show');
         });
 
+        // ROI selection
+        this.roiCanvas.addEventListener("mousedown", (e) => {
+            if (this.optimizeWindowBtn.classList.contains("active")) {
+                this.isDrawingROI = true;
+                const rect = this.roiCanvas.getBoundingClientRect();
+                this.roiStart = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+        });
+
+        this.roiCanvas.addEventListener("mousemove", (e) => {
+            if (this.isDrawingROI) {
+                const rect = this.roiCanvas.getBoundingClientRect();
+                this.roiEnd = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+                this.drawROI();
+            }
+        });
+
+        this.roiCanvas.addEventListener("mouseup", () => {
+            if (this.isDrawingROI) {
+                this.isDrawingROI = false;
+                this.optimizeWindowFromROI();
+            }
+        });
+
         // Window/Level drag handling
         this.canvas.addEventListener("mousedown", (e) => {
             if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
@@ -124,41 +176,92 @@ class ImageViewer {
             }
         });
 
-        // Close menu when clicking outside
-        document.addEventListener("click", (e) => {
-            if (!e.target.closest('.menu-container')) {
-                const menuContainers = document.querySelectorAll('.menu-container');
-                menuContainers.forEach(container => container.classList.remove('show'));
-            }
+        // Handle window resize
+        window.addEventListener("resize", () => {
+            this.resizeCanvas();
         });
+    }
 
-        // Menu item actions
-        this.menuDropdown?.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const action = item.dataset.action;
-                switch (action) {
-                    case 'upload':
-                        this.fileInput?.click();
-                        break;
-                    case 'view-mode':
-                        this.toggleViewMode();
-                        break;
-                    case 'window-level':
-                        this.toggleWindowLevelMode();
-                        break;
-                    case 'optimize-window':
-                        this.toggleOptimizeWindow();
-                        break;
-                    case 'rotate-left':
-                        this.rotate(-90);
-                        break;
-                    case 'rotate-right':
-                        this.rotate(90);
-                        break;
-                }
-                item.closest('.menu-container').classList.remove('show');
-            });
-        });
+    drawROI() {
+        if (!this.roiStart || !this.roiEnd) return;
+
+        this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
+        this.roiCtx.strokeStyle = 'yellow';
+        this.roiCtx.lineWidth = 2;
+
+        const width = this.roiEnd.x - this.roiStart.x;
+        const height = this.roiEnd.y - this.roiStart.y;
+
+        this.roiCtx.strokeRect(
+            this.roiStart.x,
+            this.roiStart.y,
+            width,
+            height
+        );
+    }
+
+    optimizeWindowFromROI() {
+        if (!this.roiStart || !this.roiEnd) return;
+
+        // Convert ROI coordinates to image coordinates
+        const scaleX = this.width / this.canvas.width;
+        const scaleY = this.height / this.canvas.height;
+
+        const x1 = Math.floor(Math.min(this.roiStart.x, this.roiEnd.x) * scaleX);
+        const y1 = Math.floor(Math.min(this.roiStart.y, this.roiEnd.y) * scaleY);
+        const x2 = Math.floor(Math.max(this.roiStart.x, this.roiEnd.x) * scaleX);
+        const y2 = Math.floor(Math.max(this.roiStart.y, this.roiEnd.y) * scaleY);
+
+        // Get pixel data from current slice
+        const currentSliceData = this.imageData[this.currentSlice];
+        const binaryString = atob(currentSliceData);
+        const pixels = new Float32Array(binaryString.length / 4);
+
+        for (let i = 0; i < binaryString.length; i += 4) {
+            const value = 
+                binaryString.charCodeAt(i) |
+                (binaryString.charCodeAt(i + 1) << 8) |
+                (binaryString.charCodeAt(i + 2) << 16) |
+                (binaryString.charCodeAt(i + 3) << 24);
+            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+        }
+
+        // Calculate min and max within ROI
+        let min = Infinity;
+        let max = -Infinity;
+
+        for (let y = y1; y < y2; y++) {
+            for (let x = x1; x < x2; x++) {
+                const value = pixels[y * this.width + x];
+                min = Math.min(min, value);
+                max = Math.max(max, value);
+            }
+        }
+
+        // Update window/level based on ROI
+        this.windowCenter = (min + max) / 2;
+        this.windowWidth = max - min;
+
+        // Clear ROI and update display
+        this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
+        this.roiStart = null;
+        this.roiEnd = null;
+
+        this.updateSlice();
+    }
+
+    resizeCanvas() {
+        const container = this.imageContainer.querySelector(".canvas-container");
+        const rect = container.getBoundingClientRect();
+
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+        this.roiCanvas.width = rect.width;
+        this.roiCanvas.height = rect.height;
+
+        if (!this.is3DMode) {
+            this.updateSlice();
+        }
     }
 
     toggleViewMode() {
@@ -172,11 +275,16 @@ class ImageViewer {
             this.camera.alpha = 0;
             this.camera.beta = Math.PI / 3;
             this.camera.radius = 10;
+            this.canvas.style.pointerEvents = "none";
+            this.roiCanvas.style.display = "none";
         } else {
             this.camera.detachControl();
             this.camera.alpha = 0;
             this.camera.beta = 0;
             this.camera.radius = 5;
+            this.canvas.style.pointerEvents = "auto";
+            this.roiCanvas.style.display = "block";
+            this.resizeCanvas();
         }
 
         this.updateSlice();
@@ -186,6 +294,7 @@ class ImageViewer {
         if (!this.is3DMode) {
             this.windowLevelBtn.classList.toggle("active");
             this.optimizeWindowBtn.classList.remove("active");
+            this.canvas.style.cursor = this.windowLevelBtn.classList.contains("active") ? "crosshair" : "default";
         }
     }
 
@@ -193,7 +302,14 @@ class ImageViewer {
         if (!this.is3DMode) {
             this.optimizeWindowBtn.classList.toggle("active");
             this.windowLevelBtn.classList.remove("active");
-            // ROI optimization will be implemented here
+            this.roiCanvas.style.pointerEvents = this.optimizeWindowBtn.classList.contains("active") ? "auto" : "none";
+            this.canvas.style.cursor = "default";
+
+            if (!this.optimizeWindowBtn.classList.contains("active")) {
+                this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
+                this.roiStart = null;
+                this.roiEnd = null;
+            }
         }
     }
 
@@ -280,7 +396,11 @@ class ImageViewer {
             rgbData[rotatedIndex * 3 + 2] = normalizedValue;
         }
 
-        this.texture.update(rgbData);
+        this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+        const imageData = new ImageData(new Uint8ClampedArray(rgbData.buffer), this.width, this.height);
+        this.ctx.putImageData(imageData,0,0);
+
+
         this.updateInfoDisplay();
     }
 
@@ -312,69 +432,7 @@ class ImageViewer {
                 this.width = result.metadata.dimensions[0];
                 this.height = result.metadata.dimensions[1];
 
-                // Get the first slice of data
-                const base64Data = result.data[0];
-                console.log("Using base64 data length:", base64Data.length);
-
-                // Create an array buffer from the base64 data
-                const binaryString = atob(base64Data);
-                const len = binaryString.length;
-                const pixels = new Float32Array(len / 4);
-
-                // Convert binary string to Float32Array
-                for (let i = 0; i < len; i += 4) {
-                    const value =
-                        binaryString.charCodeAt(i) |
-                        (binaryString.charCodeAt(i + 1) << 8) |
-                        (binaryString.charCodeAt(i + 2) << 16) |
-                        (binaryString.charCodeAt(i + 3) << 24);
-                    pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
-                }
-
-                // Normalize values to [0,1] range
-                const minVal = this.minVal;
-                const maxVal = this.maxVal;
-                const range = maxVal - minVal;
-
-                const width = this.width;
-                const height = this.height;
-                const rgbData = new Float32Array(width * height * 3);
-
-                // Convert grayscale to RGB, maintaining high precision
-                for (let i = 0; i < pixels.length; i++) {
-                    const normalizedValue = (pixels[i] - minVal) / range;
-                    rgbData[i * 3] = normalizedValue;
-                    rgbData[i * 3 + 1] = normalizedValue;
-                    rgbData[i * 3 + 2] = normalizedValue;
-                }
-
-                console.log("Creating texture with dimensions:", width, "x", height);
-
-                this.texture = new BABYLON.RawTexture(
-                    rgbData,
-                    width,
-                    height,
-                    BABYLON.Engine.TEXTUREFORMAT_RGB,
-                    this.scene,
-                    false,
-                    false,
-                    BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-                    BABYLON.Engine.TEXTURETYPE_FLOAT
-                );
-
-                // Create new material with the texture
-                const material = new BABYLON.StandardMaterial("texturedMaterial", this.scene);
-                material.diffuseTexture = this.texture;
-                material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-                material.useFloatValues = true;
-
-                // Apply material to cube
-                this.cube.material = material;
-
-                // Mark viewer as having image
-                this.container.classList.add("has-image");
-
-                console.log("Texture creation complete");
+                this.resizeCanvas();
                 this.updateSlice();
             } else {
                 console.error("Upload failed:", result.message);
@@ -443,9 +501,6 @@ class ImageViewer {
         });
 
         // Handle window resize
-        window.addEventListener("resize", () => {
-            this.engine.resize();
-        });
     }
 }
 
