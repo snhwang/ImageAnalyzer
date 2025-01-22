@@ -784,6 +784,66 @@ class ImageViewer {
         this.resizeCanvases();
         this.updateSlice();
     }
+    
+    async showDirectoryBrowser(path = 'images') {
+        console.log("Showing directory browser for path:", path);
+        this.urlImportModal.classList.add('show');
+        this.currentPathElement.textContent = path;
+
+        try {
+            // Show loading state
+            this.directoryList.innerHTML = '<div class="loading">Loading...</div>';
+
+            const response = await fetch(`${BASE_URL}/directory?path=${encodeURIComponent(path)}`);
+            if (!response.ok) {
+                throw new Error(`Failed to load directory: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log("Directory contents:", data);
+
+            // Clear loading state and populate directory list
+            this.directoryList.innerHTML = '';
+
+            // Add parent directory link if not in root
+            if (path !== 'images') {
+                const parentPath = path.split('/').slice(0, -1).join('/') || 'images';
+                const parentDir = document.createElement('div');
+                parentDir.className = 'directory-item folder';
+                parentDir.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
+                parentDir.addEventListener('click', () => this.showDirectoryBrowser(parentPath));
+                this.directoryList.appendChild(parentDir);
+            }
+
+            // Add directories first
+            data.directories?.forEach(dir => {
+                const dirElement = document.createElement('div');
+                dirElement.className = 'directory-item folder';
+                dirElement.innerHTML = `<i class="fas fa-folder"></i> ${dir}`;
+                dirElement.addEventListener('click', () => {
+                    this.showDirectoryBrowser(`${path}/${dir}`);
+                });
+                this.directoryList.appendChild(dirElement);
+            });
+
+            // Then add files
+            data.files?.forEach(file => {
+                if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
+                    const fileElement = document.createElement('div');
+                    fileElement.className = 'directory-item image';
+                    fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
+                    fileElement.addEventListener('click', () => {
+                        this.loadRemoteFile(`${path}/${file}`);
+                    });
+                    this.directoryList.appendChild(fileElement);
+                }
+            });
+
+        } catch (error) {
+            console.error("Error loading directory:", error);
+            this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
+        }
+    }
 }
 
 function updateGridLayout() {
