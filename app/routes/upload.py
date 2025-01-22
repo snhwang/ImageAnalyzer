@@ -15,7 +15,7 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/api/upload/upload")
+@router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     temp_file = None
     try:
@@ -126,7 +126,7 @@ async def upload_file(file: UploadFile = File(...)):
         logger.error(f"Upload error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
 
-@router.get("/api/upload/slice/{image_id}/{slice_num}")
+@router.get("/slice/{image_id}/{slice_num}")
 async def get_slice(image_id: str, slice_num: int):
     """Get a specific slice of image data as raw bytes"""
     try:

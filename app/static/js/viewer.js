@@ -268,7 +268,6 @@ class ImageViewer {
         });
     }
 
-    // ... rest of the original ImageViewer methods ...
     async loadDirectoryContents(path) {
         const directoryList = document.getElementById('directoryList');
         directoryList.innerHTML = '<div class="loading">Loading...</div>';
@@ -490,8 +489,11 @@ class ImageViewer {
     async loadSliceData(sliceIndex) {
         if (this.imageId) {
             try {
-                const response = await fetch(`/api/upload/slice/${this.imageId}/${sliceIndex}`);
-                if (!response.ok) throw new Error('Failed to fetch slice data');
+                const response = await fetch(`/slice/${this.imageId}/${sliceIndex}`);
+                if (!response.ok) {
+                    console.error(`Failed to fetch slice data: ${response.status} ${response.statusText}`);
+                    throw new Error('Failed to fetch slice data');
+                }
 
                 const arrayBuffer = await response.arrayBuffer();
                 const shape = response.headers.get('X-Image-Shape').split(',').map(Number);
@@ -499,6 +501,8 @@ class ImageViewer {
 
                 // Convert array buffer to Float32Array
                 const pixels = new Float32Array(arrayBuffer);
+
+                console.log(`Loaded slice ${sliceIndex}: shape=${shape}, dtype=${dtype}`);
 
                 // Cache the processed data
                 this.pixelCache.set(sliceIndex, pixels);
