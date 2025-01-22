@@ -133,6 +133,7 @@ class ImageViewer {
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top
                 };
+                e.stopPropagation(); // Only stop propagation for mouse events
             }
         });
 
@@ -144,45 +145,20 @@ class ImageViewer {
                     y: e.clientY - rect.top
                 };
                 this.drawROI();
+                e.stopPropagation(); // Only stop propagation for mouse events
             }
         });
 
-        this.roiCanvas.addEventListener("mouseup", () => {
+        this.roiCanvas.addEventListener("mouseup", (e) => {
             if (this.isDrawingROI) {
                 this.isDrawingROI = false;
                 this.optimizeWindowFromROI();
+                e.stopPropagation(); // Only stop propagation for mouse events
             }
         });
 
-        // Window/Level drag handling
-        this.canvas2D.addEventListener("mousedown", (e) => {
-            if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
-                console.log("Starting window/level adjustment");
-                this.isDragging = true;
-                this.dragStart = { x: e.clientX, y: e.clientY };
-                this.startWindowCenter = this.windowCenter;
-                this.startWindowWidth = this.windowWidth;
-                e.preventDefault(); // Prevent text selection
-            }
-        });
-
-        this.canvas2D.addEventListener("mousemove", (e) => {
-            if (this.isDragging && this.windowLevelBtn.classList.contains("active")) {
-                this.handleWindowLevelDrag(e);
-                e.preventDefault(); // Prevent text selection
-            }
-        });
-
-        this.canvas2D.addEventListener("mouseup", () => {
-            this.isDragging = false;
-        });
-
-        this.canvas2D.addEventListener("mouseleave", () => {
-            this.isDragging = false;
-        });
-
-        // Mouse wheel for slice navigation
-        this.canvas2D.addEventListener("wheel", (e) => {
+        // Mouse wheel for slice navigation - Keep at container level and ensure it works independent of tool state
+        this.imageContainer.addEventListener("wheel", (e) => {
             if (!this.is3DMode && this.totalSlices > 1) {
                 e.preventDefault();
 
@@ -204,6 +180,33 @@ class ImageViewer {
                     this.isProcessingWheel = false;
                 }
             }
+        }, { passive: false }); // Ensure wheel events are captured
+
+        // Window/Level drag handling
+        this.canvas2D.addEventListener("mousedown", (e) => {
+            if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
+                console.log("Starting window/level adjustment");
+                this.isDragging = true;
+                this.dragStart = { x: e.clientX, y: e.clientY };
+                this.startWindowCenter = this.windowCenter;
+                this.startWindowWidth = this.windowWidth;
+                e.preventDefault();
+            }
+        });
+
+        this.canvas2D.addEventListener("mousemove", (e) => {
+            if (this.isDragging && this.windowLevelBtn.classList.contains("active")) {
+                this.handleWindowLevelDrag(e);
+                e.preventDefault();
+            }
+        });
+
+        this.canvas2D.addEventListener("mouseup", () => {
+            this.isDragging = false;
+        });
+
+        this.canvas2D.addEventListener("mouseleave", () => {
+            this.isDragging = false;
         });
 
         // Handle window resize
@@ -274,7 +277,18 @@ class ImageViewer {
             console.log("Toggling optimize window mode");
             this.optimizeWindowBtn.classList.toggle("active");
             this.windowLevelBtn.classList.remove("active");
-            this.roiCanvas.style.pointerEvents = this.optimizeWindowBtn.classList.contains("active") ? "auto" : "none";
+
+            // Configure ROI canvas for drawing while allowing wheel events to pass through
+            if (this.optimizeWindowBtn.classList.contains("active")) {
+                this.roiCanvas.style.pointerEvents = "auto";
+                // Only capture mouse events, not wheel events
+                this.roiCanvas.style.touchAction = "none";
+                this.roiCanvas.style.zIndex = "1";
+            } else {
+                this.roiCanvas.style.pointerEvents = "none";
+                this.roiCanvas.style.touchAction = "auto";
+                this.roiCanvas.style.zIndex = "0";
+            }
             this.canvas2D.style.cursor = "default";
         }
     }
