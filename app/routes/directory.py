@@ -123,8 +123,22 @@ async def load_remote_file(path: str):
             if file_ext in ['.nii', '.nii.gz']:
                 logger.info("Processing NIfTI file")
                 img = nib.load(file_path)
-                data = img.get_fdata()
-                data = np.array(data, dtype=np.float32)
+                # Get header information
+                header = img.header
+                data_type = header.get_data_dtype()
+                logger.info(f"NIfTI header data type: {data_type}")
+
+                # Load data with correct data type
+                data = img.get_fdata(dtype=data_type)
+                logger.info(f"Loaded data type: {data.dtype}, shape: {data.shape}")
+
+                # Convert data while preserving bit depth
+                if np.issubdtype(data_type, np.integer):
+                    data = data.astype(np.float32)
+                    # If unsigned, ensure we don't convert negative
+                    if np.issubdtype(data_type, np.unsignedinteger):
+                        data = np.abs(data)
+
                 dimensions = data.shape[:2]
                 if len(data.shape) > 3:
                     data = data[..., 0]  # Take first time point for 4D data
@@ -133,12 +147,26 @@ async def load_remote_file(path: str):
             elif file_ext == '.dcm':
                 logger.info("Processing DICOM file")
                 dcm = pydicom.dcmread(file_path)
-                data = dcm.pixel_array.astype(np.float32)
+                # Get bit depth from DICOM header
+                bits_allocated = dcm.BitsAllocated
+                is_unsigned = dcm.PixelRepresentation == 0
+                logger.info(f"DICOM bits allocated: {bits_allocated}, unsigned: {is_unsigned}")
+
+                data = dcm.pixel_array
+                if is_unsigned:
+                    data = data.astype(np.uint16)
+                else:
+                    data = data.astype(np.int16)
+                data = data.astype(np.float32)
                 dimensions = data.shape[:2]
 
             else:  # Standard image formats
                 logger.info("Processing standard image file")
                 with Image.open(file_path) as img:
+                    # Get bit depth
+                    bit_depth = img.bits
+                    logger.info(f"Image bit depth: {bit_depth}")
+
                     if img.mode in ['RGB', 'RGBA']:
                         img = img.convert('L')
                     data = np.array(img, dtype=np.float32)
@@ -147,9 +175,10 @@ async def load_remote_file(path: str):
             if data is None:
                 raise HTTPException(status_code=400, detail="Failed to load image data")
 
-            # Calculate window settings and normalize data
+            # Calculate value range
             min_val = float(np.min(data))
             max_val = float(np.max(data))
+            logger.info(f"Data range: min={min_val}, max={max_val}")
 
             # Prepare slices if 3D, otherwise wrap 2D image in a list
             if len(data.shape) == 3:
@@ -160,13 +189,12 @@ async def load_remote_file(path: str):
             # Convert to base64
             encoded_slices = []
             for slice_data in slices:
-                # Normalize to 0-255 range for visualization
-                normalized = ((slice_data - min_val) / (max_val - min_val) * 255).astype(np.uint8)
-                slice_bytes = normalized.tobytes()
+                # Store raw float32 data
+                slice_bytes = slice_data.astype(np.float32).tobytes()
                 encoded = base64.b64encode(slice_bytes).decode('utf-8')
                 encoded_slices.append(encoded)
 
-            logger.info(f"Successfully processed image. Shape: {data.shape}")
+            logger.info(f"Successfully processed image. Dimensions: {dimensions}, Slices: {len(encoded_slices)}")
             return {
                 "success": True,
                 "data": encoded_slices,
