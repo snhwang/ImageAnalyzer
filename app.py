@@ -47,7 +47,7 @@ async def home(request: Request):
     """Serve the main application page"""
     return templates.TemplateResponse("index.html", {"request": request})
 
-# Include all routes from app/routes
+# Include the main router directly
 app.include_router(router)
 
 if __name__ == "__main__":

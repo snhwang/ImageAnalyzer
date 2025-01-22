@@ -7,8 +7,8 @@ from .session import router as session_router
 # Create main router
 router = APIRouter()
 
-# Include sub-routers without prefixes since they're added in app.py
-router.include_router(directory_router)
-router.include_router(upload_router)
-router.include_router(image_router)
-router.include_router(session_router)
+# Include sub-routers with proper prefixes
+router.include_router(directory_router, prefix="/api/directory", tags=["directory"])
+router.include_router(upload_router, prefix="/api/upload", tags=["upload"])
+router.include_router(image_router, prefix="/api/image", tags=["image"])
+router.include_router(session_router, prefix="/api/session", tags=["session"])
