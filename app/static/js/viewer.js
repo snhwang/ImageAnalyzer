@@ -65,6 +65,10 @@ class ImageViewer {
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
 
+        this.pixelCache = new Map(); // Cache for processed pixel data
+        this.wheelThrottleTimeout = null;
+        this.isProcessingWheel = false;
+
         this.setupEventListeners();
         this.initializeBabylonScene();
     }
@@ -181,10 +185,24 @@ class ImageViewer {
         this.canvas2D.addEventListener("wheel", (e) => {
             if (!this.is3DMode && this.totalSlices > 1) {
                 e.preventDefault();
+
+                if (this.isProcessingWheel) {
+                    return;
+                }
+
+                this.isProcessingWheel = true;
                 const delta = Math.sign(e.deltaY);
-                this.currentSlice = Math.max(0, Math.min(this.totalSlices - 1, this.currentSlice + delta));
-                console.log(`Navigating to slice ${this.currentSlice + 1}/${this.totalSlices}`);
-                this.updateSlice();
+                const newSlice = Math.max(0, Math.min(this.totalSlices - 1, this.currentSlice + delta));
+
+                if (newSlice !== this.currentSlice) {
+                    this.currentSlice = newSlice;
+                    requestAnimationFrame(() => {
+                        this.updateSlice();
+                        this.isProcessingWheel = false;
+                    });
+                } else {
+                    this.isProcessingWheel = false;
+                }
             }
         });
 
@@ -290,56 +308,73 @@ class ImageViewer {
         }
     }
 
-    updateSlice() {
+    async loadSliceData(sliceIndex) {
+        if (this.pixelCache.has(sliceIndex)) {
+            return this.pixelCache.get(sliceIndex);
+        }
+
+        const sliceData = this.imageData[sliceIndex];
+        const binaryString = atob(sliceData);
+        const pixels = new Float32Array(binaryString.length / 4);
+
+        for (let i = 0; i < binaryString.length; i += 4) {
+            const value =
+                binaryString.charCodeAt(i) |
+                (binaryString.charCodeAt(i + 1) << 8) |
+                (binaryString.charCodeAt(i + 2) << 16) |
+                (binaryString.charCodeAt(i + 3) << 24);
+            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+        }
+
+        this.pixelCache.set(sliceIndex, pixels);
+        return pixels;
+    }
+
+    async updateSlice() {
         if (!this.imageData || !this.imageData.length) return;
 
-        // Update both 2D and 3D views
         if (this.is3DMode) {
             this.updateTexture();
-        } else {
-            const currentSliceData = this.imageData[this.currentSlice];
-            const binaryString = atob(currentSliceData);
-            const pixels = new Float32Array(binaryString.length / 4);
+            return;
+        }
 
-            for (let i = 0; i < binaryString.length; i += 4) {
-                const value =
-                    binaryString.charCodeAt(i) |
-                    (binaryString.charCodeAt(i + 1) << 8) |
-                    (binaryString.charCodeAt(i + 2) << 16) |
-                    (binaryString.charCodeAt(i + 3) << 24);
-                pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
-            }
+        // Load and process pixel data
+        const pixels = await this.loadSliceData(this.currentSlice);
 
-            // Create a temporary canvas for processing
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = this.width;
-            tempCanvas.height = this.height;
-            const tempCtx = tempCanvas.getContext('2d');
+        // Create a temporary canvas for processing
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = this.width;
+        tempCanvas.height = this.height;
+        const tempCtx = tempCanvas.getContext('2d');
 
-            // Create ImageData with window/level applied
-            const imageData = new ImageData(this.width, this.height);
-            const data = imageData.data;
+        // Create ImageData with window/level applied
+        const imageData = new ImageData(this.width, this.height);
+        const data = imageData.data;
 
-            const low = this.windowCenter - this.windowWidth / 2;
-            const high = this.windowCenter + this.windowWidth / 2;
+        // Pre-compute window/level values
+        const low = this.windowCenter - this.windowWidth / 2;
+        const high = this.windowCenter + this.windowWidth / 2;
+        const range = high - low;
+        const scale = 255 / range;
 
-            // Apply window/level to pixel data
-            for (let i = 0; i < pixels.length; i++) {
-                const value = pixels[i];
-                let normalizedValue = (value - low) / (high - low);
-                normalizedValue = Math.max(0, Math.min(1, normalizedValue));
+        // Optimize pixel processing loop
+        const length = pixels.length;
+        for (let i = 0; i < length; i++) {
+            const value = pixels[i];
+            const normalizedValue = Math.max(0, Math.min(1, (value - low) / range));
+            const pixelValue = Math.round(normalizedValue * 255);
+            const index = i << 2; // Multiply by 4 using bit shift
+            data[index] = pixelValue;     // R
+            data[index + 1] = pixelValue; // G
+            data[index + 2] = pixelValue; // B
+            data[index + 3] = 255;        // A
+        }
 
-                const pixelValue = Math.round(normalizedValue * 255);
-                const index = i * 4;
-                data[index] = pixelValue;     // R
-                data[index + 1] = pixelValue; // G
-                data[index + 2] = pixelValue; // B
-                data[index + 3] = 255;        // A
-            }
+        // Put the processed image data on the temporary canvas
+        tempCtx.putImageData(imageData, 0, 0);
 
-            // Put the processed image data on the temporary canvas
-            tempCtx.putImageData(imageData, 0, 0);
-
+        // Use requestAnimationFrame for smooth rendering
+        requestAnimationFrame(() => {
             // Clear the main canvas
             this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
 
@@ -361,13 +396,13 @@ class ImageViewer {
             if (this.rotation !== 0) {
                 this.ctx2D.restore();
             }
-        }
 
-        // Update info display
-        const infoElement = this.container.querySelector(".image-info");
-        if (infoElement) {
-            infoElement.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices}`;
-        }
+            // Update info display
+            const infoElement = this.container.querySelector(".image-info");
+            if (infoElement) {
+                infoElement.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices}`;
+            }
+        });
     }
 
     drawROI() {
