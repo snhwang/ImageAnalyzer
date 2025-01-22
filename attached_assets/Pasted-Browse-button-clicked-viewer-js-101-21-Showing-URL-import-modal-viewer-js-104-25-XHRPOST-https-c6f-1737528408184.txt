@@ -1,0 +1,40 @@
+Browse button clicked viewer.js:101:21
+Showing URL import modal viewer.js:104:25
+XHRPOST
+https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/api/directory/list-directory
+[HTTP/1.1 404 Not Found 38ms]
+
+Error loading directory: Error: Failed to load directory contents
+    loadDirectoryContents https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:286
+    setupEventListeners https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:106
+    Async* <anonymous code>:1
+    apply <anonymous code>:1
+    setupEventListeners https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:100
+    ImageViewer https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:74
+    updateGrid https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:922
+    GridManager https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:879
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:938
+    Async* <anonymous code>:1
+    apply <anonymous code>:1
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:936
+viewer.js:335:21
+Upload button clicked viewer.js:81:21
+Triggering file input viewer.js:83:25
+File input changed viewer.js:91:21
+Selected file: training01_01_flair.nii viewer.js:94:25
+Starting file upload for: training01_01_flair.nii viewer.js:671:17
+Error uploading file: TypeError: NetworkError when attempting to fetch resource. viewer.js:717:21
+    uploadFile https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:717
+    setupEventListeners https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:95
+    (Async: EventListener.handleEvent)
+    <anonymous> <anonymous code>:1
+    apply <anonymous code>:1
+    setupEventListeners https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:90
+    ImageViewer https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:74
+    updateGrid https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:922
+    GridManager https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:879
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:938
+    (Async: EventListener.handleEvent)
+    <anonymous> <anonymous code>:1
+    apply <anonymous code>:1
+    <anonymous> https://c6f213d6-1b69-444e-af54-9b52cc5ffcf6-00-3jxcqhrkxqx0x.picard.replit.dev/static/js/viewer.js:936

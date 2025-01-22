@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from pathlib import Path
 from typing import Optional
+from app.routes import router
 
 # Create FastAPI app
 app = FastAPI(
@@ -44,50 +45,15 @@ async def home(request: Request):
     """Serve the main application page"""
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    """Handle file uploads with proper error handling"""
-    try:
-        if not file:
-            raise HTTPException(status_code=400, detail="No file uploaded")
-
-        if not allowed_file(file.filename):
-            raise HTTPException(status_code=400, detail="File type not allowed")
-
-        # Save the file
-        file_path = UPLOAD_FOLDER / file.filename
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
-
-        # Set proper permissions
-        os.chmod(file_path, 0o666)
-
-        return JSONResponse({
-            "success": True,
-            "url": f"/static/uploads/{file.filename}",
-            "filename": file.filename
-        })
-
-    except Exception as e:
-        return JSONResponse({
-            "success": False,
-            "message": "Upload failed",
-            "error": str(e)
-        }, status_code=500)
-
-@app.get("/static/uploads/{filename}")
-async def serve_upload(filename: str):
-    """Serve uploaded files with proper error handling"""
-    file_path = UPLOAD_FOLDER / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+# Include all routes from app/routes
+app.include_router(router)
 
 # Create necessary directories on startup
 os.makedirs("app/static/js", exist_ok=True)
 os.makedirs("app/static/uploads", exist_ok=True)
+os.makedirs("images", exist_ok=True)  # Add this line to create the images directory
 os.chmod("app/static/uploads", 0o777)
+os.chmod("images", 0o777)  # Add this line to set permissions for the images directory
 
 if __name__ == "__main__":
     import uvicorn
