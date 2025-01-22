@@ -57,6 +57,7 @@ class ImageViewer {
         // Initialize buttons and inputs
         this.fileInput = container.querySelector(".hidden-file-input");
         this.uploadBtn = container.querySelector(".upload-btn");
+        this.browseBtn = container.querySelector(".browse-btn");
         this.viewModeBtn = container.querySelector(".view-mode-btn");
         this.windowLevelBtn = container.querySelector(".window-level-btn");
         this.optimizeWindowBtn = container.querySelector(".optimize-window-btn");
@@ -64,7 +65,6 @@ class ImageViewer {
         this.rotateRightBtn = container.querySelector(".rotate-right-btn");
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
-        this.browseBtn = container.querySelector(".browse-btn");
 
 
         this.pixelCache = new Map(); // Cache for processed pixel data
@@ -87,6 +87,16 @@ class ImageViewer {
             const file = e.target.files[0];
             if (file) {
                 this.uploadFile(file);
+            }
+        });
+
+        // Browse button handling
+        this.browseBtn?.addEventListener("click", () => {
+            console.log("Browse button clicked");
+            const modal = document.getElementById('urlImportModal');
+            if (modal) {
+                modal.classList.add('show');
+                this.loadDirectoryContents('images');
             }
         });
 
@@ -214,13 +224,6 @@ class ImageViewer {
         // Handle window resize
         window.addEventListener("resize", () => {
             this.resizeCanvases();
-        });
-
-        // Add browse button handler
-        this.browseBtn?.addEventListener("click", () => {
-            console.log("Browse button clicked");
-            document.getElementById('urlImportModal').classList.add('show');
-            this.loadDirectoryContents('images');
         });
     }
 
@@ -607,6 +610,54 @@ class ImageViewer {
         this.updateSlice();
     }
 
+    async uploadFile(file) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(`${BASE_URL}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log("Upload response:", result);
+
+            if (result.success && result.data) {
+                console.log("Upload successful, processing image data...");
+
+                // Hide upload overlay
+                if (this.uploadOverlay) {
+                    this.uploadOverlay.style.display = 'none';
+                }
+
+                this.imageData = result.data;
+                this.totalSlices = this.imageData.length;
+                this.currentSlice = 0;
+                this.minVal = result.metadata.min_value;
+                this.maxVal = result.metadata.max_value;
+                this.width = result.metadata.dimensions[0];
+                this.height = result.metadata.dimensions[1];
+
+                // Switch to 2D mode if not already
+                if (this.is3DMode) {
+                    this.toggleViewMode();
+                }
+
+                this.resizeCanvases();
+                this.updateSlice();
+            } else {
+                console.error("Upload failed:", result.message);
+            }
+        } catch (error) {
+            console.error("Error uploading file:", error);
+        }
+    }
+
     updateTexture() {
         if (!this.imageData || !this.imageData.length) return;
 
@@ -753,54 +804,6 @@ class ImageViewer {
         this.engine.runRenderLoop(() => {
             this.scene.render();
         });
-    }
-
-    async uploadFile(file) {
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch(`${BASE_URL}/upload`, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                throw new Error(`Upload failed: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-            console.log("Upload response:", result);
-
-            if (result.success && result.data) {
-                console.log("Upload successful, processing image data...");
-
-                // Hide upload overlay
-                if (this.uploadOverlay) {
-                    this.uploadOverlay.style.display = 'none';
-                }
-
-                this.imageData = result.data;
-                this.totalSlices = this.imageData.length;
-                this.currentSlice = 0;
-                this.minVal = result.metadata.min_value;
-                this.maxVal = result.metadata.max_value;
-                this.width = result.metadata.dimensions[0];
-                this.height = result.metadata.dimensions[1];
-
-                // Switch to 2D mode if not already
-                if (this.is3DMode) {
-                    this.toggleViewMode();
-                }
-
-                this.resizeCanvases();
-                this.updateSlice();
-            } else {
-                console.error("Upload failed:", result.message);
-            }
-        } catch (error) {
-            console.error("Error uploading file:", error);
-        }
     }
 }
 
