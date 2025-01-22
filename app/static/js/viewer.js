@@ -197,8 +197,7 @@ class ImageViewer {
                 if (newSlice !== this.currentSlice) {
                     this.currentSlice = newSlice;
                     console.log(`Navigating to slice ${this.currentSlice + 1}/${this.totalSlices}`);
-                    requestAnimationFrame(() => {
-                        this.updateSlice();
+                    this.updateSlice().then(() => {
                         this.isProcessingWheel = false;
                     });
                 } else {
@@ -565,10 +564,22 @@ class ImageViewer {
         this.maxVal = state.maxVal || 255;
         this.is3DMode = state.is3DMode || false;
 
+        // Initialize canvases before updating
         if (this.imageData) {
             this.resizeCanvases();
-            this.updateSlice();
-            // Hide upload overlay since we have an image
+            // Ensure proper canvas visibility based on mode
+            this.canvas2D.style.display = this.is3DMode ? 'none' : 'block';
+            this.canvas3D.style.display = this.is3DMode ? 'block' : 'none';
+            this.roiCanvas.style.display = this.is3DMode ? 'none' : 'block';
+
+            // Update the view
+            if (this.is3DMode) {
+                this.updateTexture();
+            } else {
+                this.updateSlice();
+            }
+
+            // Hide upload overlay
             if (this.uploadOverlay) {
                 this.uploadOverlay.style.display = 'none';
             }
