@@ -15,7 +15,7 @@ class ImageViewer {
         this.isDrawingROI = false;
         this.roiStart = null;
         this.roiEnd = null;
-        this.imageLabel = ''; 
+        this.imageLabel = '';
 
         const labelSelect = this.container.querySelector('.image-label');
         if (labelSelect) {
@@ -29,8 +29,8 @@ class ImageViewer {
         this.canvas2D.style.position = "absolute";
         this.canvas2D.style.top = "0";
         this.canvas2D.style.left = "0";
-        this.canvas2D.style.display = "none"; 
-        this.canvas2D.style.userSelect = "none"; 
+        this.canvas2D.style.display = "none";
+        this.canvas2D.style.userSelect = "none";
         this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas2D);
 
         this.canvas3D = document.createElement("canvas");
@@ -39,7 +39,7 @@ class ImageViewer {
         this.canvas3D.style.position = "absolute";
         this.canvas3D.style.top = "0";
         this.canvas3D.style.left = "0";
-        this.canvas3D.style.userSelect = "none"; 
+        this.canvas3D.style.userSelect = "none";
         this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas3D);
 
         this.roiCanvas = document.createElement("canvas");
@@ -50,8 +50,8 @@ class ImageViewer {
         this.roiCanvas.style.top = "0";
         this.roiCanvas.style.left = "0";
         this.roiCanvas.style.pointerEvents = "none";
-        this.roiCanvas.style.display = "none"; 
-        this.roiCanvas.style.userSelect = "none"; 
+        this.roiCanvas.style.display = "none";
+        this.roiCanvas.style.userSelect = "none";
         this.imageContainer.querySelector(".canvas-container").appendChild(this.roiCanvas);
 
         this.uploadOverlay = this.container.querySelector(".upload-overlay");
@@ -65,9 +65,9 @@ class ImageViewer {
         this.rotateRightBtn = container.querySelector(".rotate-right-btn");
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
-        this.browseBtn = container.querySelector('.browse-btn'); 
+        this.browseBtn = container.querySelector('.browse-btn');
 
-        this.pixelCache = new Map(); 
+        this.pixelCache = new Map();
         this.wheelThrottleTimeout = null;
         this.isProcessingWheel = false;
 
@@ -172,6 +172,9 @@ class ImageViewer {
                     case 'toggle-view':
                         this.toggleViewMode();
                         break;
+                    case 'register-images':
+                        this.showRegistrationDialog();
+                        break;
                 }
             }
         });
@@ -191,7 +194,7 @@ class ImageViewer {
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top
                 };
-                e.stopPropagation(); 
+                e.stopPropagation();
             }
         });
 
@@ -203,7 +206,7 @@ class ImageViewer {
                     y: e.clientY - rect.top
                 };
                 this.drawROI();
-                e.stopPropagation(); 
+                e.stopPropagation();
             }
         });
 
@@ -211,7 +214,7 @@ class ImageViewer {
             if (this.isDrawingROI) {
                 this.isDrawingROI = false;
                 this.optimizeWindowFromROI();
-                e.stopPropagation(); 
+                e.stopPropagation();
             }
         });
 
@@ -237,7 +240,7 @@ class ImageViewer {
                     this.isProcessingWheel = false;
                 }
             }
-        }, { passive: false }); 
+        }, { passive: false });
 
         this.canvas2D.addEventListener("mousedown", (e) => {
             if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
@@ -366,8 +369,8 @@ class ImageViewer {
         const dx = e.clientX - this.dragStart.x;
         const dy = this.dragStart.y - e.clientY;
 
-        const windowWidthScale = (this.maxVal - this.minVal) / 500; 
-        const windowCenterScale = (this.maxVal - this.minVal) / 500; 
+        const windowWidthScale = (this.maxVal - this.minVal) / 500;
+        const windowCenterScale = (this.maxVal - this.minVal) / 500;
 
         this.windowWidth = Math.max(1, this.startWindowWidth + dx * windowWidthScale);
         this.windowCenter = this.startWindowCenter + dy * windowCenterScale;
@@ -436,11 +439,11 @@ class ImageViewer {
             const value = pixels[i];
             const normalizedValue = Math.max(0, Math.min(1, (value - low) / range));
             const pixelValue = Math.round(normalizedValue * 255);
-            const index = i << 2; 
-            data[index] = pixelValue;     
-            data[index + 1] = pixelValue; 
-            data[index + 2] = pixelValue; 
-            data[index + 3] = 255;        
+            const index = i << 2;
+            data[index] = pixelValue;
+            data[index + 1] = pixelValue;
+            data[index + 2] = pixelValue;
+            data[index + 3] = 255;
         }
 
         tempCtx.putImageData(imageData, 0, 0);
@@ -602,7 +605,7 @@ class ImageViewer {
             minVal: this.minVal,
             maxVal: this.maxVal,
             is3DMode: this.is3DMode,
-            imageLabel: this.imageLabel 
+            imageLabel: this.imageLabel
         };
     }
 
@@ -784,14 +787,13 @@ class ImageViewer {
         this.resizeCanvases();
         this.updateSlice();
     }
-    
+
     async showDirectoryBrowser(path = 'images') {
         console.log("Showing directory browser for path:", path);
         this.urlImportModal.classList.add('show');
         this.currentPathElement.textContent = path;
 
         try {
-            // Show loading state
             this.directoryList.innerHTML = '<div class="loading">Loading...</div>';
 
             const response = await fetch(`${BASE_URL}/directory?path=${encodeURIComponent(path)}`);
@@ -802,10 +804,8 @@ class ImageViewer {
             const data = await response.json();
             console.log("Directory contents:", data);
 
-            // Clear loading state and populate directory list
             this.directoryList.innerHTML = '';
 
-            // Add parent directory link if not in root
             if (path !== 'images') {
                 const parentPath = path.split('/').slice(0, -1).join('/') || 'images';
                 const parentDir = document.createElement('div');
@@ -815,7 +815,6 @@ class ImageViewer {
                 this.directoryList.appendChild(parentDir);
             }
 
-            // Add directories first
             data.directories?.forEach(dir => {
                 const dirElement = document.createElement('div');
                 dirElement.className = 'directory-item folder';
@@ -826,7 +825,6 @@ class ImageViewer {
                 this.directoryList.appendChild(dirElement);
             });
 
-            // Then add files
             data.files?.forEach(file => {
                 if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
                     const fileElement = document.createElement('div');
@@ -844,7 +842,101 @@ class ImageViewer {
             this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
     }
+    showRegistrationDialog() {
+        const modal = document.getElementById('registrationModal');
+        const fixedSelect = document.getElementById('fixedImageSelect');
+        const movingSelect = document.getElementById('movingImageSelect');
+
+        fixedSelect.innerHTML = '<option value="">Select fixed image...</option>';
+        movingSelect.innerHTML = '<option value="">Select moving image...</option>';
+
+        const viewers = Array.from(document.querySelectorAll('.image-window')).map((container, index) => {
+            const viewer = container.viewer;
+            if (viewer && viewer.imageData) {
+                return {
+                    index: index + 1,
+                    label: viewer.getLabel() || 'Unlabeled',
+                    viewer: viewer
+                };
+            }
+            return null;
+        }).filter(v => v !== null);
+
+        viewers.forEach(({index, label}) => {
+            const option = `<option value="${index-1}">Image ${index} (${label})</option>`;
+            fixedSelect.insertAdjacentHTML('beforeend', option);
+            movingSelect.insertAdjacentHTML('beforeend', option);
+        });
+
+        modal.classList.add('show');
+
+        const registerBtn = modal.querySelector('.register-btn');
+        const cancelBtn = modal.querySelector('.cancel-btn');
+
+        const handleRegister = async () => {
+            const fixedIdx = parseInt(fixedSelect.value);
+            const movingIdx = parseInt(movingSelect.value);
+
+            if (isNaN(fixedIdx) || isNaN(movingIdx)) {
+                alert('Please select both fixed and moving images');
+                return;
+            }
+
+            const fixedViewer = viewers[fixedIdx].viewer;
+            const movingViewer = viewers[movingIdx].viewer;
+
+            const registrationData = {
+                fixed_image: fixedViewer.getState(),
+                moving_image: movingViewer.getState()
+            };
+
+            try {
+                const response = await fetch(`${BASE_URL}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(registrationData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Registration failed: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    this.loadImageData(result);
+                    modal.classList.remove('show');
+                } else {
+                    throw new Error(result.message || 'Registration failed');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                alert(`Error during registration: ${error.message}`);
+            }
+        };
+
+        registerBtn.addEventListener('click', handleRegister);
+        cancelBtn.addEventListener('click', () => modal.classList.remove('show'));
+    }
 }
+
+const existingMenuClickHandler = ImageViewer.prototype.menuDropdown.onclick;
+
+ImageViewer.prototype.menuDropdown.onclick = function(e) {
+    const menuItem = e.target.closest('.menu-item');
+    if (!menuItem) return;
+
+    const action = menuItem.dataset.action;
+    if (action === 'register-images') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.showRegistrationDialog();
+        return;
+    }
+
+    existingMenuClickHandler.call(this, e);
+};
 
 function updateGridLayout() {
     const layout = document.getElementById("gridLayout").value;
