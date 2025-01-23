@@ -924,94 +924,90 @@ class ImageViewer {
 function updateGridLayout() {
     const layout = document.getElementById("gridLayout").value;
     const [rows, cols] = layout.split("x").map(Number);
-    const imageGrid = document.getElementById("imageGrid");
+    const imageGrid = document.querySelector(".image-grid");
+    const template = document.querySelector("#viewer-template");
 
+    // Store existing viewer states
     const existingStates = Array.from(imageGrid.children).map(container => {
-        const viewer = container.viewer;
-        return viewer ? viewer.getState() : null;
+        return container.viewer?.getState();
     });
 
-    imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    // Clear grid
+    imageGrid.innerHTML = '';
 
-    const totalCells = rows * cols;
-    const currentCells = imageGrid.children.length;
+    // Calculate total needed viewers
+    const totalViewers = rows * cols;
+    const existingViewersCount = existingStates.filter(Boolean).length;
 
-    if (totalCells > currentCells) {
-        const template = document.getElementById("imageWindowTemplate");
-        for (let i = currentCells; i < totalCells; i++) {
-            const clone = template.content.cloneNode(true);
-            const container = clone.querySelector(".image-window");
-            imageGrid.appendChild(container);
+    // Create grid cells
+    for (let i = 0; i < totalViewers; i++) {
+        const clone = template.content.cloneNode(true);
+        const container = clone.querySelector(".image-window");
+        imageGrid.appendChild(container);
 
-            // Create new viewer and initialize
-            const viewer = new ImageViewer(container);
-            container.viewer = viewer;
+        // Create new viewer instance
+        const viewer = new ImageViewer(container);
+        container.viewer = viewer;
 
-            // Set up menu handlers specifically for this viewer
-            const menuDropdown = container.querySelector('.menu-dropdown');
-            if (menuDropdown) {
-                menuDropdown.addEventListener("click", (e) => {
-                    const menuItem = e.target.closest('.menu-item');
-                    if (!menuItem) return;
+        // Ensure menu structure is properly cloned and initialized
+        const menuContainer = container.querySelector('.menu-container');
+        const menuBtn = container.querySelector('.menu-btn');
+        const menuDropdown = container.querySelector('.menu-dropdown');
 
-                    const action = menuItem.dataset.action;
-                    if (action) {
-                        e.preventDefault();
-                        e.stopPropagation();
+        if (menuBtn && menuDropdown) {
+            // Initialize menu toggle
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menuContainer.classList.toggle('show');
+            });
 
-                        const menuContainer = container.querySelector('.menu-container');
-                        menuContainer.classList.remove('show');
+            // Initialize menu item actions
+            menuDropdown.addEventListener('click', (e) => {
+                const menuItem = e.target.closest('.menu-item');
+                if (!menuItem) return;
 
-                        switch (action) {
-                            case 'upload-file':
-                                viewer.fileInput?.click();
-                                break;
-                            case 'browse-remote':
-                                viewer.showDirectoryBrowser();
-                                break;
-                            case 'rotate-left':
-                                viewer.rotate(-90);
-                                break;
-                            case 'rotate-right':
-                                viewer.rotate(90);
-                                break;
-                            case 'optimize-window':
-                                viewer.toggleOptimizeWindow();
-                                break;
-                            case 'window-level':
-                                viewer.toggleWindowLevelMode();
-                                break;
-                            case 'toggle-view':
-                                viewer.toggleViewMode();
-                                break;
-                            case 'register-images':
-                                viewer.showRegistrationDialog();
-                                break;
-                        }
+                const action = menuItem.dataset.action;
+                if (action) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    menuContainer.classList.remove('show');
+
+                    switch (action) {
+                        case 'upload-file':
+                            viewer.fileInput?.click();
+                            break;
+                        case 'browse-remote':
+                            viewer.showDirectoryBrowser();
+                            break;
+                        case 'rotate-left':
+                            viewer.rotate(-90);
+                            break;
+                        case 'rotate-right':
+                            viewer.rotate(90);
+                            break;
+                        case 'optimize-window':
+                            viewer.toggleOptimizeWindow();
+                            break;
+                        case 'window-level':
+                            viewer.toggleWindowLevelMode();
+                            break;
+                        case 'toggle-view':
+                            viewer.toggleViewMode();
+                            break;
+                        case 'register-images':
+                            viewer.showRegistrationDialog();
+                            break;
                     }
-                });
-            }
-
-            if (existingStates[i]) {
-                viewer.setState(existingStates[i]);
-            }
+                }
+            });
         }
-    } else if (totalCells < currentCells) {
-        for (let i = currentCells - 1; i >= totalCells; i--) {
-            imageGrid.removeChild(imageGrid.children[i]);
+
+        // Restore state if it exists
+        if (existingStates[i]) {
+            viewer.setState(existingStates[i]);
         }
     }
-
-    Array.from(imageGrid.children).forEach((container, index) => {
-        if (!container.viewer) {
-            const viewer = new ImageViewer(container);
-            container.viewer = viewer;
-        }
-        if (existingStates[index]) {
-            container.viewer.setState(existingStates[index]);
-        }
-    });
 }
 
 // Initialize the application
@@ -1022,6 +1018,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     updateGridLayout();
 });
+
+// Add event listener for grid layout changes
+document.getElementById("gridLayout")?.addEventListener("change", updateGridLayout);
 
 // Make ImageViewer available globally
 window.ImageViewer = ImageViewer;
