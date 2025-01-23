@@ -1,0 +1,124 @@
+import SimpleITK as sitk
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+
+# Load NIfTI images using SimpleITK
+def load_nifti(file_path):
+    print(f"Loading NIfTI file from {file_path}")
+    img = sitk.ReadImage(file_path)
+    img = sitk.Cast(img, sitk.sitkFloat32)  # Ensure the image is in 32-bit float format
+    return sitk.GetArrayFromImage(img), img.GetDirection(), img.GetOrigin(), img.GetSpacing(), img
+
+# Save NIfTI images using SimpleITK
+def save_nifti(data, direction, origin, spacing, file_path):
+    print(f"Saving NIfTI file to {file_path}")
+    img = sitk.GetImageFromArray(data.astype(np.float32))  # Ensure data is saved as 32-bit float
+    img.SetDirection(direction)
+    img.SetOrigin(origin)
+    img.SetSpacing(spacing)
+    sitk.WriteImage(img, file_path)
+
+# Apply optimized anisotropic diffusion
+def apply_anisotropic_diffusion(image, time_step=0.0625, conductance=3, iterations=5):
+    print("Applying optimized anisotropic diffusion")
+    img_sitk = sitk.GetImageFromArray(image)
+    denoised_img_sitk = sitk.CurvatureAnisotropicDiffusion(img_sitk, timeStep=time_step, conductanceParameter=conductance, numberOfIterations=iterations)
+    denoised_img = sitk.GetArrayFromImage(denoised_img_sitk)
+    return denoised_img
+
+# Apply optimized N4 bias field correction
+def n4_bias_field_correction(image, downsampling_factor=8, num_iterations=1):
+    print("Applying optimized N4 bias field correction")
+    img_sitk = sitk.GetImageFromArray(image)
+    original_size = img_sitk.GetSize()
+    original_spacing = img_sitk.GetSpacing()
+
+    # Downsample the image
+    shrink_filter = sitk.ShrinkImageFilter()
+    shrink_filter.SetShrinkFactors([downsampling_factor] * img_sitk.GetDimension())
+    downsampled_img_sitk = shrink_filter.Execute(img_sitk)
+
+    # Create mask image
+    mask_img = sitk.OtsuThreshold(downsampled_img_sitk, 0, 1, 200)
+    downsampled_img_sitk = sitk.Cast(downsampled_img_sitk, sitk.sitkFloat32)
+
+    # Apply N4 correction on downsampled image
+    corrector = sitk.N4BiasFieldCorrectionImageFilter()
+    corrector.SetMaximumNumberOfIterations([num_iterations] * 2)  # Set to 2 levels for simplification
+    corrected_downsampled_img_sitk = corrector.Execute(downsampled_img_sitk, mask_img)
+
+    # Upsample the corrected field to original size
+    log_bias_field = corrector.GetLogBiasFieldAsImage(img_sitk)
+    exp_filter = sitk.ExpImageFilter()
+    corrected_img_sitk = img_sitk / exp_filter.Execute(log_bias_field)
+
+    corrected_img = sitk.GetArrayFromImage(corrected_img_sitk)
+    return corrected_img
+
+# Optimize image registration
+def register_images(fixed_image_np, moving_image_np, fixed_image_sitk, moving_image_sitk):
+    print("Optimizing image registration")
+
+    # Initialize registration method
+    initial_transform = sitk.CenteredTransformInitializer(
+        fixed_image_sitk, moving_image_sitk, sitk.Euler3DTransform(),
+        sitk.CenteredTransformInitializerFilter.GEOMETRY)
+
+    registration_method = sitk.ImageRegistrationMethod()
+    registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=20)
+    registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
+    registration_method.SetMetricSamplingPercentage(0.01)
+    registration_method.SetInterpolator(sitk.sitkLinear)
+    registration_method.SetOptimizerAsGradientDescent(
+        learningRate=0.5,
+        numberOfIterations=50,
+        convergenceMinimumValue=1e-6,
+        convergenceWindowSize=10)
+    registration_method.SetOptimizerScalesFromPhysicalShift()
+    registration_method.SetInitialTransform(initial_transform, inPlace=False)
+
+    # Perform the final registration
+    final_transform = registration_method.Execute(
+        sitk.Cast(fixed_image_sitk, sitk.sitkFloat32),
+        sitk.Cast(moving_image_sitk, sitk.sitkFloat32))
+
+    # Resample the moving image onto the fixed image's grid
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetReferenceImage(fixed_image_sitk)
+    resampler.SetTransform(final_transform)
+
+    registered_image = resampler.Execute(moving_image_sitk)
+
+    return sitk.GetArrayFromImage(registered_image)
+
+# Resample image to have the same voxel size
+def resample_image(image, reference_image):
+    resample = sitk.ResampleImageFilter()
+    resample.SetReferenceImage(reference_image)
+    resample.SetInterpolator(sitk.sitkLinear)
+    resample.SetTransform(sitk.Transform())
+    resample.SetOutputSpacing(reference_image.GetSpacing())
+    resample.SetSize(reference_image.GetSize())
+    resample.SetOutputDirection(reference_image.GetDirection())
+    resample.SetOutputOrigin(reference_image.GetOrigin())
+    resample.SetDefaultPixelValue(0)
+    resample.SetOutputPixelType(image.GetPixelID())
+
+    return resample.Execute(image)
+
+# Intensity normalization using the mean and std of the first image
+def normalize_intensity(reference_image, target_image):
+    reference_mean = np.mean(reference_image)
+    reference_std = np.std(reference_image)
+
+    target_mean = np.mean(target_image)
+    target_std = np.std(target_image)
+
+    normalized_target = (target_image - target_mean) / target_std * reference_std + reference_mean
+
+    return normalized_target
+
+# Subtract images
+def subtract_images(image1, image2):
+    print("Subtracting images")
+    return image2 - image1  # Reverse subtraction

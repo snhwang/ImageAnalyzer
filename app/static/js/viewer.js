@@ -830,7 +830,7 @@ class ImageViewer {
                     const fileElement = document.createElement('div');
                     fileElement.className = 'directory-item image';
                     fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
-                    fileElement.addEventListener('click', () => {
+                    fileElement.addEventListener('click',() => {
                         this.loadRemoteFile(`${path}/${file}`);
                     });
                     this.directoryList.appendChild(fileElement);
@@ -944,8 +944,54 @@ function updateGridLayout() {
             const container = clone.querySelector(".image-window");
             imageGrid.appendChild(container);
 
+            // Create new viewer and initialize
             const viewer = new ImageViewer(container);
             container.viewer = viewer;
+
+            // Set up menu handlers specifically for this viewer
+            const menuDropdown = container.querySelector('.menu-dropdown');
+            if (menuDropdown) {
+                menuDropdown.addEventListener("click", (e) => {
+                    const menuItem = e.target.closest('.menu-item');
+                    if (!menuItem) return;
+
+                    const action = menuItem.dataset.action;
+                    if (action) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const menuContainer = container.querySelector('.menu-container');
+                        menuContainer.classList.remove('show');
+
+                        switch (action) {
+                            case 'upload-file':
+                                viewer.fileInput?.click();
+                                break;
+                            case 'browse-remote':
+                                viewer.showDirectoryBrowser();
+                                break;
+                            case 'rotate-left':
+                                viewer.rotate(-90);
+                                break;
+                            case 'rotate-right':
+                                viewer.rotate(90);
+                                break;
+                            case 'optimize-window':
+                                viewer.toggleOptimizeWindow();
+                                break;
+                            case 'window-level':
+                                viewer.toggleWindowLevelMode();
+                                break;
+                            case 'toggle-view':
+                                viewer.toggleViewMode();
+                                break;
+                            case 'register-images':
+                                viewer.showRegistrationDialog();
+                                break;
+                        }
+                    }
+                });
+            }
 
             if (existingStates[i]) {
                 viewer.setState(existingStates[i]);
@@ -959,7 +1005,8 @@ function updateGridLayout() {
 
     Array.from(imageGrid.children).forEach((container, index) => {
         if (!container.viewer) {
-            container.viewer = new ImageViewer(container);
+            const viewer = new ImageViewer(container);
+            container.viewer = viewer;
         }
         if (existingStates[index]) {
             container.viewer.setState(existingStates[index]);
@@ -967,8 +1014,7 @@ function updateGridLayout() {
     });
 }
 
-document.getElementById("gridLayout")?.addEventListener("change", updateGridLayout);
-
+// Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
     const firstContainer = document.querySelector(".image-window");
     if (firstContainer) {
@@ -977,4 +1023,5 @@ document.addEventListener("DOMContentLoaded", () => {
     updateGridLayout();
 });
 
+// Make ImageViewer available globally
 window.ImageViewer = ImageViewer;
