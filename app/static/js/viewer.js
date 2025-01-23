@@ -921,23 +921,6 @@ class ImageViewer {
     }
 }
 
-const existingMenuClickHandler = ImageViewer.prototype.menuDropdown.onclick;
-
-ImageViewer.prototype.menuDropdown.onclick = function(e) {
-    const menuItem = e.target.closest('.menu-item');
-    if (!menuItem) return;
-
-    const action = menuItem.dataset.action;
-    if (action === 'register-images') {
-        e.preventDefault();
-        e.stopPropagation();
-        this.showRegistrationDialog();
-        return;
-    }
-
-    existingMenuClickHandler.call(this, e);
-};
-
 function updateGridLayout() {
     const layout = document.getElementById("gridLayout").value;
     const [rows, cols] = layout.split("x").map(Number);
@@ -991,7 +974,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (firstContainer) {
         firstContainer.viewer = new ImageViewer(firstContainer);
     }
-
     updateGridLayout();
 });
 
