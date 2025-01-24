@@ -925,7 +925,12 @@ function updateGridLayout() {
     const layout = document.getElementById("gridLayout").value;
     const [rows, cols] = layout.split("x").map(Number);
     const imageGrid = document.querySelector(".image-grid");
-    const template = document.querySelector("#viewer-template");
+    const template = document.getElementById("imageWindowTemplate");
+
+    if (!template) {
+        console.error("Template not found!");
+        return;
+    }
 
     // Store existing viewer states
     const existingStates = Array.from(imageGrid.children).map(container => {
@@ -935,9 +940,12 @@ function updateGridLayout() {
     // Clear grid
     imageGrid.innerHTML = '';
 
+    // Set up grid layout
+    imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
     // Calculate total needed viewers
     const totalViewers = rows * cols;
-    const existingViewersCount = existingStates.filter(Boolean).length;
 
     // Create grid cells
     for (let i = 0; i < totalViewers; i++) {
