@@ -838,7 +838,7 @@ class ImageViewer {
             });
 
         } catch (error) {
-            console.error("Error loading directory:", error);
+            consoleerror("Error loading directory:", error);
             this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
     }
@@ -891,28 +891,47 @@ class ImageViewer {
             };
 
             try {
-                const response = await fetch(`${BASE_URL}/register`, {
+                const response = await fetch(`${BASE_URL}/api/registration`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(registrationData)
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Registration failed: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `Registration failed: ${response.statusText}`);
                 }
 
                 const result = await response.json();
+
                 if (result.success) {
-                    this.loadImageData(result);
-                    modal.classList.remove('show');
+                    const registeredViewer = createImageViewer();
+                    if (registeredViewer) {
+                        registeredViewer.setLabel('Registered Image');
+                        const state = {
+                            imageData: result.data,
+                            width: result.metadata.dimensions[0],
+                            height: result.metadata.dimensions[1],
+                            minVal: result.metadata.min_value,
+                            maxVal: result.metadata.max_value,
+                            totalSlices: result.data.length,
+                            currentSlice: 0,
+                            windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
+                            windowWidth: result.metadata.max_value - result.metadata.min_value,
+                        };
+                        registeredViewer.setState(state);
+                        console.log("Registration completed successfully");
+                    }
                 } else {
-                    throw new Error(result.message || 'Registration failed');
+                    throw new Error("Registration failed: Invalid response format");
                 }
+
+                modal.classList.remove('show');
             } catch (error) {
-                console.error('Registration error:', error);
-                alert(`Error during registration: ${error.message}`);
+                console.error("Registration error:", error);
+                alert(`Registration failed: ${error.message}`);
             }
         };
 
@@ -937,29 +956,23 @@ function updateGridLayout() {
     const cols = parseInt(layout[1]);
     const totalViewers = rows * cols;
 
-    // Store existing viewer states
     const existingStates = Array.from(imageGrid.children).map(container => {
         return container.viewer?.getState();
     });
 
-    // Clear grid
     while (imageGrid.firstChild) {
         const viewer = imageGrid.firstChild.viewer;
         if (viewer) {
-            // Clean up viewer instance
             viewer.cleanup && viewer.cleanup();
         }
         imageGrid.removeChild(imageGrid.firstChild);
     }
 
-    // Set grid layout
     imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
     imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
-    // Create grid cells
     for (let i = 0; i < totalViewers; i++) {
         try {
-            // Clone the template content
             const viewer = template.content.cloneNode(true);
             const container = viewer.querySelector('.image-window');
 
@@ -968,20 +981,15 @@ function updateGridLayout() {
                 continue;
             }
 
-            // Set unique ID for the container
             container.id = `viewer-${i + 1}`;
 
-            // Add the cloned content to the grid
             imageGrid.appendChild(container);
 
-            // Wait for next frame to ensure DOM is updated
             requestAnimationFrame(() => {
                 try {
-                    // Initialize the viewer
                     const viewerInstance = new ImageViewer(container);
                     container.viewer = viewerInstance;
 
-                    // Restore state if it exists
                     if (existingStates[i]) {
                         viewerInstance.setState(existingStates[i]);
                     }
@@ -995,7 +1003,6 @@ function updateGridLayout() {
     }
 }
 
-// Initialize grid layout when document and Webview are ready
 function initializeGridLayout() {
     const gridSelect = document.getElementById("gridLayout");
     if (!gridSelect) {
@@ -1005,19 +1012,30 @@ function initializeGridLayout() {
     }
 
     gridSelect.addEventListener('change', updateGridLayout);
-    // Initial grid setup
     updateGridLayout();
 }
 
-// Ensure initialization happens after both DOM and Webview are ready
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => setTimeout(initializeGridLayout, 100));
 } else {
     setTimeout(initializeGridLayout, 100);
 }
 
-// Add event listener for grid layout changes
 document.getElementById("gridLayout")?.addEventListener("change", updateGridLayout);
 
-// Make ImageViewer available globally
 window.ImageViewer = ImageViewer;
+
+function createImageViewer() {
+    const imageGrid = document.querySelector(".image-grid");
+    const template = document.getElementById("imageWindowTemplate");
+    if (!imageGrid || !template) return null;
+
+    const viewer = template.content.cloneNode(true);
+    const container = viewer.querySelector('.image-window');
+    if (!container) return null;
+    imageGrid.appendChild(container);
+
+    const viewerInstance = new ImageViewer(container);
+    container.viewer = viewerInstance;
+    return viewerInstance;
+}
