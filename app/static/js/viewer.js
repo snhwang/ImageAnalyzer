@@ -924,7 +924,7 @@ class ImageViewer {
 function updateGridLayout() {
     const gridSelect = document.getElementById("gridLayout");
     const imageGrid = document.querySelector(".image-grid");
-    const template = document.getElementById("viewerTemplate");
+    const template = document.getElementById("imageWindowTemplate");
 
     if (!gridSelect || !imageGrid || !template) {
         console.error("Required elements not found. Retrying in 500ms...");
@@ -939,7 +939,7 @@ function updateGridLayout() {
 
     // Store existing viewer states
     const existingStates = Array.from(imageGrid.children).map(container => {
-        return container.viewer ? container.viewer.getState() : null;
+        return container.viewer?.getState();
     });
 
     // Clear grid
