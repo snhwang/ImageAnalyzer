@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 import SimpleITK as sitk
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -26,26 +27,46 @@ def register_images(fixed_array: np.ndarray, moving_array: np.ndarray,
         # Initialize the registration method
         registration_method = sitk.ImageRegistrationMethod()
 
-        # Set up similarity metric
-        registration_method.SetMetricAsMeanSquares()
+        # Set up similarity metric - using Mutual Information for robustness
+        registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
+        registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
+        registration_method.SetMetricSamplingPercentage(0.01)
+
+        # Set the interpolator
         registration_method.SetInterpolator(sitk.sitkLinear)
 
-        # Set up optimizer
+        # Set up the optimizer - we'll use gradient descent optimizer
         registration_method.SetOptimizerAsGradientDescent(
             learningRate=1.0,
             numberOfIterations=100,
             convergenceMinimumValue=1e-6,
             convergenceWindowSize=10
         )
+        registration_method.SetOptimizerScalesFromPhysicalShift()
 
-        # Set up transform
-        transform = sitk.CenteredTransformInitializer(
+        # Set up initial transform
+        initial_transform = sitk.CenteredTransformInitializer(
             fixed_image,
             moving_image,
             sitk.Euler3DTransform(),
             sitk.CenteredTransformInitializerFilter.GEOMETRY
         )
-        registration_method.SetInitialTransform(transform)
+
+        # Set the initial transform and enable optimization of transform parameters
+        registration_method.SetInitialTransform(initial_transform, inPlace=True)
+
+        # Set up transform to optimize
+        registration_method.SetMovingInitialTransform(sitk.TranslationTransform(3))
+        registration_method.SetFixedInitialTransform(sitk.TranslationTransform(3))
+
+        # Add observers to print iteration info
+        def command_iteration(method):
+            logger.debug(f"Iteration: {method.GetOptimizerIteration()}")
+            logger.debug(f"Metric value: {method.GetMetricValue()}")
+
+        registration_method.AddCommand(sitk.sitkIterationEvent, lambda: command_iteration(registration_method))
+
+        logger.info("Starting registration optimization...")
 
         # Perform registration
         final_transform = registration_method.Execute(fixed_image, moving_image)
@@ -69,6 +90,7 @@ def register_images(fixed_array: np.ndarray, moving_array: np.ndarray,
 
     except Exception as e:
         logger.error(f"Registration failed: {str(e)}")
+        logger.error(traceback.format_exc())
         raise Exception(f"Registration failed: {str(e)}")
 
 def calculate_optimal_window_settings(image_data):

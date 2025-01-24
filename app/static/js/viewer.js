@@ -907,7 +907,10 @@ class ImageViewer {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(registrationData)
+                    body: JSON.stringify(registrationData),
+                    keepalive: true,
+                    timeout: 120000, // 2 minute timeout
+                    signal: AbortSignal.timeout(120000)
                 });
 
                 const result = await response.json();

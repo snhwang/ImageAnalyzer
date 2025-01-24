@@ -48,3 +48,11 @@ nibabel
 pydicom
 SimpleITK
 SimpleITK
+fastapi
+Jinja2
+nibabel
+numpy
+pydicom
+python-multipart
+simpleitk
+uvicorn

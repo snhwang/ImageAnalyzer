@@ -1,7 +1,15 @@
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from app.routes import session, upload, image, directory, image_registration
 import nibabel as nib
@@ -13,8 +21,12 @@ from PIL import Image
 import io
 import base64
 
-# Initialize app
-app = FastAPI(title="Medical Image Viewer")
+# Initialize app with increased limits and timeouts
+app = FastAPI(
+    title="Medical Image Viewer",
+    description="A cutting-edge medical image viewing and analysis platform",
+    version="1.0.0"
+)
 
 # Set up upload directory
 UPLOAD_DIR = Path("app/static/uploads")
@@ -24,16 +36,16 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/images", StaticFiles(directory="images"), name="images")
 
-# Configure CORS
+# Configure CORS with increased timeouts
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=3600,  # Cache preflight requests
 )
 
-# Set up templates
 templates = Jinja2Templates(directory="app/templates")
 
 def process_medical_image(file_path):
@@ -133,6 +145,9 @@ async def upload_file(file: UploadFile = File(...)):
                     "max": float(np.max(img_array)),
                     "sample": [float(x) for x in img_array.flatten()[:10]]
                 }
+            }, headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive'
             })
         else:
             return JSONResponse({
@@ -147,7 +162,7 @@ async def upload_file(file: UploadFile = File(...)):
             "message": str(e)
         }, status_code=500)
 
-# Importing routes
+# Include routers
 app.include_router(session.router)
 app.include_router(upload.router)
 app.include_router(image.router)
