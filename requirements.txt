@@ -46,3 +46,4 @@ pydicom
 openai
 nibabel
 pydicom
+SimpleITK

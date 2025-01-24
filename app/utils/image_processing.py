@@ -1,7 +1,75 @@
 import numpy as np
 import logging
+import SimpleITK as sitk
 
 logger = logging.getLogger(__name__)
+
+def register_images(fixed_array: np.ndarray, moving_array: np.ndarray,
+                   fixed_image: sitk.Image, moving_image: sitk.Image) -> np.ndarray:
+    """
+    Register the moving image to the fixed image using SimpleITK.
+
+    Args:
+        fixed_array: Reference image as numpy array
+        moving_array: Image to be registered as numpy array
+        fixed_image: Reference image as SimpleITK image
+        moving_image: Image to be registered as SimpleITK image
+
+    Returns:
+        Registered image as numpy array
+    """
+    try:
+        logger.info("Starting image registration")
+        logger.info(f"Fixed image shape: {fixed_array.shape}")
+        logger.info(f"Moving image shape: {moving_array.shape}")
+
+        # Initialize the registration method
+        registration_method = sitk.ImageRegistrationMethod()
+
+        # Set up similarity metric
+        registration_method.SetMetricAsMeanSquares()
+        registration_method.SetInterpolator(sitk.sitkLinear)
+
+        # Set up optimizer
+        registration_method.SetOptimizerAsGradientDescent(
+            learningRate=1.0,
+            numberOfIterations=100,
+            convergenceMinimumValue=1e-6,
+            convergenceWindowSize=10
+        )
+
+        # Set up transform
+        transform = sitk.CenteredTransformInitializer(
+            fixed_image,
+            moving_image,
+            sitk.Euler3DTransform(),
+            sitk.CenteredTransformInitializerFilter.GEOMETRY
+        )
+        registration_method.SetInitialTransform(transform)
+
+        # Perform registration
+        final_transform = registration_method.Execute(fixed_image, moving_image)
+        logger.info("Registration completed")
+
+        # Apply transform to moving image
+        registered_image = sitk.Resample(
+            moving_image,
+            fixed_image,
+            final_transform,
+            sitk.sitkLinear,
+            0.0,
+            moving_image.GetPixelID()
+        )
+
+        # Convert back to numpy array
+        registered_array = sitk.GetArrayFromImage(registered_image)
+        logger.info(f"Registered image shape: {registered_array.shape}")
+
+        return registered_array
+
+    except Exception as e:
+        logger.error(f"Registration failed: {str(e)}")
+        raise Exception(f"Registration failed: {str(e)}")
 
 def calculate_optimal_window_settings(image_data):
     """Calculate optimal window width and center based on dynamic histogram analysis."""

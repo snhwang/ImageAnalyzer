@@ -1,5 +1,7 @@
 {pkgs}: {
   deps = [
+    pkgs.swig4
+    pkgs.itk
     pkgs.gitFull
     pkgs.qhull
     pkgs.pkg-config

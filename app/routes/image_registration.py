@@ -33,7 +33,7 @@ def encode_numpy_to_base64(image_array: np.ndarray) -> list[str]:
         encoded_slices.append(base64.b64encode(binary_data).decode('utf-8'))
     return encoded_slices
 
-@router.post("/register")
+@router.post("/register", tags=["registration"])
 async def register_images_endpoint(request_data: Dict[str, Any]):
     try:
         # Extract data from request
@@ -41,8 +41,8 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
         moving_data = request_data["moving_image"]
 
         # Convert base64 image data to numpy arrays
-        fixed_array = decode_base64_image(fixed_data["imageData"], fixed_data["metadata"])
-        moving_array = decode_base64_image(moving_data["imageData"], moving_data["metadata"])
+        fixed_array = decode_base64_image(fixed_data["imageData"], fixed_data)
+        moving_array = decode_base64_image(moving_data["imageData"], moving_data)
 
         # Convert to SimpleITK images
         fixed_image = sitk.GetImageFromArray(fixed_array)
@@ -61,12 +61,13 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
             "success": True,
             "data": registered_data,
             "metadata": {
-                "dimensions": [fixed_data["metadata"]["dimensions"][0], 
-                             fixed_data["metadata"]["dimensions"][1]],
+                "dimensions": [fixed_data["dimensions"][0], 
+                             fixed_data["dimensions"][1]],
                 "min_value": float(np.min(registered_array)),
                 "max_value": float(np.max(registered_array))
             }
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Registration error: {str(e)}")  # Add debug logging
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
