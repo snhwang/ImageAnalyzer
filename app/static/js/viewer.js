@@ -838,7 +838,7 @@ class ImageViewer {
             });
 
         } catch (error) {
-            consoleerror("Error loading directory:", error);
+            console.error("Error loading directory:", error);
             this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
     }
@@ -885,12 +885,23 @@ class ImageViewer {
             const fixedViewer = viewers[fixedIdx].viewer;
             const movingViewer = viewers[movingIdx].viewer;
 
+            if (!fixedViewer || !movingViewer) {
+                alert('Invalid viewer selection');
+                return;
+            }
+
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'loading-indicator';
+            loadingIndicator.textContent = 'Processing registration...';
+            modal.appendChild(loadingIndicator);
+
             const registrationData = {
                 fixed_image: fixedViewer.getState(),
                 moving_image: movingViewer.getState()
             };
 
             try {
+                console.log("Sending registration request...");
                 const response = await fetch(`${BASE_URL}/api/registration`, {
                     method: 'POST',
                     headers: {
@@ -899,14 +910,15 @@ class ImageViewer {
                     body: JSON.stringify(registrationData)
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.detail || `Registration failed: ${response.statusText}`);
-                }
-
                 const result = await response.json();
 
-                if (result.success) {
+                if (!response.ok) {
+                    throw new Error(result.detail || result.error || `Registration failed: ${response.statusText}`);
+                }
+
+                console.log("Registration response received:", result);
+
+                if (result.success && result.data) {
                     const registeredViewer = createImageViewer();
                     if (registeredViewer) {
                         registeredViewer.setLabel('Registered Image');
@@ -925,13 +937,15 @@ class ImageViewer {
                         console.log("Registration completed successfully");
                     }
                 } else {
-                    throw new Error("Registration failed: Invalid response format");
+                    throw new Error(result.detail || "Registration failed: Invalid response format");
                 }
 
-                modal.classList.remove('show');
             } catch (error) {
                 console.error("Registration error:", error);
                 alert(`Registration failed: ${error.message}`);
+            } finally {
+                modal.removeChild(loadingIndicator);
+                modal.classList.remove('show');
             }
         };
 
