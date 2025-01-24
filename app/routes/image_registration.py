@@ -7,7 +7,7 @@ from ..utils.image_processing import register_images
 import SimpleITK as sitk
 import logging
 
-router = APIRouter()
+router = APIRouter(prefix="/api/registration", tags=["registration"])
 logger = logging.getLogger(__name__)
 
 def decode_base64_image(image_data: list[str], metadata: Dict[str, Any]) -> np.ndarray:
@@ -43,6 +43,9 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
         fixed_data = request_data["fixed_image"]
         moving_data = request_data["moving_image"]
 
+        logger.info(f"Fixed image metadata: {fixed_data}")
+        logger.info(f"Moving image metadata: {moving_data}")
+
         # Convert base64 image data to numpy arrays
         fixed_array = decode_base64_image(fixed_data["imageData"], fixed_data)
         moving_array = decode_base64_image(moving_data["imageData"], moving_data)
@@ -73,5 +76,5 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
         }
 
     except Exception as e:
-        logger.error(f"Registration error: {str(e)}")  # Add debug logging
+        logger.error(f"Registration error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from app.routes import session, upload, image, directory
+from app.routes import session, upload, image, directory, image_registration
 import nibabel as nib
 import pydicom
 import numpy as np
@@ -147,11 +147,12 @@ async def upload_file(file: UploadFile = File(...)):
             "message": str(e)
         }, status_code=500)
 
-# Include routes
+# Importing routes
 app.include_router(session.router)
 app.include_router(upload.router)
 app.include_router(image.router)
 app.include_router(directory.router)
+app.include_router(image_registration.router)
 
 if __name__ == "__main__":
     import uvicorn
