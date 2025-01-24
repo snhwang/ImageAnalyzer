@@ -11,4 +11,4 @@ router.include_router(directory_router, prefix="/api/directory", tags=["director
 router.include_router(image_router, prefix="/api/image", tags=["image"])
 router.include_router(session_router, prefix="/api/session", tags=["session"])
 router.include_router(upload_router, prefix="/api/upload", tags=["upload"])
-router.include_router(registration_router, prefix="/register", tags=["registration"])
+router.include_router(registration_router, prefix="/api/registration", tags=["registration"])

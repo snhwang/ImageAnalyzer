@@ -5,8 +5,10 @@ import base64
 import struct
 from ..utils.image_processing import register_images
 import SimpleITK as sitk
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 def decode_base64_image(image_data: list[str], metadata: Dict[str, Any]) -> np.ndarray:
     """Decode base64 encoded image data back to numpy array"""
@@ -33,9 +35,10 @@ def encode_numpy_to_base64(image_array: np.ndarray) -> list[str]:
         encoded_slices.append(base64.b64encode(binary_data).decode('utf-8'))
     return encoded_slices
 
-@router.post("/register", tags=["registration"])
+@router.post("/", tags=["registration"])
 async def register_images_endpoint(request_data: Dict[str, Any]):
     try:
+        logger.info("Received registration request")
         # Extract data from request
         fixed_data = request_data["fixed_image"]
         moving_data = request_data["moving_image"]
@@ -57,6 +60,7 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
         # Prepare response
         registered_data = encode_numpy_to_base64(registered_array)
 
+        logger.info("Registration completed successfully")
         return {
             "success": True,
             "data": registered_data,
@@ -69,5 +73,5 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
         }
 
     except Exception as e:
-        print(f"Registration error: {str(e)}")  # Add debug logging
+        logger.error(f"Registration error: {str(e)}")  # Add debug logging
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
