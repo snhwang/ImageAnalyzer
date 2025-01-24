@@ -828,9 +828,9 @@ class ImageViewer {
             data.files?.forEach(file => {
                 if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
                     const fileElement = document.createElement('div');
-                    fileElement.className = 'directory-item image';
+                    fileElement.className = 'directoryitem image';
                     fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
-                    fileElement.addEventListener('click',() => {
+                    fileElement.addEventListener('click', () => {
                         this.loadRemoteFile(`${path}/${file}`);
                     });
                     this.directoryList.appendChild(fileElement);
@@ -862,8 +862,8 @@ class ImageViewer {
             return null;
         }).filter(v => v !== null);
 
-        viewers.forEach(({index, label}) => {
-            const option = `<option value="${index-1}">Image ${index} (${label})</option>`;
+        viewers.forEach(({ index, label }) => {
+            const option = `<option value="${index - 1}">Image ${index} (${label})</option>`;
             fixedSelect.insertAdjacentHTML('beforeend', option);
             movingSelect.insertAdjacentHTML('beforeend', option);
         });
@@ -922,110 +922,99 @@ class ImageViewer {
 }
 
 function updateGridLayout() {
-    const layout = document.getElementById("gridLayout").value;
-    const [rows, cols] = layout.split("x").map(Number);
+    const gridSelect = document.getElementById("gridLayout");
     const imageGrid = document.querySelector(".image-grid");
-    const template = document.getElementById("imageWindowTemplate");
+    const template = document.getElementById("viewerTemplate");
 
-    if (!template) {
-        console.error("Template not found!");
+    if (!gridSelect || !imageGrid || !template) {
+        console.error("Required elements not found. Retrying in 500ms...");
+        setTimeout(updateGridLayout, 500);
         return;
     }
 
+    const layout = gridSelect.value.split("x");
+    const rows = parseInt(layout[0]);
+    const cols = parseInt(layout[1]);
+    const totalViewers = rows * cols;
+
     // Store existing viewer states
     const existingStates = Array.from(imageGrid.children).map(container => {
-        return container.viewer?.getState();
+        return container.viewer ? container.viewer.getState() : null;
     });
 
     // Clear grid
-    imageGrid.innerHTML = '';
+    while (imageGrid.firstChild) {
+        const viewer = imageGrid.firstChild.viewer;
+        if (viewer) {
+            // Clean up viewer instance
+            viewer.cleanup && viewer.cleanup();
+        }
+        imageGrid.removeChild(imageGrid.firstChild);
+    }
 
-    // Set up grid layout
-    imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    // Set grid layout
     imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-
-    // Calculate total needed viewers
-    const totalViewers = rows * cols;
+    imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
     // Create grid cells
     for (let i = 0; i < totalViewers; i++) {
-        const clone = template.content.cloneNode(true);
-        const container = clone.querySelector(".image-window");
-        imageGrid.appendChild(container);
+        try {
+            // Clone the template content
+            const viewer = template.content.cloneNode(true);
+            const container = viewer.querySelector('.image-window');
 
-        // Create new viewer instance
-        const viewer = new ImageViewer(container);
-        container.viewer = viewer;
+            if (!container) {
+                console.error("Container not found in template!");
+                continue;
+            }
 
-        // Ensure menu structure is properly cloned and initialized
-        const menuContainer = container.querySelector('.menu-container');
-        const menuBtn = container.querySelector('.menu-btn');
-        const menuDropdown = container.querySelector('.menu-dropdown');
+            // Set unique ID for the container
+            container.id = `viewer-${i + 1}`;
 
-        if (menuBtn && menuDropdown) {
-            // Initialize menu toggle
-            menuBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                menuContainer.classList.toggle('show');
-            });
+            // Add the cloned content to the grid
+            imageGrid.appendChild(container);
 
-            // Initialize menu item actions
-            menuDropdown.addEventListener('click', (e) => {
-                const menuItem = e.target.closest('.menu-item');
-                if (!menuItem) return;
+            // Wait for next frame to ensure DOM is updated
+            requestAnimationFrame(() => {
+                try {
+                    // Initialize the viewer
+                    const viewerInstance = new ImageViewer(container);
+                    container.viewer = viewerInstance;
 
-                const action = menuItem.dataset.action;
-                if (action) {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    menuContainer.classList.remove('show');
-
-                    switch (action) {
-                        case 'upload-file':
-                            viewer.fileInput?.click();
-                            break;
-                        case 'browse-remote':
-                            viewer.showDirectoryBrowser();
-                            break;
-                        case 'rotate-left':
-                            viewer.rotate(-90);
-                            break;
-                        case 'rotate-right':
-                            viewer.rotate(90);
-                            break;
-                        case 'optimize-window':
-                            viewer.toggleOptimizeWindow();
-                            break;
-                        case 'window-level':
-                            viewer.toggleWindowLevelMode();
-                            break;
-                        case 'toggle-view':
-                            viewer.toggleViewMode();
-                            break;
-                        case 'register-images':
-                            viewer.showRegistrationDialog();
-                            break;
+                    // Restore state if it exists
+                    if (existingStates[i]) {
+                        viewerInstance.setState(existingStates[i]);
                     }
+                } catch (error) {
+                    console.error(`Error initializing viewer ${i + 1}:`, error);
                 }
             });
-        }
-
-        // Restore state if it exists
-        if (existingStates[i]) {
-            viewer.setState(existingStates[i]);
+        } catch (error) {
+            console.error(`Error creating viewer ${i + 1}:`, error);
         }
     }
 }
 
-// Initialize the application
-document.addEventListener("DOMContentLoaded", () => {
-    const firstContainer = document.querySelector(".image-window");
-    if (firstContainer) {
-        firstContainer.viewer = new ImageViewer(firstContainer);
+// Initialize grid layout when document and Webview are ready
+function initializeGridLayout() {
+    const gridSelect = document.getElementById("gridLayout");
+    if (!gridSelect) {
+        console.warn("Grid select not found, retrying in 100ms...");
+        setTimeout(initializeGridLayout, 100);
+        return;
     }
+
+    gridSelect.addEventListener('change', updateGridLayout);
+    // Initial grid setup
     updateGridLayout();
-});
+}
+
+// Ensure initialization happens after both DOM and Webview are ready
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => setTimeout(initializeGridLayout, 100));
+} else {
+    setTimeout(initializeGridLayout, 100);
+}
 
 // Add event listener for grid layout changes
 document.getElementById("gridLayout")?.addEventListener("change", updateGridLayout);
