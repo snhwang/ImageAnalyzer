@@ -15,9 +15,9 @@ class ImageViewer {
         this.isDrawingROI = false;
         this.roiStart = null;
         this.roiEnd = null;
-        this.imageLabel = '';
+        this.imageLabel = "";
 
-        const labelSelect = this.container.querySelector('.image-label');
+        const labelSelect = this.container.querySelector(".image-label");
         if (labelSelect) {
             this.imageLabel = labelSelect.value;
         }
@@ -31,7 +31,9 @@ class ImageViewer {
         this.canvas2D.style.left = "0";
         this.canvas2D.style.display = "none";
         this.canvas2D.style.userSelect = "none";
-        this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas2D);
+        this.imageContainer
+            .querySelector(".canvas-container")
+            .appendChild(this.canvas2D);
 
         this.canvas3D = document.createElement("canvas");
         this.canvas3D.style.width = "100%";
@@ -40,7 +42,9 @@ class ImageViewer {
         this.canvas3D.style.top = "0";
         this.canvas3D.style.left = "0";
         this.canvas3D.style.userSelect = "none";
-        this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas3D);
+        this.imageContainer
+            .querySelector(".canvas-container")
+            .appendChild(this.canvas3D);
 
         this.roiCanvas = document.createElement("canvas");
         this.roiCtx = this.roiCanvas.getContext("2d");
@@ -52,7 +56,9 @@ class ImageViewer {
         this.roiCanvas.style.pointerEvents = "none";
         this.roiCanvas.style.display = "none";
         this.roiCanvas.style.userSelect = "none";
-        this.imageContainer.querySelector(".canvas-container").appendChild(this.roiCanvas);
+        this.imageContainer
+            .querySelector(".canvas-container")
+            .appendChild(this.roiCanvas);
 
         this.uploadOverlay = this.container.querySelector(".upload-overlay");
 
@@ -60,20 +66,22 @@ class ImageViewer {
         this.uploadBtn = container.querySelector(".upload-btn");
         this.viewModeBtn = container.querySelector(".view-mode-btn");
         this.windowLevelBtn = container.querySelector(".window-level-btn");
-        this.optimizeWindowBtn = container.querySelector(".optimize-window-btn");
+        this.optimizeWindowBtn = container.querySelector(
+            ".optimize-window-btn",
+        );
         this.rotateLeftBtn = container.querySelector(".rotate-left-btn");
         this.rotateRightBtn = container.querySelector(".rotate-right-btn");
         this.menuBtn = container.querySelector(".menu-btn");
         this.menuDropdown = container.querySelector(".menu-dropdown");
-        this.browseBtn = container.querySelector('.browse-btn');
+        this.browseBtn = container.querySelector(".browse-btn");
 
         this.pixelCache = new Map();
         this.wheelThrottleTimeout = null;
         this.isProcessingWheel = false;
 
-        this.urlImportModal = document.getElementById('urlImportModal');
-        this.directoryList = document.getElementById('directoryList');
-        this.currentPathElement = document.getElementById('currentPath');
+        this.urlImportModal = document.getElementById("urlImportModal");
+        this.directoryList = document.getElementById("directoryList");
+        this.currentPathElement = document.getElementById("currentPath");
 
         this.setupEventListeners();
         this.initializeBabylonScene();
@@ -85,7 +93,7 @@ class ImageViewer {
 
     setLabel(label) {
         this.imageLabel = label;
-        const labelSelect = this.container.querySelector('.image-label');
+        const labelSelect = this.container.querySelector(".image-label");
         if (labelSelect) {
             labelSelect.value = label;
         }
@@ -132,61 +140,74 @@ class ImageViewer {
 
         this.menuBtn?.addEventListener("click", (e) => {
             e.stopPropagation();
-            const menuContainer = this.menuBtn.closest('.menu-container');
-            menuContainer.classList.toggle('show');
+            const menuContainer = this.menuBtn.closest(".menu-container");
+            menuContainer.classList.toggle("show");
         });
 
         this.menuDropdown?.addEventListener("click", (e) => {
-            const menuItem = e.target.closest('.menu-item');
-            if (!menuItem) return;
+            console.log("Menu dropdown clicked");
+            const menuItem = e.target.closest(".menu-item");
+            if (!menuItem) {
+                console.log("No menu item found in click target");
+                return;
+            }
 
             const action = menuItem.dataset.action;
+            console.log("Menu action:", action);
+
             if (action) {
                 e.preventDefault();
                 e.stopPropagation();
 
-                const menuContainer = this.menuBtn.closest('.menu-container');
-                menuContainer.classList.remove('show');
+                const menuContainer = this.menuBtn.closest(".menu-container");
+                menuContainer.classList.remove("show");
 
                 switch (action) {
-                    case 'upload-file':
+                    case "upload-file":
                         if (this.fileInput) {
                             this.fileInput.click();
                         }
                         break;
-                    case 'browse-remote':
+                    case "browse-remote":
                         this.showDirectoryBrowser();
                         break;
-                    case 'rotate-left':
+                    case "rotate-left":
                         this.rotate(-90);
                         break;
-                    case 'rotate-right':
+                    case "rotate-right":
                         this.rotate(90);
                         break;
-                    case 'optimize-window':
+                    case "optimize-window":
                         this.toggleOptimizeWindow();
                         break;
-                    case 'window-level':
+                    case "window-level":
                         this.toggleWindowLevelMode();
                         break;
-                    case 'toggle-view':
+                    case "toggle-view":
                         this.toggleViewMode();
                         break;
-                    case 'register-images':
+                    case "register-images":
                         this.showRegistrationDialog();
                         break;
-                    case 'rotate-180':
+                    case "rotate-180":
                         console.log("Rotate 180 menu item clicked");
                         this.showRotate180Dialog();
                         break;
+                    default:
+                        console.log("Unknown action:", action);
                 }
+            } else {
+                console.log("No action found for menu item");
             }
         });
 
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.menu-container')) {
-                const menuContainers = document.querySelectorAll('.menu-container');
-                menuContainers.forEach(container => container.classList.remove('show'));
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".menu-container")) {
+                const menuContainers =
+                    document.querySelectorAll(".menu-container");
+                menuContainers.forEach((container) =>
+                    container.classList.remove("show"),
+                );
             }
         });
 
@@ -196,7 +217,7 @@ class ImageViewer {
                 const rect = this.roiCanvas.getBoundingClientRect();
                 this.roiStart = {
                     x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
+                    y: e.clientY - rect.top,
                 };
                 e.stopPropagation();
             }
@@ -207,7 +228,7 @@ class ImageViewer {
                 const rect = this.roiCanvas.getBoundingClientRect();
                 this.roiEnd = {
                     x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
+                    y: e.clientY - rect.top,
                 };
                 this.drawROI();
                 e.stopPropagation();
@@ -222,32 +243,47 @@ class ImageViewer {
             }
         });
 
-        this.imageContainer.addEventListener("wheel", (e) => {
-            if (!this.is3DMode && this.totalSlices > 1) {
-                e.preventDefault();
+        this.imageContainer.addEventListener(
+            "wheel",
+            (e) => {
+                if (!this.is3DMode && this.totalSlices > 1) {
+                    e.preventDefault();
 
-                if (this.isProcessingWheel) {
-                    return;
-                }
+                    if (this.isProcessingWheel) {
+                        return;
+                    }
 
-                this.isProcessingWheel = true;
-                const delta = Math.sign(e.deltaY);
-                const newSlice = Math.max(0, Math.min(this.totalSlices - 1, this.currentSlice + delta));
+                    this.isProcessingWheel = true;
+                    const delta = Math.sign(e.deltaY);
+                    const newSlice = Math.max(
+                        0,
+                        Math.min(
+                            this.totalSlices - 1,
+                            this.currentSlice + delta,
+                        ),
+                    );
 
-                if (newSlice !== this.currentSlice) {
-                    this.currentSlice = newSlice;
-                    console.log(`Navigating to slice ${this.currentSlice + 1}/${this.totalSlices}`);
-                    this.updateSlice().then(() => {
+                    if (newSlice !== this.currentSlice) {
+                        this.currentSlice = newSlice;
+                        console.log(
+                            `Navigating to slice ${this.currentSlice + 1}/${this.totalSlices}`,
+                        );
+                        this.updateSlice().then(() => {
+                            this.isProcessingWheel = false;
+                        });
+                    } else {
                         this.isProcessingWheel = false;
-                    });
-                } else {
-                    this.isProcessingWheel = false;
+                    }
                 }
-            }
-        }, { passive: false });
+            },
+            { passive: false },
+        );
 
         this.canvas2D.addEventListener("mousedown", (e) => {
-            if (!this.is3DMode && this.windowLevelBtn.classList.contains("active")) {
+            if (
+                !this.is3DMode &&
+                this.windowLevelBtn.classList.contains("active")
+            ) {
                 console.log("Starting window/level adjustment");
                 this.isDragging = true;
                 this.dragStart = { x: e.clientX, y: e.clientY };
@@ -258,7 +294,10 @@ class ImageViewer {
         });
 
         this.canvas2D.addEventListener("mousemove", (e) => {
-            if (this.isDragging && this.windowLevelBtn.classList.contains("active")) {
+            if (
+                this.isDragging &&
+                this.windowLevelBtn.classList.contains("active")
+            ) {
                 this.handleWindowLevelDrag(e);
                 e.preventDefault();
             }
@@ -281,13 +320,13 @@ class ImageViewer {
             this.showDirectoryBrowser();
         });
 
-        const cancelBtn = this.urlImportModal?.querySelector('.cancel-btn');
-        cancelBtn?.addEventListener('click', () => {
-            this.urlImportModal.classList.remove('show');
+        const cancelBtn = this.urlImportModal?.querySelector(".cancel-btn");
+        cancelBtn?.addEventListener("click", () => {
+            this.urlImportModal.classList.remove("show");
         });
 
-        const imageLabel = this.container.querySelector('.image-label');
-        imageLabel?.addEventListener('change', (e) => {
+        const imageLabel = this.container.querySelector(".image-label");
+        imageLabel?.addEventListener("change", (e) => {
             const selectedLabel = e.target.value;
             this.setLabel(selectedLabel);
             console.log(`Image label changed to: ${selectedLabel}`);
@@ -295,10 +334,11 @@ class ImageViewer {
     }
 
     resizeCanvases() {
-        const container = this.imageContainer.querySelector(".canvas-container");
+        const container =
+            this.imageContainer.querySelector(".canvas-container");
         const rect = container.getBoundingClientRect();
 
-        [this.canvas2D, this.canvas3D, this.roiCanvas].forEach(canvas => {
+        [this.canvas2D, this.canvas3D, this.roiCanvas].forEach((canvas) => {
             canvas.width = rect.width;
             canvas.height = rect.height;
         });
@@ -313,14 +353,14 @@ class ImageViewer {
 
     toggleViewMode() {
         this.is3DMode = !this.is3DMode;
-        console.log(`Switching to ${this.is3DMode ? '3D' : '2D'} mode`);
+        console.log(`Switching to ${this.is3DMode ? "3D" : "2D"} mode`);
 
-        this.canvas2D.style.display = this.is3DMode ? 'none' : 'block';
-        this.canvas3D.style.display = this.is3DMode ? 'block' : 'none';
-        this.roiCanvas.style.display = this.is3DMode ? 'none' : 'block';
+        this.canvas2D.style.display = this.is3DMode ? "none" : "block";
+        this.canvas3D.style.display = this.is3DMode ? "block" : "none";
+        this.roiCanvas.style.display = this.is3DMode ? "none" : "block";
 
-        this.canvas2D.style.pointerEvents = this.is3DMode ? 'none' : 'auto';
-        this.canvas3D.style.pointerEvents = this.is3DMode ? 'auto' : 'none';
+        this.canvas2D.style.pointerEvents = this.is3DMode ? "none" : "auto";
+        this.canvas3D.style.pointerEvents = this.is3DMode ? "auto" : "none";
 
         this.viewModeBtn.classList.toggle("active");
         this.windowLevelBtn.classList.remove("active");
@@ -343,7 +383,11 @@ class ImageViewer {
             console.log("Toggling window/level mode");
             this.windowLevelBtn.classList.toggle("active");
             this.optimizeWindowBtn.classList.remove("active");
-            this.canvas2D.style.cursor = this.windowLevelBtn.classList.contains("active") ? "crosshair" : "default";
+            this.canvas2D.style.cursor = this.windowLevelBtn.classList.contains(
+                "active",
+            )
+                ? "crosshair"
+                : "default";
             this.roiCanvas.style.pointerEvents = "none";
         }
     }
@@ -376,19 +420,29 @@ class ImageViewer {
         const windowWidthScale = (this.maxVal - this.minVal) / 500;
         const windowCenterScale = (this.maxVal - this.minVal) / 500;
 
-        this.windowWidth = Math.max(1, this.startWindowWidth + dx * windowWidthScale);
+        this.windowWidth = Math.max(
+            1,
+            this.startWindowWidth + dx * windowWidthScale,
+        );
         this.windowCenter = this.startWindowCenter + dy * windowCenterScale;
 
-        this.windowCenter = Math.max(this.minVal, Math.min(this.maxVal, this.windowCenter));
+        this.windowCenter = Math.max(
+            this.minVal,
+            Math.min(this.maxVal, this.windowCenter),
+        );
 
-        console.log(`Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`);
+        console.log(
+            `Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`,
+        );
         this.updateSlice();
     }
 
     rotate(degrees) {
         if (!this.is3DMode) {
             this.rotation = (this.rotation + degrees) % 360;
-            console.log(`Rotating image by ${degrees} degrees (total: ${this.rotation})`);
+            console.log(
+                `Rotating image by ${degrees} degrees (total: ${this.rotation})`,
+            );
             this.updateSlice();
         }
     }
@@ -408,7 +462,9 @@ class ImageViewer {
                 (binaryString.charCodeAt(i + 1) << 8) |
                 (binaryString.charCodeAt(i + 2) << 16) |
                 (binaryString.charCodeAt(i + 3) << 24);
-            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+            pixels[i / 4] = new Float32Array(
+                new Uint32Array([value]).buffer,
+            )[0];
         }
 
         this.pixelCache.set(sliceIndex, pixels);
@@ -425,10 +481,10 @@ class ImageViewer {
 
         const pixels = await this.loadSliceData(this.currentSlice);
 
-        const tempCanvas = document.createElement('canvas');
+        const tempCanvas = document.createElement("canvas");
         tempCanvas.width = this.width;
         tempCanvas.height = this.height;
-        const tempCtx = tempCanvas.getContext('2d');
+        const tempCtx = tempCanvas.getContext("2d");
 
         const imageData = new ImageData(this.width, this.height);
         const data = imageData.data;
@@ -441,7 +497,10 @@ class ImageViewer {
         const length = pixels.length;
         for (let i = 0; i < length; i++) {
             const value = pixels[i];
-            const normalizedValue = Math.max(0, Math.min(1, (value - low) / range));
+            const normalizedValue = Math.max(
+                0,
+                Math.min(1, (value - low) / range),
+            );
             const pixelValue = Math.round(normalizedValue * 255);
             const index = i << 2;
             data[index] = pixelValue;
@@ -453,20 +512,40 @@ class ImageViewer {
         tempCtx.putImageData(imageData, 0, 0);
 
         requestAnimationFrame(() => {
-            this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+            this.ctx2D.clearRect(
+                0,
+                0,
+                this.canvas2D.width,
+                this.canvas2D.height,
+            );
 
             if (this.rotation !== 0) {
                 this.ctx2D.save();
-                this.ctx2D.translate(this.canvas2D.width / 2, this.canvas2D.height / 2);
-                this.ctx2D.rotate(this.rotation * Math.PI / 180);
-                this.ctx2D.translate(-this.canvas2D.width / 2, -this.canvas2D.height / 2);
+                this.ctx2D.translate(
+                    this.canvas2D.width / 2,
+                    this.canvas2D.height / 2,
+                );
+                this.ctx2D.rotate((this.rotation * Math.PI) / 180);
+                this.ctx2D.translate(
+                    -this.canvas2D.width / 2,
+                    -this.canvas2D.height / 2,
+                );
             }
 
-            const scale = Math.min(this.canvas2D.width / this.width, this.canvas2D.height / this.height);
+            const scale = Math.min(
+                this.canvas2D.width / this.width,
+                this.canvas2D.height / this.height,
+            );
             const x = (this.canvas2D.width - this.width * scale) / 2;
             const y = (this.canvas2D.height - this.height * scale) / 2;
 
-            this.ctx2D.drawImage(tempCanvas, x, y, this.width * scale, this.height * scale);
+            this.ctx2D.drawImage(
+                tempCanvas,
+                x,
+                y,
+                this.width * scale,
+                this.height * scale,
+            );
 
             if (this.rotation !== 0) {
                 this.ctx2D.restore();
@@ -482,19 +561,19 @@ class ImageViewer {
     drawROI() {
         if (!this.roiStart || !this.roiEnd) return;
 
-        this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
-        this.roiCtx.strokeStyle = 'yellow';
+        this.roiCtx.clearRect(
+            0,
+            0,
+            this.roiCanvas.width,
+            this.roiCanvas.height,
+        );
+        this.roiCtx.strokeStyle = "yellow";
         this.roiCtx.lineWidth = 2;
 
         const width = this.roiEnd.x - this.roiStart.x;
         const height = this.roiEnd.y - this.roiStart.y;
 
-        this.roiCtx.strokeRect(
-            this.roiStart.x,
-            this.roiStart.y,
-            width,
-            height
-        );
+        this.roiCtx.strokeRect(this.roiStart.x, this.roiStart.y, width, height);
     }
 
     optimizeWindowFromROI() {
@@ -503,10 +582,18 @@ class ImageViewer {
         const scaleX = this.width / this.canvas2D.width;
         const scaleY = this.height / this.canvas2D.height;
 
-        const x1 = Math.floor(Math.min(this.roiStart.x, this.roiEnd.x) * scaleX);
-        const y1 = Math.floor(Math.min(this.roiStart.y, this.roiEnd.y) * scaleY);
-        const x2 = Math.floor(Math.max(this.roiStart.x, this.roiEnd.x) * scaleX);
-        const y2 = Math.floor(Math.max(this.roiStart.y, this.roiEnd.y) * scaleY);
+        const x1 = Math.floor(
+            Math.min(this.roiStart.x, this.roiEnd.x) * scaleX,
+        );
+        const y1 = Math.floor(
+            Math.min(this.roiStart.y, this.roiEnd.y) * scaleY,
+        );
+        const x2 = Math.floor(
+            Math.max(this.roiStart.x, this.roiEnd.x) * scaleX,
+        );
+        const y2 = Math.floor(
+            Math.max(this.roiStart.y, this.roiEnd.y) * scaleY,
+        );
 
         const currentSliceData = this.imageData[this.currentSlice];
         const binaryString = atob(currentSliceData);
@@ -518,7 +605,9 @@ class ImageViewer {
                 (binaryString.charCodeAt(i + 1) << 8) |
                 (binaryString.charCodeAt(i + 2) << 16) |
                 (binaryString.charCodeAt(i + 3) << 24);
-            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+            pixels[i / 4] = new Float32Array(
+                new Uint32Array([value]).buffer,
+            )[0];
         }
 
         let min = Infinity;
@@ -535,7 +624,12 @@ class ImageViewer {
         this.windowCenter = (min + max) / 2;
         this.windowWidth = max - min;
 
-        this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
+        this.roiCtx.clearRect(
+            0,
+            0,
+            this.roiCanvas.width,
+            this.roiCanvas.height,
+        );
         this.roiStart = null;
         this.roiEnd = null;
 
@@ -555,7 +649,9 @@ class ImageViewer {
                 (binaryString.charCodeAt(i + 1) << 8) |
                 (binaryString.charCodeAt(i + 2) << 16) |
                 (binaryString.charCodeAt(i + 3) << 24);
-            pixels[i / 4] = new Float32Array(new Uint32Array([value]).buffer)[0];
+            pixels[i / 4] = new Float32Array(
+                new Uint32Array([value]).buffer,
+            )[0];
         }
 
         const low = this.windowCenter - this.windowWidth / 2;
@@ -582,10 +678,13 @@ class ImageViewer {
                 false,
                 false,
                 BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-                BABYLON.Engine.TEXTURETYPE_FLOAT
+                BABYLON.Engine.TEXTURETYPE_FLOAT,
             );
 
-            const material = new BABYLON.StandardMaterial("imageMaterial", this.scene);
+            const material = new BABYLON.StandardMaterial(
+                "imageMaterial",
+                this.scene,
+            );
             material.diffuseTexture = this.texture;
             material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
             material.useFloatValues = true;
@@ -609,7 +708,7 @@ class ImageViewer {
             minVal: this.minVal,
             maxVal: this.maxVal,
             is3DMode: this.is3DMode,
-            imageLabel: this.imageLabel
+            imageLabel: this.imageLabel,
         };
     }
 
@@ -634,9 +733,9 @@ class ImageViewer {
 
         if (this.imageData) {
             this.resizeCanvases();
-            this.canvas2D.style.display = this.is3DMode ? 'none' : 'block';
-            this.canvas3D.style.display = this.is3DMode ? 'block' : 'none';
-            this.roiCanvas.style.display = this.is3DMode ? 'none' : 'block';
+            this.canvas2D.style.display = this.is3DMode ? "none" : "block";
+            this.canvas3D.style.display = this.is3DMode ? "block" : "none";
+            this.roiCanvas.style.display = this.is3DMode ? "none" : "block";
 
             if (this.is3DMode) {
                 this.updateTexture();
@@ -645,7 +744,7 @@ class ImageViewer {
             }
 
             if (this.uploadOverlay) {
-                this.uploadOverlay.style.display = 'none';
+                this.uploadOverlay.style.display = "none";
             }
         }
         if (state.imageLabel) {
@@ -664,19 +763,30 @@ class ImageViewer {
             Math.PI / 3,
             10,
             BABYLON.Vector3.Zero(),
-            this.scene
+            this.scene,
         );
         this.camera.setTarget(BABYLON.Vector3.Zero());
         this.camera.attachControl(this.canvas3D, true);
 
-        const material = new BABYLON.StandardMaterial("cubeMaterial", this.scene);
+        const material = new BABYLON.StandardMaterial(
+            "cubeMaterial",
+            this.scene,
+        );
         material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
         material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 
-        this.cube = BABYLON.MeshBuilder.CreateBox("cube", { size: 2 }, this.scene);
+        this.cube = BABYLON.MeshBuilder.CreateBox(
+            "cube",
+            { size: 2 },
+            this.scene,
+        );
         this.cube.material = material;
 
-        new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), this.scene);
+        new BABYLON.HemisphericLight(
+            "light",
+            new BABYLON.Vector3(0, 1, 0),
+            this.scene,
+        );
 
         this.engine.runRenderLoop(() => {
             this.scene.render();
@@ -688,11 +798,11 @@ class ImageViewer {
             this.clearImageState();
 
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append("file", file);
 
             const response = await fetch(`${BASE_URL}/upload`, {
-                method: 'POST',
-                body: formData
+                method: "POST",
+                body: formData,
             });
 
             if (!response.ok) {
@@ -706,7 +816,7 @@ class ImageViewer {
                 console.log("Upload successful, processing image data...");
 
                 if (this.uploadOverlay) {
-                    this.uploadOverlay.style.display = 'none';
+                    this.uploadOverlay.style.display = "none";
                 }
 
                 this.loadImageData(result);
@@ -723,7 +833,9 @@ class ImageViewer {
         try {
             this.clearImageState();
 
-            const response = await fetch(`${BASE_URL}/load?path=${encodeURIComponent(path)}`);
+            const response = await fetch(
+                `${BASE_URL}/load?path=${encodeURIComponent(path)}`,
+            );
             if (!response.ok) {
                 throw new Error(`Failed to load file: ${response.statusText}`);
             }
@@ -731,9 +843,9 @@ class ImageViewer {
             const result = await response.json();
             if (result.success && result.data) {
                 this.loadImageData(result);
-                this.urlImportModal.classList.remove('show');
+                this.urlImportModal.classList.remove("show");
             } else {
-                throw new Error(result.message || 'Failed to load image data');
+                throw new Error(result.message || "Failed to load image data");
             }
         } catch (error) {
             console.error("Error loading remote file:", error);
@@ -755,7 +867,12 @@ class ImageViewer {
         this.pixelCache.clear();
 
         this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
-        this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
+        this.roiCtx.clearRect(
+            0,
+            0,
+            this.roiCanvas.width,
+            this.roiCanvas.height,
+        );
 
         this.isDrawingROI = false;
         this.roiStart = null;
@@ -768,7 +885,7 @@ class ImageViewer {
 
         const infoElement = this.container.querySelector(".image-info");
         if (infoElement) {
-            infoElement.textContent = 'Window: C: 0 W: 0 | Slice: 0/0';
+            infoElement.textContent = "Window: C: 0 W: 0 | Slice: 0/0";
         }
     }
 
@@ -792,97 +909,108 @@ class ImageViewer {
         this.updateSlice();
     }
 
-    async showDirectoryBrowser(path = 'images') {
+    async showDirectoryBrowser(path = "images") {
         console.log("Showing directory browser for path:", path);
-        this.urlImportModal.classList.add('show');
+        this.urlImportModal.classList.add("show");
         this.currentPathElement.textContent = path;
 
         try {
-            this.directoryList.innerHTML = '<div class="loading">Loading...</div>';
+            this.directoryList.innerHTML =
+                '<div class="loading">Loading...</div>';
 
-            const response = await fetch(`${BASE_URL}/directory?path=${encodeURIComponent(path)}`);
+            const response = await fetch(
+                `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
+            );
             if (!response.ok) {
-                throw new Error(`Failed to load directory: ${response.statusText}`);
+                throw new Error(
+                    `Failed to load directory: ${response.statusText}`,
+                );
             }
 
             const data = await response.json();
             console.log("Directory contents:", data);
 
-            this.directoryList.innerHTML = '';
+            this.directoryList.innerHTML = "";
 
-            if (path !== 'images') {
-                const parentPath = path.split('/').slice(0, -1).join('/') || 'images';
-                const parentDir = document.createElement('div');
-                parentDir.className = 'directory-item folder';
+            if (path !== "images") {
+                const parentPath =
+                    path.split("/").slice(0, -1).join("/") || "images";
+                const parentDir = document.createElement("div");
+                parentDir.className = "directory-item folder";
                 parentDir.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
-                parentDir.addEventListener('click', () => this.showDirectoryBrowser(parentPath));
+                parentDir.addEventListener("click", () =>
+                    this.showDirectoryBrowser(parentPath),
+                );
                 this.directoryList.appendChild(parentDir);
             }
 
-            data.directories?.forEach(dir => {
-                const dirElement = document.createElement('div');
-                dirElement.className = 'directory-item folder';
+            data.directories?.forEach((dir) => {
+                const dirElement = document.createElement("div");
+                dirElement.className = "directory-item folder";
                 dirElement.innerHTML = `<i class="fas fa-folder"></i> ${dir}`;
-                dirElement.addEventListener('click', () => {
+                dirElement.addEventListener("click", () => {
                     this.showDirectoryBrowser(`${path}/${dir}`);
                 });
                 this.directoryList.appendChild(dirElement);
             });
 
-            data.files?.forEach(file => {
+            data.files?.forEach((file) => {
                 if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
-                    const fileElement = document.createElement('div');
-                    fileElement.className = 'directoryitem image';
+                    const fileElement = document.createElement("div");
+                    fileElement.className = "directoryitem image";
                     fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
-                    fileElement.addEventListener('click', () =>{
-                        this.loadRemoteFile(`${path}/${file}`);                    });
+                    fileElement.addEventListener("click", () => {
+                        this.loadRemoteFile(`${path}/${file}`);
+                    });
                     this.directoryList.appendChild(fileElement);
                 }
             });
-
-        }
-        catch (error) {
+        } catch (error) {
             console.error("Error loading directory:", error);
             this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
     }
     async showRegistrationDialog() {
-        const modal = document.getElementById('registrationModal');
-        const fixedSelect = document.getElementById('fixedImageSelect');
-        const movingSelect = document.getElementById('movingImageSelect');
+        const modal = document.getElementById("registrationModal");
+        const fixedSelect = document.getElementById("fixedImageSelect");
+        const movingSelect = document.getElementById("movingImageSelect");
 
-        fixedSelect.innerHTML = '<option value="">Select fixed image...</option>';
-        movingSelect.innerHTML = '<option value="">Select moving image...</option>';
+        fixedSelect.innerHTML =
+            '<option value="">Select fixed image...</option>';
+        movingSelect.innerHTML =
+            '<option value="">Select moving image...</option>';
 
-        const viewers = Array.from(document.querySelectorAll('.image-window')).map((container, index) => {
-            const viewer = container.viewer;
-            if (viewer && viewer.imageData) {
-                return {
-                    index: index + 1,
-                    label: viewer.getLabel() || 'Unlabeled',
-                    viewer: viewer
-                };
-            }
-            return null;
-        }).filter(v => v !== null);
+        const viewers = Array.from(document.querySelectorAll(".image-window"))
+            .map((container, index) => {
+                const viewer = container.viewer;
+                if (viewer && viewer.imageData) {
+                    return {
+                        index: index + 1,
+                        label: viewer.getLabel() || "Unlabeled",
+                        viewer: viewer,
+                    };
+                }
+                return null;
+            })
+            .filter((v) => v !== null);
 
         viewers.forEach(({ index, label }) => {
             const option = `<option value="${index - 1}">Image ${index} (${label})</option>`;
-            fixedSelect.insertAdjacentHTML('beforeend', option);
-            movingSelect.insertAdjacentHTML('beforeend', option);
+            fixedSelect.insertAdjacentHTML("beforeend", option);
+            movingSelect.insertAdjacentHTML("beforeend", option);
         });
 
-        modal.classList.add('show');
+        modal.classList.add("show");
 
-        const registerBtn = modal.querySelector('.register-btn');
-        const cancelBtn = modal.querySelector('.cancel-btn');
+        const registerBtn = modal.querySelector(".register-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
 
         const handleRegister = async () => {
             const fixedIdx = parseInt(fixedSelect.value);
             const movingIdx = parseInt(movingSelect.value);
 
             if (isNaN(fixedIdx) || isNaN(movingIdx)) {
-                alert('Please select both fixed and moving images');
+                alert("Please select both fixed and moving images");
                 return;
             }
 
@@ -890,7 +1018,7 @@ class ImageViewer {
             const movingViewer = viewers[movingIdx].viewer;
 
             if (!fixedViewer || !movingViewer) {
-                alert('Invalid viewer selection');
+                alert("Invalid viewer selection");
                 return;
             }
 
@@ -904,11 +1032,11 @@ class ImageViewer {
                             dimensions: [
                                 fixedViewer.width,
                                 fixedViewer.height,
-                                fixedViewer.totalSlices
+                                fixedViewer.totalSlices,
                             ],
                             min_value: fixedViewer.minVal,
-                            max_value: fixedViewer.maxVal
-                        }
+                            max_value: fixedViewer.maxVal,
+                        },
                     },
                     moving_image: {
                         data: movingViewer.imageData,
@@ -916,26 +1044,28 @@ class ImageViewer {
                             dimensions: [
                                 movingViewer.width,
                                 movingViewer.height,
-                                movingViewer.totalSlices
+                                movingViewer.totalSlices,
                             ],
                             min_value: movingViewer.minVal,
-                            max_value: movingViewer.maxVal
-                        }
-                    }
+                            max_value: movingViewer.maxVal,
+                        },
+                    },
                 };
 
                 const response = await fetch(`${BASE_URL}/api/registration`, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
                     },
-                    body: JSON.stringify(registrationData)
+                    body: JSON.stringify(registrationData),
                 });
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(errorText || `HTTP error! status: ${response.status}`);
+                    throw new Error(
+                        errorText || `HTTP error! status: ${response.status}`,
+                    );
                 }
 
                 const result = await response.json();
@@ -943,7 +1073,7 @@ class ImageViewer {
                 if (result.success) {
                     const viewer = createImageViewer();
                     if (viewer) {
-                        viewer.setLabel('Registered Image');
+                        viewer.setLabel("Registered Image");
                         const state = {
                             imageData: result.data,
                             width: result.metadata.dimensions[0],
@@ -952,64 +1082,71 @@ class ImageViewer {
                             maxVal: result.metadata.max_value,
                             totalSlices: result.data.length,
                             currentSlice: 0,
-                            windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
-                            windowWidth: result.metadata.max_value - result.metadata.min_value
+                            windowCenter:
+                                (result.metadata.max_value +
+                                    result.metadata.min_value) /
+                                2,
+                            windowWidth:
+                                result.metadata.max_value -
+                                result.metadata.min_value,
                         };
                         viewer.setState(state);
                     }
-                    modal.classList.remove('show');
+                    modal.classList.remove("show");
                 } else {
-                    throw new Error(result.error || 'Registration failed');
+                    throw new Error(result.error || "Registration failed");
                 }
-
             } catch (error) {
                 console.error("Registration error:", error);
                 alert(`Registration failed: ${error.message}`);
             }
         };
 
-        registerBtn.removeEventListener('click', handleRegister);
-        registerBtn.addEventListener('click', handleRegister);
+        registerBtn.removeEventListener("click", handleRegister);
+        registerBtn.addEventListener("click", handleRegister);
 
-        cancelBtn.addEventListener('click', () => {
-            modal.classList.remove('show');
+        cancelBtn.addEventListener("click", () => {
+            modal.classList.remove("show");
         });
     }
     async showRotate180Dialog() {
         console.log("Opening rotate 180 dialog");
-        const modal = document.getElementById('rotate180Modal');
-        const imageSelect = document.getElementById('rotate180ImageSelect');
+        const modal = document.getElementById("rotate180Modal");
+        const imageSelect = document.getElementById("rotate180ImageSelect");
 
         if (!modal || !imageSelect) {
             console.error("Required modal elements not found");
             return;
         }
 
-        imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
+        imageSelect.innerHTML =
+            '<option value="">Select image to rotate...</option>';
 
-        const viewers = Array.from(document.querySelectorAll('.image-window')).map((container, index) => {
-            const viewer = container.viewer;
-            if (viewer && viewer.imageData) {
-                return {
-                    index: index + 1,
-                    label: viewer.getLabel() || 'Unlabeled',
-                    viewer: viewer
-                };
-            }
-            return null;
-        }).filter(v => v !== null);
+        const viewers = Array.from(document.querySelectorAll(".image-window"))
+            .map((container, index) => {
+                const viewer = container.viewer;
+                if (viewer && viewer.imageData) {
+                    return {
+                        index: index + 1,
+                        label: viewer.getLabel() || "Unlabeled",
+                        viewer: viewer,
+                    };
+                }
+                return null;
+            })
+            .filter((v) => v !== null);
 
         console.log("Available viewers:", viewers);
 
         viewers.forEach(({ index, label }) => {
             const option = `<option value="${index - 1}">Image ${index} (${label})</option>`;
-            imageSelect.insertAdjacentHTML('beforeend', option);
+            imageSelect.insertAdjacentHTML("beforeend", option);
         });
 
-        modal.classList.add('show');
+        modal.classList.add("show");
 
-        const rotateBtn = modal.querySelector('.rotate-btn');
-        const cancelBtn = modal.querySelector('.cancel-btn');
+        const rotateBtn = modal.querySelector(".rotate-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
 
         if (!rotateBtn || !cancelBtn) {
             console.error("Required button elements not found");
@@ -1022,14 +1159,14 @@ class ImageViewer {
 
             if (isNaN(selectedIdx)) {
                 console.error("No image selected");
-                alert('Please select an image to rotate');
+                alert("Please select an image to rotate");
                 return;
             }
 
             const selectedViewer = viewers[selectedIdx].viewer;
             if (!selectedViewer || !selectedViewer.imageData) {
                 console.error("Selected viewer or image data not found");
-                alert('Invalid image selection');
+                alert("Invalid image selection");
                 return;
             }
 
@@ -1037,19 +1174,22 @@ class ImageViewer {
                 const rotationData = {
                     image_data: selectedViewer.imageData,
                     metadata: {
-                        dimensions: [selectedViewer.width, selectedViewer.height],
+                        dimensions: [
+                            selectedViewer.width,
+                            selectedViewer.height,
+                        ],
                         min_value: selectedViewer.minVal,
-                        max_value: selectedViewer.maxVal
-                    }
+                        max_value: selectedViewer.maxVal,
+                    },
                 };
 
                 console.log("Sending rotation request to server...");
                 const response = await fetch(`${BASE_URL}/api/rotate180`, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json',
+                        "Content-Type": "application/json",
                     },
-                    body: JSON.stringify(rotationData)
+                    body: JSON.stringify(rotationData),
                 });
 
                 if (!response.ok) {
@@ -1062,40 +1202,44 @@ class ImageViewer {
                 if (result.success) {
                     const viewer = createImageViewer();
                     if (viewer) {
-                        viewer.setLabel('Rotated Image');
+                        viewer.setLabel("Rotated Image");
                         viewer.setState({
                             imageData: result.data,
                             width: result.metadata.dimensions[0],
                             height: result.metadata.dimensions[1],
                             minVal: result.metadata.min_value,
                             maxVal: result.metadata.max_value,
-                            windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
-                            windowWidth: result.metadata.max_value - result.metadata.min_value,
-                            totalSlices: result.data.length
+                            windowCenter:
+                                (result.metadata.max_value +
+                                    result.metadata.min_value) /
+                                2,
+                            windowWidth:
+                                result.metadata.max_value -
+                                result.metadata.min_value,
+                            totalSlices: result.data.length,
                         });
                         console.log("Created new viewer with rotated image");
                     }
-                    modal.classList.remove('show');
+                    modal.classList.remove("show");
                 } else {
-                    throw new Error(result.message || 'Rotation failed');
+                    throw new Error(result.message || "Rotation failed");
                 }
-
             } catch (error) {
                 console.error("Rotation error:", error);
                 alert(`Failed to rotate image: ${error.message}`);
             }
         };
 
-        rotateBtn.removeEventListener('click', handleRotate);
-        rotateBtn.addEventListener('click', handleRotate);
+        rotateBtn.removeEventListener("click", handleRotate);
+        rotateBtn.addEventListener("click", handleRotate);
 
         const handleCancel = () => {
             console.log("Closing rotate 180 dialog");
-            modal.classList.remove('show');
+            modal.classList.remove("show");
         };
 
-        cancelBtn.removeEventListener('click', handleCancel);
-        cancelBtn.addEventListener('click', handleCancel);
+        cancelBtn.removeEventListener("click", handleCancel);
+        cancelBtn.addEventListener("click", handleCancel);
     }
 }
 
@@ -1115,7 +1259,7 @@ function updateGridLayout() {
     const cols = parseInt(layout[1]);
     const totalViewers = rows * cols;
 
-    const existingStates = Array.from(imageGrid.children).map(container => {
+    const existingStates = Array.from(imageGrid.children).map((container) => {
         return container.viewer?.getState();
     });
 
@@ -1133,7 +1277,7 @@ function updateGridLayout() {
     for (let i = 0; i < totalViewers; i++) {
         try {
             const viewer = template.content.cloneNode(true);
-            const container = viewer.querySelector('.image-window');
+            const container = viewer.querySelector(".image-window");
 
             if (!container) {
                 console.error("Container not found in template!");
@@ -1170,17 +1314,21 @@ function initializeGridLayout() {
         return;
     }
 
-    gridSelect.addEventListener('change', updateGridLayout);
+    gridSelect.addEventListener("change", updateGridLayout);
     updateGridLayout();
 }
 
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => setTimeout(initializeGridLayout, 100));
+    document.addEventListener("DOMContentLoaded", () =>
+        setTimeout(initializeGridLayout, 100),
+    );
 } else {
     setTimeout(initializeGridLayout, 100);
 }
 
-document.getElementById("gridLayout")?.addEventListener("change", updateGridLayout);
+document
+    .getElementById("gridLayout")
+    ?.addEventListener("change", updateGridLayout);
 
 window.ImageViewer = ImageViewer;
 
@@ -1190,7 +1338,7 @@ function createImageViewer() {
     if (!imageGrid || !template) return null;
 
     const viewer = template.content.cloneNode(true);
-    const container = viewer.querySelector('.image-window');
+    const container = viewer.querySelector(".image-window");
     if (!container) return null;
     imageGrid.appendChild(container);
 
