@@ -32,35 +32,31 @@ async def rotate_180(request_data: Dict[str, Any]):
         depth = len(image_data)
         logger.info(f"Processing image with dimensions: {width}x{height}x{depth}")
 
-        # Initialize 3D array
-        image_array = np.zeros((depth, height, width), dtype=np.float32)
-
-        # Decode each slice
-        for z, slice_data in enumerate(image_data):
-            binary_data = np.frombuffer(slice_data.encode('utf-8'), dtype=np.float32)
-            image_array[z] = binary_data.reshape((height, width))
-
-        logger.info(f"Successfully decoded image array with shape: {image_array.shape}")
-
-        # Rotate 180 degrees (flip both axes)
-        rotated_array = np.rot90(image_array, k=2, axes=(1, 2))
-        logger.info(f"Rotation complete, new shape: {rotated_array.shape}")
-
-        # Encode result back to string format
+        # Initialize 3D array for multi-slice image
         rotated_data = []
-        for z in range(rotated_array.shape[0]):
-            slice_data = rotated_array[z].astype(np.float32)
-            rotated_data.append(slice_data.tobytes().decode('utf-8'))
 
-        logger.info("Successfully encoded rotated image")
+        # Process each slice
+        for slice_data in image_data:
+            # Decode the base64 string to bytes
+            binary_data = slice_data.encode('utf-8')
+            # Convert to float32 array
+            pixels = np.frombuffer(binary_data, dtype=np.float32)
+            # Reshape to 2D array
+            slice_array = pixels.reshape((height, width))
+            # Rotate 180 degrees
+            rotated_slice = np.rot90(slice_array, k=2)
+            # Encode back to string
+            rotated_data.append(rotated_slice.tobytes().decode('utf-8'))
+
+        logger.info("Rotation complete")
 
         return JSONResponse({
             "success": True,
             "data": rotated_data,
             "metadata": {
-                "dimensions": [int(d) for d in rotated_array.shape],
-                "min_value": float(np.min(rotated_array)),
-                "max_value": float(np.max(rotated_array))
+                "dimensions": [width, height],
+                "min_value": metadata.get('min_value', 0),
+                "max_value": metadata.get('max_value', 255)
             }
         })
 
