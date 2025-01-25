@@ -692,6 +692,10 @@
                                     <div class="menu-item" data-action="register-images">
                                         <i class="fas fa-object-group"></i> Register Images
                                     </div>
+                                    <!-- Add Rotate 180 menu item -->
+                                    <div class="menu-item" data-action="rotate-180">
+                                        <i class="fas fa-sync-alt"></i> Rotate 180°
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -773,6 +777,25 @@
             </div>
         </div>
 
+        <!-- Rotate 180 Modal -->
+        <div class="registration-modal" id="rotate180Modal">
+            <div class="registration-modal-content">
+                <h3>Rotate Image 180°</h3>
+                <div class="registration-form">
+                    <div class="form-group">
+                        <label>Select Image:</label>
+                        <select id="rotate180ImageSelect">
+                            <option value="">Select image to rotate...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="buttons">
+                    <button class="btn-primary rotate-btn">Rotate</button>
+                    <button class="btn-secondary cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Template for new grid cells -->
         <template id="imageWindowTemplate">
                 <div class="image-window">
@@ -836,6 +859,10 @@
                                 <!-- Add Register Images menu item to template -->
                                 <div class="menu-item" data-action="register-images">
                                     <i class="fas fa-object-group"></i> Register Images
+                                </div>
+                                <!-- Add Rotate 180 menu item -->
+                                <div class="menu-item" data-action="rotate-180">
+                                    <i class="fas fa-sync-alt"></i> Rotate 180°
                                 </div>
                             </div>
                         </div>

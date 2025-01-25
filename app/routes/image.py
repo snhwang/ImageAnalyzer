@@ -1,15 +1,68 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 import numpy as np
 import logging
 from app.utils.image_processing import apply_window_level
+from typing import Dict, Any
+import traceback
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # In-memory storage for images
-# Example structure: {image_id: {"data": np_array, "normalized_slices": list, "window_center": int, "window_width": int}}
 image_storage = {}
 
+@router.post("/rotate180")
+async def rotate_180(request_data: Dict[str, Any]):
+    """Rotate an image 180 degrees."""
+    try:
+        logger.info("Starting 180-degree rotation")
+
+        if "image_data" not in request_data:
+            raise HTTPException(status_code=400, detail="Missing image data")
+
+        image_data = request_data["image_data"]
+        metadata = request_data["metadata"]
+
+        # Convert string data to numpy array
+        width, height = metadata['dimensions'][:2]
+        depth = len(image_data)
+
+        # Initialize 3D array
+        image_array = np.zeros((depth, height, width), dtype=np.float32)
+
+        # Decode each slice
+        for z, slice_data in enumerate(image_data):
+            binary_data = np.frombuffer(slice_data.encode('utf-8'), dtype=np.float32)
+            image_array[z] = binary_data.reshape((height, width))
+
+        # Rotate 180 degrees (flip both axes)
+        rotated_array = np.rot90(image_array, k=2, axes=(1, 2))
+
+        # Encode result back to string format
+        rotated_data = []
+        for z in range(rotated_array.shape[0]):
+            slice_data = rotated_array[z].astype(np.float32)
+            rotated_data.append(slice_data.tobytes().decode('utf-8'))
+
+        return JSONResponse({
+            "success": True,
+            "data": rotated_data,
+            "metadata": {
+                "dimensions": [int(d) for d in rotated_array.shape],
+                "min_value": float(np.min(rotated_array)),
+                "max_value": float(np.max(rotated_array))
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Rotation error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "detail": "Rotation failed"
+        }, status_code=500)
 
 @router.get("/slice/{slice_number}")
 async def get_slice(slice_number: int, image_id: str):
