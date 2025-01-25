@@ -830,11 +830,11 @@ class ImageViewer {
                     const fileElement = document.createElement('div');
                     fileElement.className = 'directoryitem image';
                     fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
-                    fileElement.addEventListener('click', () => {
+                    fileElement.addEventListener('click', () =>{
                         this.loadRemoteFile(`${path}/${file}`);
                     });
                     this.directoryList.appendChild(fileElement);
-                }                }
+                }
             });
 
         } catch (error) {
@@ -842,7 +842,7 @@ class ImageViewer {
             this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
     }
-    showRegistrationDialog() {
+    async showRegistrationDialog() {
         const modal = document.getElementById('registrationModal');
         const fixedSelect = document.getElementById('fixedImageSelect');
         const movingSelect = document.getElementById('movingImageSelect');
@@ -893,33 +893,46 @@ class ImageViewer {
             try {
                 console.log("Sending registration request...");
 
-                // Create registration data
+                // Create registration data with complete metadata
                 const registrationData = {
                     fixed_image: {
                         data: fixedViewer.imageData,
                         metadata: {
-                            dimensions: [fixedViewer.width, fixedViewer.height]
+                            dimensions: [
+                                fixedViewer.width,
+                                fixedViewer.height,
+                                fixedViewer.totalSlices
+                            ],
+                            min_value: fixedViewer.minVal,
+                            max_value: fixedViewer.maxVal
                         }
                     },
                     moving_image: {
                         data: movingViewer.imageData,
                         metadata: {
-                            dimensions: [movingViewer.width, movingViewer.height]
+                            dimensions: [
+                                movingViewer.width,
+                                movingViewer.height,
+                                movingViewer.totalSlices
+                            ],
+                            min_value: movingViewer.minVal,
+                            max_value: movingViewer.maxVal
                         }
                     }
                 };
 
-                // Send registration request
                 const response = await fetch(`${BASE_URL}/api/registration`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify(registrationData)
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(errorText || `HTTP error! status: ${response.status}`);
                 }
 
                 const result = await response.json();
@@ -929,7 +942,7 @@ class ImageViewer {
                     const viewer = createImageViewer();
                     if (viewer) {
                         viewer.setLabel('Registered Image');
-                        viewer.setState({
+                        const state = {
                             imageData: result.data,
                             width: result.metadata.dimensions[0],
                             height: result.metadata.dimensions[1],
@@ -939,7 +952,8 @@ class ImageViewer {
                             currentSlice: 0,
                             windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
                             windowWidth: result.metadata.max_value - result.metadata.min_value
-                        });
+                        };
+                        viewer.setState(state);
                     }
                     modal.classList.remove('show');
                 } else {
@@ -952,8 +966,12 @@ class ImageViewer {
             }
         };
 
+        registerBtn.removeEventListener('click', handleRegister);
         registerBtn.addEventListener('click', handleRegister);
-        cancelBtn.addEventListener('click', () => modal.classList.remove('show'));
+
+        cancelBtn.addEventListener('click', () => {
+            modal.classList.remove('show');
+        });
     }
 }
 
