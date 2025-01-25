@@ -176,6 +176,7 @@ class ImageViewer {
                         this.showRegistrationDialog();
                         break;
                     case 'rotate-180':
+                        console.log("Rotate 180 menu item clicked");
                         this.showRotate180Dialog();
                         break;
                 }
@@ -834,13 +835,13 @@ class ImageViewer {
                     fileElement.className = 'directoryitem image';
                     fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
                     fileElement.addEventListener('click', () =>{
-                        this.loadRemoteFile(`${path}/${file}`);
-                    });
+                        this.loadRemoteFile(`${path}/${file}`);                    });
                     this.directoryList.appendChild(fileElement);
                 }
             });
 
-        } catch (error) {
+        }
+        catch (error) {
             console.error("Error loading directory:", error);
             this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
@@ -896,7 +897,6 @@ class ImageViewer {
             try {
                 console.log("Sending registration request...");
 
-                // Create registration data with complete metadata
                 const registrationData = {
                     fixed_image: {
                         data: fixedViewer.imageData,
@@ -941,7 +941,6 @@ class ImageViewer {
                 const result = await response.json();
 
                 if (result.success) {
-                    // Create a new viewer window for the registered image
                     const viewer = createImageViewer();
                     if (viewer) {
                         viewer.setLabel('Registered Image');
@@ -977,12 +976,17 @@ class ImageViewer {
         });
     }
     async showRotate180Dialog() {
+        console.log("Opening rotate 180 dialog");
         const modal = document.getElementById('rotate180Modal');
         const imageSelect = document.getElementById('rotate180ImageSelect');
 
+        if (!modal || !imageSelect) {
+            console.error("Required modal elements not found");
+            return;
+        }
+
         imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
 
-        // Get all available viewers
         const viewers = Array.from(document.querySelectorAll('.image-window')).map((container, index) => {
             const viewer = container.viewer;
             if (viewer && viewer.imageData) {
@@ -995,6 +999,8 @@ class ImageViewer {
             return null;
         }).filter(v => v !== null);
 
+        console.log("Available viewers:", viewers);
+
         viewers.forEach(({ index, label }) => {
             const option = `<option value="${index - 1}">Image ${index} (${label})</option>`;
             imageSelect.insertAdjacentHTML('beforeend', option);
@@ -1005,85 +1011,91 @@ class ImageViewer {
         const rotateBtn = modal.querySelector('.rotate-btn');
         const cancelBtn = modal.querySelector('.cancel-btn');
 
+        if (!rotateBtn || !cancelBtn) {
+            console.error("Required button elements not found");
+            return;
+        }
+
         const handleRotate = async () => {
+            console.log("Rotate button clicked");
             const selectedIdx = parseInt(imageSelect.value);
 
             if (isNaN(selectedIdx)) {
-                alert('Please select an image');
+                console.error("No image selected");
+                alert('Please select an image to rotate');
                 return;
             }
 
             const selectedViewer = viewers[selectedIdx].viewer;
-
-            if (!selectedViewer) {
-                alert('Invalid viewer selection');
+            if (!selectedViewer || !selectedViewer.imageData) {
+                console.error("Selected viewer or image data not found");
+                alert('Invalid image selection');
                 return;
             }
 
             try {
-                console.log("Sending rotation request...");
-
-                const requestData = {
+                const rotationData = {
                     image_data: selectedViewer.imageData,
                     metadata: {
-                        dimensions: [
-                            selectedViewer.width,
-                            selectedViewer.height,
-                            selectedViewer.totalSlices
-                        ]
+                        dimensions: [selectedViewer.width, selectedViewer.height],
+                        min_value: selectedViewer.minVal,
+                        max_value: selectedViewer.maxVal
                     }
                 };
 
-                const response = await fetch(`${BASE_URL}/rotate180`, {
+                console.log("Sending rotation request to server...");
+                const response = await fetch(`${BASE_URL}/api/rotate180`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
                     },
-                    body: JSON.stringify(requestData)
+                    body: JSON.stringify(rotationData)
                 });
 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(errorText || `HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 const result = await response.json();
+                console.log("Received rotation response:", result);
 
                 if (result.success) {
                     const viewer = createImageViewer();
                     if (viewer) {
                         viewer.setLabel('Rotated Image');
-                        const state = {
+                        viewer.setState({
                             imageData: result.data,
                             width: result.metadata.dimensions[0],
                             height: result.metadata.dimensions[1],
                             minVal: result.metadata.min_value,
                             maxVal: result.metadata.max_value,
-                            totalSlices: result.data.length,
-                            currentSlice: 0,
                             windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
-                            windowWidth: result.metadata.max_value - result.metadata.min_value
-                        };
-                        viewer.setState(state);
+                            windowWidth: result.metadata.max_value - result.metadata.min_value,
+                            totalSlices: result.data.length
+                        });
+                        console.log("Created new viewer with rotated image");
                     }
                     modal.classList.remove('show');
                 } else {
-                    throw new Error(result.error || 'Rotation failed');
+                    throw new Error(result.message || 'Rotation failed');
                 }
 
             } catch (error) {
                 console.error("Rotation error:", error);
-                alert(`Rotation failed: ${error.message}`);
+                alert(`Failed to rotate image: ${error.message}`);
             }
         };
 
         rotateBtn.removeEventListener('click', handleRotate);
         rotateBtn.addEventListener('click', handleRotate);
 
-        cancelBtn.addEventListener('click', () => {
+        const handleCancel = () => {
+            console.log("Closing rotate 180 dialog");
             modal.classList.remove('show');
-        });
+        };
+
+        cancelBtn.removeEventListener('click', handleCancel);
+        cancelBtn.addEventListener('click', handleCancel);
     }
 }
 

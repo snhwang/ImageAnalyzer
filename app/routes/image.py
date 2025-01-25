@@ -6,7 +6,7 @@ from app.utils.image_processing import apply_window_level
 from typing import Dict, Any
 import traceback
 
-router = APIRouter()
+router = APIRouter(prefix="/api", tags=["image"])
 logger = logging.getLogger(__name__)
 
 # In-memory storage for images
@@ -17,16 +17,20 @@ async def rotate_180(request_data: Dict[str, Any]):
     """Rotate an image 180 degrees."""
     try:
         logger.info("Starting 180-degree rotation")
+        logger.info(f"Received request data: {request_data.keys()}")
 
         if "image_data" not in request_data:
+            logger.error("Missing image data in request")
             raise HTTPException(status_code=400, detail="Missing image data")
 
         image_data = request_data["image_data"]
         metadata = request_data["metadata"]
+        logger.info(f"Image metadata: {metadata}")
 
         # Convert string data to numpy array
         width, height = metadata['dimensions'][:2]
         depth = len(image_data)
+        logger.info(f"Processing image with dimensions: {width}x{height}x{depth}")
 
         # Initialize 3D array
         image_array = np.zeros((depth, height, width), dtype=np.float32)
@@ -36,14 +40,19 @@ async def rotate_180(request_data: Dict[str, Any]):
             binary_data = np.frombuffer(slice_data.encode('utf-8'), dtype=np.float32)
             image_array[z] = binary_data.reshape((height, width))
 
+        logger.info(f"Successfully decoded image array with shape: {image_array.shape}")
+
         # Rotate 180 degrees (flip both axes)
         rotated_array = np.rot90(image_array, k=2, axes=(1, 2))
+        logger.info(f"Rotation complete, new shape: {rotated_array.shape}")
 
         # Encode result back to string format
         rotated_data = []
         for z in range(rotated_array.shape[0]):
             slice_data = rotated_array[z].astype(np.float32)
             rotated_data.append(slice_data.tobytes().decode('utf-8'))
+
+        logger.info("Successfully encoded rotated image")
 
         return JSONResponse({
             "success": True,

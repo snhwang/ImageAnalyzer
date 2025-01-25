@@ -92,7 +92,7 @@ def process_medical_image(file_path):
             }
 
     except Exception as e:
-        print(f"Error processing medical image: {str(e)}")
+        logging.error(f"Error processing medical image: {str(e)}")
         return None, None
 
 @app.get("/", response_class=HTMLResponse)
@@ -129,11 +129,6 @@ async def upload_file(file: UploadFile = File(...)):
                 encoded_data = base64.b64encode(img_array.tobytes()).decode('utf-8')
                 response_data = [encoded_data]
 
-            # Add debug information
-            print(f"Image array shape: {img_array.shape}")
-            print(f"Min value: {np.min(img_array)}, Max value: {np.max(img_array)}")
-            print(f"Sample values: {img_array.flatten()[:10]}")
-
             return JSONResponse({
                 "success": True,
                 "data": response_data,
@@ -156,17 +151,17 @@ async def upload_file(file: UploadFile = File(...)):
             }, status_code=500)
 
     except Exception as e:
-        print(f"Upload error: {str(e)}")
+        logging.error(f"Upload error: {str(e)}")
         return JSONResponse({
             "success": False,
             "message": str(e)
         }, status_code=500)
 
-# Include routers
-app.include_router(session.router)
-app.include_router(upload.router)
-app.include_router(image.router)
-app.include_router(directory.router)
+# Include routers with explicit prefixes
+app.include_router(session.router, prefix="/api")
+app.include_router(upload.router, prefix="/api")
+app.include_router(image.router)  # Already has prefix="/api" in router definition
+app.include_router(directory.router, prefix="/api")
 app.include_router(image_registration.router)
 
 if __name__ == "__main__":
