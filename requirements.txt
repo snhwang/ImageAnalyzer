@@ -56,3 +56,5 @@ pydicom
 python-multipart
 simpleitk
 uvicorn
+numpy
+SimpleITK
