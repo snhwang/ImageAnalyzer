@@ -890,65 +890,57 @@ class ImageViewer {
                 return;
             }
 
-            const loadingIndicator = document.createElement('div');
-            loadingIndicator.className = 'loading-indicator';
-            loadingIndicator.textContent = 'Processing registration...';
-            modal.appendChild(loadingIndicator);
-
-            const registrationData = {
-                fixed_image: fixedViewer.getState(),
-                moving_image: movingViewer.getState()
-            };
-
             try {
                 console.log("Sending registration request...");
+
                 const response = await fetch(`${BASE_URL}/api/registration`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
-                    body: JSON.stringify(registrationData),
-                    keepalive: true,
-                    timeout: 120000, // 2 minute timeout
-                    signal: AbortSignal.timeout(120000)
+                    body: JSON.stringify({
+                        fixed_image: {
+                            data: fixedViewer.imageData,
+                            metadata: {
+                                dimensions: [fixedViewer.width, fixedViewer.height, fixedViewer.totalSlices],
+                                min_value: fixedViewer.minVal,
+                                max_value: fixedViewer.maxVal
+                            }
+                        },
+                        moving_image: {
+                            data: movingViewer.imageData,
+                            metadata: {
+                                dimensions: [movingViewer.width, movingViewer.height, movingViewer.totalSlices],
+                                min_value: movingViewer.minVal,
+                                max_value: movingViewer.maxVal
+                            }
+                        }
+                    })
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
                 const result = await response.json();
 
-                if (!response.ok) {
-                    throw new Error(result.detail || result.error || `Registration failed: ${response.statusText}`);
-                }
-
-                console.log("Registration response received:", result);
-
-                if (result.success && result.data) {
-                    const registeredViewer = createImageViewer();
-                    if (registeredViewer) {
-                        registeredViewer.setLabel('Registered Image');
-                        const state = {
-                            imageData: result.data,
-                            width: result.metadata.dimensions[0],
-                            height: result.metadata.dimensions[1],
-                            minVal: result.metadata.min_value,
-                            maxVal: result.metadata.max_value,
-                            totalSlices: result.data.length,
-                            currentSlice: 0,
-                            windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
-                            windowWidth: result.metadata.max_value - result.metadata.min_value,
-                        };
-                        registeredViewer.setState(state);
-                        console.log("Registration completed successfully");
-                    }
+                if (result.success) {
+                    // Create a new viewer window for the registered image
+                    createImageWindow(result.data, {
+                        dimensions: result.metadata.dimensions,
+                        min_value: result.metadata.min_value,
+                        max_value: result.metadata.max_value,
+                        label: 'Registered Image'
+                    });
+                    modal.classList.remove('show');
                 } else {
-                    throw new Error(result.detail || "Registration failed: Invalid response format");
+                    throw new Error(result.error || 'Registration failed');
                 }
 
             } catch (error) {
                 console.error("Registration error:", error);
                 alert(`Registration failed: ${error.message}`);
-            } finally {
-                modal.removeChild(loadingIndicator);
-                modal.classList.remove('show');
             }
         };
 
@@ -1055,4 +1047,23 @@ function createImageViewer() {
     const viewerInstance = new ImageViewer(container);
     container.viewer = viewerInstance;
     return viewerInstance;
+}
+
+function createImageWindow(imageData, metadata) {
+    const viewer = createImageViewer();
+    if (viewer) {
+        viewer.setLabel(metadata.label);
+        const state = {
+            imageData: imageData,
+            width: metadata.dimensions[0],
+            height: metadata.dimensions[1],
+            minVal: metadata.min_value,
+            maxVal: metadata.max_value,
+            totalSlices: imageData.length,
+            currentSlice: 0,
+            windowCenter: (metadata.max_value + metadata.min_value) / 2,
+            windowWidth: metadata.max_value - metadata.min_value,
+        };
+        viewer.setState(state);
+    }
 }
