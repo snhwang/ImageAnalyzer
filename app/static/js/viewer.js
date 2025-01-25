@@ -1184,7 +1184,7 @@ class ImageViewer {
                 };
 
                 console.log("Sending rotation request to server...");
-                const response = await fetch(`${BASE_URL}/api/rotate180`, {
+                const response = await fetch(`/api/rotate180`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
