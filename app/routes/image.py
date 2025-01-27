@@ -2,15 +2,12 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 import numpy as np
 import logging
-from app.utils.image_processing import apply_window_level
+import base64
 from typing import Dict, Any
 import traceback
 
 router = APIRouter(prefix="/api", tags=["image"])
 logger = logging.getLogger(__name__)
-
-# In-memory storage for images
-image_storage = {}
 
 @router.post("/rotate180")
 async def rotate_180(request_data: Dict[str, Any]):
@@ -27,26 +24,35 @@ async def rotate_180(request_data: Dict[str, Any]):
         metadata = request_data["metadata"]
         logger.info(f"Image metadata: {metadata}")
 
-        # Convert string data to numpy array
+        # Get dimensions from metadata
         width, height = metadata['dimensions'][:2]
         depth = len(image_data)
         logger.info(f"Processing image with dimensions: {width}x{height}x{depth}")
 
-        # Initialize 3D array for multi-slice image
+        # Initialize array for rotated slices
         rotated_data = []
 
         # Process each slice
         for slice_data in image_data:
-            # Decode the base64 string to bytes
-            binary_data = slice_data.encode('utf-8')
-            # Convert to float32 array
-            pixels = np.frombuffer(binary_data, dtype=np.float32)
-            # Reshape to 2D array
-            slice_array = pixels.reshape((height, width))
-            # Rotate 180 degrees
-            rotated_slice = np.rot90(slice_array, k=2)
-            # Encode back to string
-            rotated_data.append(rotated_slice.tobytes().decode('utf-8'))
+            try:
+                # First decode from base64
+                binary_data = base64.b64decode(slice_data)
+                # Convert to float32 array
+                pixels = np.frombuffer(binary_data, dtype=np.float32)
+                # Reshape to 2D array
+                slice_array = pixels.reshape((height, width))
+                # Rotate 180 degrees
+                rotated_slice = np.rot90(slice_array, k=2)
+                # Convert back to base64
+                rotated_bytes = rotated_slice.tobytes()
+                rotated_base64 = base64.b64encode(rotated_bytes).decode('utf-8')
+                rotated_data.append(rotated_base64)
+
+            except Exception as slice_error:
+                logger.error(f"Error processing slice: {str(slice_error)}")
+                logger.error(f"Slice data length: {len(slice_data)}")
+                logger.error(f"Expected size: {width * height * 4}")  # 4 bytes per float32
+                raise
 
         logger.info("Rotation complete")
 
@@ -63,11 +69,13 @@ async def rotate_180(request_data: Dict[str, Any]):
     except Exception as e:
         logger.error(f"Rotation error: {str(e)}")
         logger.error(traceback.format_exc())
-        return JSONResponse({
-            "success": False,
-            "error": str(e),
-            "detail": "Rotation failed"
-        }, status_code=500)
+        return JSONResponse(
+            {
+                "success": False,
+                "error": str(e),
+                "detail": "Rotation failed"
+            },
+            status_code=500)
 
 @router.get("/slice/{slice_number}")
 async def get_slice(slice_number: int, image_id: str):
@@ -99,11 +107,14 @@ async def get_slice(slice_number: int, image_id: str):
 
     except Exception as e:
         logger.error(f"Error retrieving slice: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while retrieving the slice")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while retrieving the slice")
 
 
 @router.post("/window-level")
-async def update_window_level(image_id: str, window_center: int, window_width: int):
+async def update_window_level(image_id: str, window_center: int,
+                              window_width: int):
     """Apply window-level adjustments to an image."""
     try:
         if image_id not in image_storage:
@@ -116,7 +127,8 @@ async def update_window_level(image_id: str, window_center: int, window_width: i
 
         updated_slices = []
         for slice_data in data:
-            updated_slice = apply_window_level(slice_data, window_center, window_width)
+            updated_slice = apply_window_level(slice_data, window_center,
+                                               window_width)
             updated_slices.append(updated_slice)
 
         # Update normalized slices in storage
@@ -124,10 +136,15 @@ async def update_window_level(image_id: str, window_center: int, window_width: i
         image_storage[image_id]["window_center"] = window_center
         image_storage[image_id]["window_width"] = window_width
 
-        return {"status": "success", "message": "Window-level updated successfully"}
+        return {
+            "status": "success",
+            "message": "Window-level updated successfully"
+        }
     except Exception as e:
         logger.error(f"Error updating window-level: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while updating window-level")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while updating window-level")
 
 
 @router.post("/rotate")
@@ -155,4 +172,9 @@ async def rotate_image(image_id: str, angle: int):
         return {"status": "success", "message": "Image rotated successfully"}
     except Exception as e:
         logger.error(f"Error rotating image: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while rotating the image")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while rotating the image")
+
+# In-memory storage for images
+image_storage = {}
