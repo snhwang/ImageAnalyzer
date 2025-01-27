@@ -1200,26 +1200,19 @@ class ImageViewer {
                 console.log("Received rotation response:", result);
 
                 if (result.success) {
-                    const viewer = createImageViewer();
-                    if (viewer) {
-                        viewer.setLabel("Rotated Image");
-                        viewer.setState({
-                            imageData: result.data,
-                            width: result.metadata.dimensions[0],
-                            height: result.metadata.dimensions[1],
-                            minVal: result.metadata.min_value,
-                            maxVal: result.metadata.max_value,
-                            windowCenter:
-                                (result.metadata.max_value +
-                                    result.metadata.min_value) /
-                                2,
-                            windowWidth:
-                                result.metadata.max_value -
-                                result.metadata.min_value,
-                            totalSlices: result.data.length,
-                        });
-                        console.log("Created new viewer with rotated image");
-                    }
+                    const selectedViewer = viewers[selectedIdx].viewer;
+                    selectedViewer.setLabel(selectedViewer.getLabel() + " (Rotated)");
+                    selectedViewer.setState({
+                        imageData: result.data,
+                        width: result.metadata.dimensions[0],
+                        height: result.metadata.dimensions[1],
+                        minVal: result.metadata.min_value,
+                        maxVal: result.metadata.max_value,
+                        windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
+                        windowWidth: result.metadata.max_value - result.metadata.min_value,
+                        totalSlices: result.data.length,
+                        currentSlice: 0
+                    });
                     modal.classList.remove("show");
                 } else {
                     throw new Error(result.message || "Rotation failed");
