@@ -1118,6 +1118,9 @@ class ImageViewer {
         const rotateBtn = modal.querySelector(".rotate-btn");
         const cancelBtn = modal.querySelector(".cancel-btn");
 
+        // Get the viewer that initiated the rotate command (this)
+        const targetViewer = this;
+
         if (!modal || !imageSelect) {
             console.error("Required modal elements not found");
             return;
@@ -1155,8 +1158,8 @@ class ImageViewer {
                 return;
             }
 
-            const selectedViewer = viewers.find(v => v.index === selectedIdx)?.viewer;
-            if (!selectedViewer) {
+            const sourceViewer = viewers.find(v => v.index === selectedIdx)?.viewer;
+            if (!sourceViewer) {
                 alert("Selected image not found");
                 return;
             }
@@ -1165,28 +1168,31 @@ class ImageViewer {
                 const response = await fetch(`${BASE_URL}/api/rotate180`, {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        image_data: selectedViewer.imageData,
+                        image_data: sourceViewer.imageData,
                         metadata: {
-                            dimensions: [selectedViewer.width, selectedViewer.height],
-                            min_value: selectedViewer.minVal,
-                            max_value: selectedViewer.maxVal
+                            dimensions: [
+                                sourceViewer.width,
+                                sourceViewer.height
+                            ],
+                            min_value: sourceViewer.minVal,
+                            max_value: sourceViewer.maxVal
                         }
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`Server returned ${response.status}`);
                 }
 
                 const result = await response.json();
                 console.log("Rotation response:", result);
 
                 if (result.success) {
-                    // Update the selected viewer's state with complete state information
-                    selectedViewer.setState({
+                    // Update the target viewer (where the command was initiated) with the rotated data
+                    targetViewer.setState({
                         imageData: result.data,
                         width: result.metadata.dimensions[0],
                         height: result.metadata.dimensions[1],
@@ -1195,9 +1201,10 @@ class ImageViewer {
                         windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
                         windowWidth: result.metadata.max_value - result.metadata.min_value,
                         totalSlices: result.data.length,
-                        currentSlice: selectedViewer.currentSlice,
-                        is3DMode: selectedViewer.is3DMode,
-                        rotation: selectedViewer.rotation
+                        currentSlice: targetViewer.currentSlice,
+                        is3DMode: targetViewer.is3DMode,
+                        rotation: targetViewer.rotation,
+                        imageLabel: sourceViewer.getLabel() ? `${sourceViewer.getLabel()} (Rotated)` : 'Rotated Image'
                     });
                     modal.classList.remove("show");
                 } else {

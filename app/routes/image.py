@@ -59,11 +59,7 @@ async def rotate_180(request_data: Dict[str, Any]):
         return JSONResponse({
             "success": True,
             "data": rotated_data,
-            "metadata": {
-                "dimensions": [width, height],
-                "min_value": metadata.get('min_value', 0),
-                "max_value": metadata.get('max_value', 255)
-            }
+            "metadata": metadata
         })
 
     except Exception as e:
@@ -178,3 +174,7 @@ async def rotate_image(image_id: str, angle: int):
 
 # In-memory storage for images
 image_storage = {}
+
+def apply_window_level(slice_data, window_center, window_width):
+    # Placeholder for window-level adjustment logic.  Replace with actual implementation.
+    return slice_data
