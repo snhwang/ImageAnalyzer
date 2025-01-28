@@ -924,8 +924,7 @@ class ImageViewer {
                 `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
             );
             if (!response.ok) {
-                throw new Error(
-                    `Failedto load directory: ${response.statusText}`,
+                throw new Error(                    `Failedto load directory: ${response.statusText}`,
                 );
             }
 
@@ -972,145 +971,152 @@ class ImageViewer {
             this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
     }
-    async showRegistrationDialog() {
+    showRegistrationDialog() {
+        console.log("Opening registration dialog");
         const modal = document.getElementById("registrationModal");
-        const fixedSelect = document.getElementById("fixedImageSelect");
-        const movingSelect = document.getElementById("movingImageSelect");
-
-        fixedSelect.innerHTML =
-            '<option value="">Select fixed image...</option>';
-        movingSelect.innerHTML =
-            '<option value="">Select moving image...</option>';
-
-        const viewers = Array.from(document.querySelectorAll(".image-window"))
-            .map((container, index) => {
-                const viewer = container.viewer;
-                if (viewer && viewer.imageData) {
-                    return {
-                        index: index + 1,
-                        label: viewer.getLabel() || "Unlabeled",
-                        viewer: viewer,
-                    };
-                }
-                return null;
-            })
-            .filter((v) => v !== null);
-
-        viewers.forEach(({ index, label }) => {
-            const option = `<option value="${index - 1}">Image ${index} (${label})</option>`;
-            fixedSelect.insertAdjacentHTML("beforeend", option);
-            movingSelect.insertAdjacentHTML("beforeend", option);
-        });
-
-        modal.classList.add("show");
-
+        const sourceImageSelect = document.getElementById("registrationSourceSelect");
+        const targetImageSelect = document.getElementById("registrationTargetSelect");
         const registerBtn = modal.querySelector(".register-btn");
         const cancelBtn = modal.querySelector(".cancel-btn");
 
-        const handleRegister = async () => {
-            const fixedIdx = parseInt(fixedSelect.value);
-            const movingIdx = parseInt(movingSelect.value);
+        // Store the viewer that initiated the registration command
+        const initiatingViewer = this;
+        console.log("Dialog initiated from viewer:", initiatingViewer.container.id);
 
-            if (isNaN(fixedIdx) || isNaN(movingIdx)) {
-                alert("Please select both fixed and moving images");
+        if (!modal || !sourceImageSelect || !targetImageSelect) {
+            console.error("Required modal elements not found");
+            return;
+        }
+
+        // Clear and initialize the select dropdowns
+        sourceImageSelect.innerHTML = '<option value="">Select source image...</option>';
+        targetImageSelect.innerHTML = '<option value="">Select target image...</option>';
+
+        // Find all viewers with images
+        const viewers = [];
+        document.querySelectorAll(".image-window").forEach((container, index) => {
+            if (container.viewer && container.viewer.imageData) {
+                const label = container.viewer.getLabel() || `Unlabeled`;
+                viewers.push({
+                    index,
+                    label,
+                    viewer: container.viewer
+                });
+            }
+        });
+
+        // Populate select options
+        viewers.forEach((viewerInfo) => {
+            const sourceOption = document.createElement('option');
+            sourceOption.value = viewerInfo.index;
+            sourceOption.textContent = `Image ${viewerInfo.index + 1} (${viewerInfo.label})`;
+            sourceImageSelect.appendChild(sourceOption);
+
+            const targetOption = document.createElement('option');
+            targetOption.value = viewerInfo.index;
+            targetOption.textContent = `Image ${viewerInfo.index + 1} (${viewerInfo.label})`;
+            targetImageSelect.appendChild(targetOption);
+        });
+
+        // Handle register button click
+        registerBtn.onclick = async () => {
+            const sourceIdx = parseInt(sourceImageSelect.value);
+            const targetIdx = parseInt(targetImageSelect.value);
+
+            if (isNaN(sourceIdx) || isNaN(targetIdx)) {
+                alert("Please select both source and target images");
                 return;
             }
 
-            const fixedViewer = viewers[fixedIdx].viewer;
-            const movingViewer = viewers[movingIdx].viewer;
+            if (sourceIdx === targetIdx) {
+                alert("Please select different images for source and target");
+                return;
+            }
 
-            if (!fixedViewer || !movingViewer) {
-                alert("Invalid viewer selection");
+            const sourceViewer = viewers.find(v => v.index === sourceIdx)?.viewer;
+            const targetViewer = viewers.find(v => v.index === targetIdx)?.viewer;
+
+            if (!sourceViewer || !targetViewer) {
+                alert("Selected images not found");
                 return;
             }
 
             try {
-                console.log("Sending registration request...");
-
-                const registrationData = {
-                    fixed_image: {
-                        data: fixedViewer.imageData,
-                        metadata: {
-                            dimensions: [
-                                fixedViewer.width,
-                                fixedViewer.height,
-                                fixedViewer.totalSlices,
-                            ],
-                            min_value: fixedViewer.minVal,
-                            max_value: fixedViewer.maxVal,
-                        },
-                    },
-                    moving_image: {
-                        data: movingViewer.imageData,
-                        metadata: {
-                            dimensions: [
-                                movingViewer.width,
-                                movingViewer.height,
-                                movingViewer.totalSlices,
-                            ],
-                            min_value: movingViewer.minVal,
-                            max_value: movingViewer.maxVal,
-                        },
-                    },
-                };
-
                 const response = await fetch(`${BASE_URL}/api/registration`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        Accept: "application/json",
                     },
-                    body: JSON.stringify(registrationData),
+                    body: JSON.stringify({
+                        fixed_image: {
+                            data: targetViewer.imageData,
+                            metadata: {
+                                dimensions: [targetViewer.width, targetViewer.height],
+                                min_value: targetViewer.minVal,
+                                max_value: targetViewer.maxVal,
+                                total_slices: targetViewer.totalSlices
+                            }
+                        },
+                        moving_image: {
+                            data: sourceViewer.imageData,
+                            metadata: {
+                                dimensions: [sourceViewer.width, sourceViewer.height],
+                                min_value: sourceViewer.minVal,
+                                max_value: sourceViewer.maxVal,
+                                total_slices: sourceViewer.totalSlices
+                            }
+                        }
+                    })
                 });
 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(
-                        errorText || `HTTP error! status: ${response.status}`,
-                    );
+                    throw new Error(`Server returned ${response.status}`);
                 }
 
                 const result = await response.json();
+                console.log("Registration response:", result);
 
                 if (result.success) {
-                    const viewer = createImageViewer();
-                    if (viewer) {
-                        viewer.setLabel("Registered Image");
-                        const state = {
-                            imageData: result.data,
-                            width: result.metadata.dimensions[0],
-                            height: result.metadata.dimensions[1],
-                            minVal: result.metadata.min_value,
-                            maxVal: result.metadata.max_value,
-                            totalSlices: result.data.length,
-                            currentSlice: 0,
-                            windowCenter:
-                                (result.metadata.max_value +
-                                    result.metadata.min_value) /
-                                2,
-                            windowWidth:
-                                result.metadata.max_value -
-                                result.metadata.min_value,
-                        };
-                        viewer.setState(state);
-                    }
+                    console.log("Updating initiating viewer with registered data");
+
+                    // Clear the existing state of the initiating viewer
+                    initiatingViewer.clearImageState();
+
+                    // Set the new state with registered data
+                    initiatingViewer.setState({
+                        imageData: result.data,
+                        width: result.metadata.dimensions[0],
+                        height: result.metadata.dimensions[1],
+                        minVal: result.metadata.min_value,
+                        maxVal: result.metadata.max_value,
+                        windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
+                        windowWidth: result.metadata.max_value - result.metadata.min_value,
+                        totalSlices: result.data.length,
+                        currentSlice: 0,
+                        is3DMode: false,
+                        rotation: 0,
+                        imageLabel: `${sourceViewer.getLabel()} (Registered to ${targetViewer.getLabel()})`
+                    });
+
                     modal.classList.remove("show");
                 } else {
-                    throw new Error(result.error || "Registration failed");
+                    throw new Error(result.message || "Registration failed");
                 }
             } catch (error) {
-                console.error("Registration error:", error);
-                alert(`Registration failed: ${error.message}`);
+                console.error("Error during registration:", error);
+                alert(`Failed to register images: ${error.message}`);
             }
         };
 
-        registerBtn.removeEventListener("click", handleRegister);
-        registerBtn.addEventListener("click", handleRegister);
-
-        cancelBtn.addEventListener("click", () => {
+        // Handle cancel button click
+        cancelBtn.onclick = () => {
             modal.classList.remove("show");
-        });
+        };
+
+        // Show the modal
+        modal.classList.add("show");
     }
+
     showRotate180Dialog() {
         console.log("Opening rotate 180 dialog");
         const modal = document.getElementById("rotate180Modal");

@@ -15,14 +15,19 @@ def decode_base64_image(image_data: list[str], metadata: Dict[str, Any]) -> np.n
     try:
         width, height = metadata['dimensions'][:2]
         depth = len(image_data)
+        logger.info(f"Decoding image with dimensions: {width}x{height}x{depth}")
 
         # Initialize 3D array
         image_array = np.zeros((depth, height, width), dtype=np.float32)
 
         # Decode each slice
         for z, slice_data in enumerate(image_data):
-            binary_data = np.frombuffer(slice_data.encode('utf-8'), dtype=np.float32)
-            image_array[z] = binary_data.reshape((height, width))
+            try:
+                binary_data = np.frombuffer(slice_data.encode('utf-8'), dtype=np.float32)
+                image_array[z] = binary_data.reshape((height, width))
+            except Exception as e:
+                logger.error(f"Error decoding slice {z}: {str(e)}")
+                raise
 
         return image_array
 
@@ -48,6 +53,7 @@ def encode_numpy_to_base64(image_array: np.ndarray) -> list[str]:
 async def register_images_endpoint(request_data: Dict[str, Any]):
     try:
         logger.info("Starting image registration process")
+        logger.info(f"Request data keys: {request_data.keys()}")
 
         # Extract and validate data from request
         if 'fixed_image' not in request_data or 'moving_image' not in request_data:
@@ -56,27 +62,33 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
         fixed_data = request_data["fixed_image"]
         moving_data = request_data["moving_image"]
 
+        logger.info(f"Fixed image metadata: {fixed_data['metadata']}")
+        logger.info(f"Moving image metadata: {moving_data['metadata']}")
+
         # Convert base64 image data to numpy arrays
         fixed_array = decode_base64_image(fixed_data["data"], fixed_data["metadata"])
         moving_array = decode_base64_image(moving_data["data"], moving_data["metadata"])
 
-        # Convert to SimpleITK images
+        # Convert to SimpleITK images for registration
         fixed_image = sitk.GetImageFromArray(fixed_array)
         moving_image = sitk.GetImageFromArray(moving_array)
 
-        # Process registration
+        # Process registration for all slices
         registered_array = register_images(fixed_array, moving_array, fixed_image, moving_image)
 
-        # Encode result
+        # Encode result back to base64
         registered_data = encode_numpy_to_base64(registered_array)
+
+        logger.info("Registration completed successfully")
 
         return JSONResponse({
             "success": True,
             "data": registered_data,
             "metadata": {
-                "dimensions": [int(d) for d in registered_array.shape],
+                "dimensions": [int(d) for d in registered_array.shape[1:]],  # width, height
                 "min_value": float(np.min(registered_array)),
-                "max_value": float(np.max(registered_array))
+                "max_value": float(np.max(registered_array)),
+                "total_slices": len(registered_data)
             }
         })
 
