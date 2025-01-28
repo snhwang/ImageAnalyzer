@@ -1109,33 +1109,88 @@ class ImageViewer {
             modal.classList.remove("show");
         });
     }
-    showRotate180Dialog() {
-        console.log("Showing rotate 180 dialog");
+    async showRotate180Dialog() {
+        console.log("Opening rotate 180 dialog");
         const modal = document.getElementById("rotate180Modal");
-        const form = modal.querySelector("form");
-        const selectedViewer = this;  // Use this viewer instance directly
+        const imageSelect = document.getElementById("rotate180ImageSelect");
 
-        modal.classList.add("show");
+        if (!modal || !imageSelect) {
+            console.error("Required modal elements not found");
+            return;
+        }
 
-        form.onsubmit = async (e) => {
-            e.preventDefault();
+        imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
+
+        const viewers = Array.from(document.querySelectorAll(".image-window"))
+            .map((container, index) => {
+                const viewer = container.viewer;
+                if (viewer && viewer.imageData) {
+                    return {
+                        index: index + 1,
+                        label: viewer.getLabel() || "Unlabeled",
+                        viewer: viewer
+                    };
+                }
+                return null;
+            })
+            .filter(v => v !== null);
+
+        console.log("Available viewers:", viewers);
+
+        viewers.forEach(({ index, label }) => {
+            const option = document.createElement('option');
+            option.value = index - 1;
+            option.textContent = `Image ${index} (${label})`;
+            imageSelect.appendChild(option);
+        });
+
+        const rotateBtn = modal.querySelector(".rotate-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
+
+        if (!rotateBtn || !cancelBtn) {
+            console.error("Required button elements not found");
+            return;
+        }
+
+        const handleRotate = async () => {
+            console.log("Rotate button clicked");
+            const selectedIdx = parseInt(imageSelect.value);
+
+            if (isNaN(selectedIdx)) {
+                console.error("No image selected");
+                alert("Please select an image to rotate");
+                return;
+            }
+
+            const selectedViewer = viewers[selectedIdx].viewer;
+            if (!selectedViewer || !selectedViewer.imageData) {
+                console.error("Selected viewer or image data not found");
+                alert("Invalid image selection");
+                return;
+            }
+
             try {
-                console.log("Submitting rotate 180 form");
+                const rotationData = {
+                    image_data: selectedViewer.imageData,
+                    metadata: {
+                        dimensions: [selectedViewer.width, selectedViewer.height],
+                        min_value: selectedViewer.minVal,
+                        max_value: selectedViewer.maxVal
+                    }
+                };
 
+                console.log("Sending rotation request to server...");
                 const response = await fetch(`${BASE_URL}/api/rotate180`, {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json",
+                        "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({
-                        image_data: selectedViewer.imageData,
-                        metadata: {
-                            dimensions: [selectedViewer.width, selectedViewer.height],
-                            min_value: selectedViewer.minVal,
-                            max_value: selectedViewer.maxVal
-                        }
-                    }),
+                    body: JSON.stringify(rotationData)
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
                 const result = await response.json();
                 console.log("Received rotation response:", result);
@@ -1157,10 +1212,23 @@ class ImageViewer {
                     throw new Error(result.message || "Rotation failed");
                 }
             } catch (error) {
-                console.error("Error rotating image:", error);
-                alert("Failed to rotate image: " + error.message);
+                console.error("Rotation error:", error);
+                alert(`Failed to rotate image: ${error.message}`);
             }
         };
+
+        rotateBtn.removeEventListener("click", handleRotate);
+        rotateBtn.addEventListener("click", handleRotate);
+
+        const handleCancel = () => {
+            console.log("Closing rotate 180 dialog");
+            modal.classList.remove("show");
+        };
+
+        cancelBtn.removeEventListener("click", handleCancel);
+        cancelBtn.addEventListener("click", handleCancel);
+
+        modal.classList.add("show");
     }
 
 }
