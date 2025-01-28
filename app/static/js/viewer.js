@@ -1121,29 +1121,28 @@ class ImageViewer {
             return;
         }
 
+        // Clear existing options
         imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
 
-        const viewers = Array.from(document.getElementsByClassName("image-window"))
-            .map((container, index) => {
-                console.log("Container:", container);
-                console.log("Viewer instance:", container.viewer);
-                if (container.viewer && container.viewer.imageData) {
-                    return {
-                        index: index + 1,
-                        label: container.viewer.getLabel() || "Unlabeled",
-                        viewer: container.viewer
-                    };
-                }
-                return null;
-            })
-            .filter(v => v !== null);
+        // Get all image windows that have viewer instances with image data
+        const viewers = [];
+        document.querySelectorAll(".image-window").forEach((container, index) => {
+            if (container && container.viewer && container.viewer.imageData) {
+                viewers.push({
+                    index: index,
+                    label: container.viewer.getLabel() || `Image ${index + 1}`,
+                    viewer: container.viewer
+                });
+            }
+        });
 
         console.log("Available viewers:", viewers);
 
-        viewers.forEach(({ index, label }) => {
+        // Add options to select
+        viewers.forEach((viewer) => {
             const option = document.createElement('option');
-            option.value = index - 1;
-            option.textContent = `Image ${index} (${label})`;
+            option.value = viewer.index;
+            option.textContent = viewer.label;
             imageSelect.appendChild(option);
         });
 
@@ -1157,12 +1156,8 @@ class ImageViewer {
             return;
         }
 
-        const newRotateBtn = rotateBtn.cloneNode(true);
-        const newCancelBtn = cancelBtn.cloneNode(true);
-        rotateBtn.parentNode.replaceChild(newRotateBtn, rotateBtn);
-        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-
-        newRotateBtn.addEventListener("click", async () => {
+        // Handle rotate action
+        rotateBtn.onclick = async () => {
             console.log("Rotate button clicked");
             const selectedIdx = parseInt(imageSelect.value);
 
@@ -1172,7 +1167,7 @@ class ImageViewer {
                 return;
             }
 
-            const selectedViewer = viewers[selectedIdx].viewer;
+            const selectedViewer = viewers.find(v => v.index === selectedIdx)?.viewer;
             if (!selectedViewer || !selectedViewer.imageData) {
                 console.error("Selected viewer or image data not found");
                 alert("Invalid image selection");
@@ -1223,13 +1218,15 @@ class ImageViewer {
                 console.error("Rotation error:", error);
                 alert(`Failed to rotate image: ${error.message}`);
             }
-        });
+        };
 
-        newCancelBtn.addEventListener("click", () => {
+        // Handle cancel action
+        cancelBtn.onclick = () => {
             console.log("Closing rotate 180 dialog");
             modal.classList.remove("show");
-        });
+        };
     }
+
 }
 
 function updateGridLayout() {
