@@ -974,62 +974,53 @@ class ImageViewer {
     showRegistrationDialog() {
         console.log("Opening registration dialog");
         const modal = document.getElementById("registrationModal");
-        const sourceImageSelect = document.getElementById("registrationSourceSelect");
-        const targetImageSelect = document.getElementById("registrationTargetSelect");
-        const registerBtn = modal.querySelector(".register-btn");
-        const cancelBtn = modal.querySelector(".cancel-btn");
+        const sourceSelect = document.getElementById("registrationSourceSelect");
+        const targetSelect = document.getElementById("registrationTargetSelect");
 
-        // Store the viewer that initiated the registration command
-        const initiatingViewer = this;
-        console.log("Dialog initiated from viewer:", initiatingViewer.container.id);
-
-        if (!modal || !sourceImageSelect || !targetImageSelect) {
+        if (!modal || !sourceSelect || !targetSelect) {
             console.error("Required modal elements not found");
             return;
         }
 
-        // Clear and initialize the select dropdowns
-        sourceImageSelect.innerHTML = '<option value="">Select source image...</option>';
-        targetImageSelect.innerHTML = '<option value="">Select target image...</option>';
+        // Clear previous selections
+        sourceSelect.innerHTML = '<option value="">Select source image...</option>';
+        targetSelect.innerHTML = '<option value="">Select target image...</option>';
 
-        // Find all viewers with images
-        const viewers = [];
-        document.querySelectorAll(".image-window").forEach((container, index) => {
-            if (container.viewer && container.viewer.imageData) {
-                const label = container.viewer.getLabel() || `Unlabeled`;
-                viewers.push({
-                    index,
-                    label,
-                    viewer: container.viewer
-                });
-            }
-        });
+        // Store the viewer that initiated the registration
+        const initiatingViewer = this;
+
+        // Get all viewers with loaded images
+        const viewers = Array.from(document.querySelectorAll(".image-window"))
+            .map((container, index) => {
+                const viewer = container.viewer;
+                if (viewer && viewer.imageData) {
+                    return {
+                        index,
+                        label: viewer.getLabel() || `Unlabeled ${index + 1}`,
+                        viewer: viewer
+                    };
+                }
+                return null;
+            })
+            .filter(v => v !== null);
 
         // Populate select options
-        viewers.forEach((viewerInfo) => {
-            const sourceOption = document.createElement('option');
-            sourceOption.value = viewerInfo.index;
-            sourceOption.textContent = `Image ${viewerInfo.index + 1} (${viewerInfo.label})`;
-            sourceImageSelect.appendChild(sourceOption);
-
-            const targetOption = document.createElement('option');
-            targetOption.value = viewerInfo.index;
-            targetOption.textContent = `Image ${viewerInfo.index + 1} (${viewerInfo.label})`;
-            targetImageSelect.appendChild(targetOption);
+        viewers.forEach(({ index, label }) => {
+            const option = `<option value="${index}">${label}</option>`;
+            sourceSelect.insertAdjacentHTML("beforeend", option);
+            targetSelect.insertAdjacentHTML("beforeend", option);
         });
 
-        // Handle register button click
-        registerBtn.onclick = async () => {
-            const sourceIdx = parseInt(sourceImageSelect.value);
-            const targetIdx = parseInt(targetImageSelect.value);
+        // Handle registration
+        const registerBtn = modal.querySelector(".register-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
+
+        const handleRegister = async () => {
+            const sourceIdx = parseInt(sourceSelect.value);
+            const targetIdx = parseInt(targetSelect.value);
 
             if (isNaN(sourceIdx) || isNaN(targetIdx)) {
                 alert("Please select both source and target images");
-                return;
-            }
-
-            if (sourceIdx === targetIdx) {
-                alert("Please select different images for source and target");
                 return;
             }
 
@@ -1045,7 +1036,7 @@ class ImageViewer {
                 const response = await fetch(`${BASE_URL}/api/registration`, {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json",
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
                         fixed_image: {
@@ -1053,8 +1044,7 @@ class ImageViewer {
                             metadata: {
                                 dimensions: [targetViewer.width, targetViewer.height],
                                 min_value: targetViewer.minVal,
-                                max_value: targetViewer.maxVal,
-                                total_slices: targetViewer.totalSlices
+                                max_value: targetViewer.maxVal
                             }
                         },
                         moving_image: {
@@ -1062,56 +1052,48 @@ class ImageViewer {
                             metadata: {
                                 dimensions: [sourceViewer.width, sourceViewer.height],
                                 min_value: sourceViewer.minVal,
-                                max_value: sourceViewer.maxVal,
-                                total_slices: sourceViewer.totalSlices
+                                max_value: sourceViewer.maxVal
                             }
                         }
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Server returned ${response.status}`);
+                    throw new Error(`Registration failed: ${response.statusText}`);
                 }
 
                 const result = await response.json();
-                console.log("Registration response:", result);
 
                 if (result.success) {
-                    console.log("Updating initiating viewer with registered data");
+                    // Update the initiating viewer with the registered image
+                    initiatingViewer.imageData = result.data;
+                    initiatingViewer.width = result.metadata.dimensions[0];
+                    initiatingViewer.height = result.metadata.dimensions[1];
+                    initiatingViewer.totalSlices = result.data.length;
+                    initiatingViewer.minVal = result.metadata.min_value;
+                    initiatingViewer.maxVal = result.metadata.max_value;
+                    initiatingViewer.windowCenter = (result.metadata.max_value + result.metadata.min_value) / 2;
+                    initiatingViewer.windowWidth = result.metadata.max_value - result.metadata.min_value;
+                    initiatingViewer.currentSlice = 0;
+                    initiatingViewer.rotation = 0;
+                    initiatingViewer.setLabel(`Registered: ${sourceViewer.getLabel()} to ${targetViewer.getLabel()}`);
 
-                    // Clear the existing state of the initiating viewer
-                    initiatingViewer.clearImageState();
-
-                    // Set the new state with registered data
-                    initiatingViewer.setState({
-                        imageData: result.data,
-                        width: result.metadata.dimensions[0],
-                        height: result.metadata.dimensions[1],
-                        minVal: result.metadata.min_value,
-                        maxVal: result.metadata.max_value,
-                        windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
-                        windowWidth: result.metadata.max_value - result.metadata.min_value,
-                        totalSlices: result.data.length,
-                        currentSlice: 0,
-                        is3DMode: false,
-                        rotation: 0,
-                        imageLabel: `${sourceViewer.getLabel()} (Registered to ${targetViewer.getLabel()})`
-                    });
+                    initiatingViewer.resizeCanvases();
+                    initiatingViewer.updateSlice();
 
                     modal.classList.remove("show");
                 } else {
                     throw new Error(result.message || "Registration failed");
                 }
             } catch (error) {
-                console.error("Error during registration:", error);
-                alert(`Failed to register images: ${error.message}`);
+                console.error("Registration error:", error);
+                alert(`Registration failed: ${error.message}`);
             }
         };
 
-        // Handle cancel button click
-        cancelBtn.onclick = () => {
-            modal.classList.remove("show");
-        };
+        // Set up event listeners
+        registerBtn.onclick = handleRegister;
+        cancelBtn.onclick = () => modal.classList.remove("show");
 
         // Show the modal
         modal.classList.add("show");
