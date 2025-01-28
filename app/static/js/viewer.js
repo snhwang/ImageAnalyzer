@@ -1111,71 +1111,57 @@ class ImageViewer {
             modal.classList.remove("show");
         });
     }
-    async showRotate180Dialog() {
+    showRotate180Dialog() {
         console.log("Opening rotate 180 dialog");
         const modal = document.getElementById("rotate180Modal");
         const imageSelect = document.getElementById("rotate180ImageSelect");
+        const rotateBtn = modal.querySelector(".rotate-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
 
         if (!modal || !imageSelect) {
             console.error("Required modal elements not found");
             return;
         }
 
-        // Clear existing options
+        // Clear and initialize the select dropdown
         imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
 
-        // Get all image windows that have viewer instances with image data
+        // Find all viewers with images
         const viewers = [];
         document.querySelectorAll(".image-window").forEach((container, index) => {
-            if (container && container.viewer && container.viewer.imageData) {
+            if (container.viewer && container.viewer.imageData) {
+                const label = container.viewer.getLabel() || `Image ${index + 1}`;
                 viewers.push({
-                    index: index,
-                    label: container.viewer.getLabel() || `Image ${index + 1}`,
+                    index,
+                    label,
                     viewer: container.viewer
                 });
             }
         });
 
-        console.log("Available viewers:", viewers);
-
-        // Add options to select
-        viewers.forEach((viewer) => {
+        // Populate select options
+        viewers.forEach((viewerInfo) => {
             const option = document.createElement('option');
-            option.value = viewer.index;
-            option.textContent = viewer.label;
+            option.value = viewerInfo.index;
+            option.textContent = viewerInfo.label;
             imageSelect.appendChild(option);
         });
 
-        modal.classList.add("show");
-
-        const rotateBtn = modal.querySelector(".rotate-btn");
-        const cancelBtn = modal.querySelector(".cancel-btn");
-
-        if (!rotateBtn || !cancelBtn) {
-            console.error("Required button elements not found");
-            return;
-        }
-
-        // Handle rotate action
+        // Handle rotate button click
         rotateBtn.onclick = async () => {
-            console.log("Rotate button clicked");
             const selectedIdx = parseInt(imageSelect.value);
-
             if (isNaN(selectedIdx)) {
-                console.error("No image selected");
                 alert("Please select an image to rotate");
                 return;
             }
 
             const selectedViewer = viewers.find(v => v.index === selectedIdx)?.viewer;
-            if (!selectedViewer || !selectedViewer.imageData) {
-                console.error("Selected viewer or image data not found");
-                alert("Invalid image selection");
+            if (!selectedViewer) {
+                alert("Selected image not found");
                 return;
             }
 
             try {
-                console.log("Sending rotation request to server...");
                 const response = await fetch(`${BASE_URL}/api/rotate180`, {
                     method: "POST",
                     headers: {
@@ -1196,20 +1182,11 @@ class ImageViewer {
                 }
 
                 const result = await response.json();
-                console.log("Received rotation response:", result);
+                console.log("Rotation response:", result);
 
                 if (result.success) {
-                    selectedViewer.setState({
-                        imageData: result.data,
-                        width: result.metadata.dimensions[0],
-                        height: result.metadata.dimensions[1],
-                        minVal: result.metadata.min_value,
-                        maxVal: result.metadata.max_value,
-                        windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
-                        windowWidth: result.metadata.max_value - result.metadata.min_value,
-                        totalSlices: result.data.length,
-                        currentSlice: 0
-                    });
+                    selectedViewer.imageData = result.data;
+                    selectedViewer.updateSlice();
                     modal.classList.remove("show");
                 } else {
                     throw new Error(result.message || "Rotation failed");
@@ -1220,11 +1197,13 @@ class ImageViewer {
             }
         };
 
-        // Handle cancel action
+        // Handle cancel button click
         cancelBtn.onclick = () => {
-            console.log("Closing rotate 180 dialog");
             modal.classList.remove("show");
         };
+
+        // Show the modal
+        modal.classList.add("show");
     }
 
 }
