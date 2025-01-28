@@ -58,3 +58,4 @@ simpleitk
 uvicorn
 numpy
 SimpleITK
+openai
