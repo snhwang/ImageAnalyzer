@@ -1144,6 +1144,8 @@ class ImageViewer {
             imageSelect.appendChild(option);
         });
 
+        modal.classList.add("show");
+
         const rotateBtn = modal.querySelector(".rotate-btn");
         const cancelBtn = modal.querySelector(".cancel-btn");
 
@@ -1152,7 +1154,13 @@ class ImageViewer {
             return;
         }
 
-        const handleRotate = async () => {
+        // Remove any existing event listeners
+        const newRotateBtn = rotateBtn.cloneNode(true);
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        rotateBtn.parentNode.replaceChild(newRotateBtn, rotateBtn);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+        newRotateBtn.addEventListener("click", async () => {
             console.log("Rotate button clicked");
             const selectedIdx = parseInt(imageSelect.value);
 
@@ -1170,22 +1178,20 @@ class ImageViewer {
             }
 
             try {
-                const rotationData = {
-                    image_data: selectedViewer.imageData,
-                    metadata: {
-                        dimensions: [selectedViewer.width, selectedViewer.height],
-                        min_value: selectedViewer.minVal,
-                        max_value: selectedViewer.maxVal
-                    }
-                };
-
                 console.log("Sending rotation request to server...");
                 const response = await fetch(`${BASE_URL}/api/rotate180`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify(rotationData)
+                    body: JSON.stringify({
+                        image_data: selectedViewer.imageData,
+                        metadata: {
+                            dimensions: [selectedViewer.width, selectedViewer.height],
+                            min_value: selectedViewer.minVal,
+                            max_value: selectedViewer.maxVal
+                        }
+                    })
                 });
 
                 if (!response.ok) {
@@ -1215,20 +1221,12 @@ class ImageViewer {
                 console.error("Rotation error:", error);
                 alert(`Failed to rotate image: ${error.message}`);
             }
-        };
+        });
 
-        rotateBtn.removeEventListener("click", handleRotate);
-        rotateBtn.addEventListener("click", handleRotate);
-
-        const handleCancel = () => {
+        newCancelBtn.addEventListener("click", () => {
             console.log("Closing rotate 180 dialog");
             modal.classList.remove("show");
-        };
-
-        cancelBtn.removeEventListener("click", handleCancel);
-        cancelBtn.addEventListener("click", handleCancel);
-
-        modal.classList.add("show");
+        });
     }
 
 }
