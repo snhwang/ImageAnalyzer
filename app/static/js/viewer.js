@@ -1130,7 +1130,7 @@ class ImageViewer {
         const viewers = [];
         document.querySelectorAll(".image-window").forEach((container, index) => {
             if (container.viewer && container.viewer.imageData) {
-                const label = container.viewer.getLabel() || `Image ${index + 1}`;
+                const label = container.viewer.getLabel() || `Unlabeled`;
                 viewers.push({
                     index,
                     label,
@@ -1143,7 +1143,7 @@ class ImageViewer {
         viewers.forEach((viewerInfo) => {
             const option = document.createElement('option');
             option.value = viewerInfo.index;
-            option.textContent = viewerInfo.label;
+            option.textContent = `Image ${viewerInfo.index + 1} (${viewerInfo.label})`;
             imageSelect.appendChild(option);
         });
 
@@ -1185,8 +1185,20 @@ class ImageViewer {
                 console.log("Rotation response:", result);
 
                 if (result.success) {
-                    selectedViewer.imageData = result.data;
-                    selectedViewer.updateSlice();
+                    // Update the selected viewer's state with complete state information
+                    selectedViewer.setState({
+                        imageData: result.data,
+                        width: result.metadata.dimensions[0],
+                        height: result.metadata.dimensions[1],
+                        minVal: result.metadata.min_value,
+                        maxVal: result.metadata.max_value,
+                        windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
+                        windowWidth: result.metadata.max_value - result.metadata.min_value,
+                        totalSlices: result.data.length,
+                        currentSlice: selectedViewer.currentSlice,
+                        is3DMode: selectedViewer.is3DMode,
+                        rotation: selectedViewer.rotation
+                    });
                     modal.classList.remove("show");
                 } else {
                     throw new Error(result.message || "Rotation failed");
