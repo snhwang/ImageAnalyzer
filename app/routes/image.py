@@ -35,14 +35,14 @@ async def rotate_180(request_data: Dict[str, Any]):
         # Process each slice
         for slice_data in image_data:
             try:
-                # First decode from base64
+                # Decode from base64
                 binary_data = base64.b64decode(slice_data)
                 # Convert to float32 array
                 pixels = np.frombuffer(binary_data, dtype=np.float32)
                 # Reshape to 2D array
                 slice_array = pixels.reshape((height, width))
-                # Rotate 180 degrees
-                rotated_slice = np.rot90(slice_array, k=2)
+                # Rotate 180 degrees using flip operations for better performance
+                rotated_slice = np.flipud(np.fliplr(slice_array))
                 # Convert back to base64
                 rotated_bytes = rotated_slice.tobytes()
                 rotated_base64 = base64.b64encode(rotated_bytes).decode('utf-8')
@@ -59,7 +59,7 @@ async def rotate_180(request_data: Dict[str, Any]):
         return JSONResponse({
             "success": True,
             "data": rotated_data,
-            "metadata": metadata
+            "metadata": metadata  # Keep original metadata
         })
 
     except Exception as e:

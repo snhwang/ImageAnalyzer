@@ -1118,8 +1118,9 @@ class ImageViewer {
         const rotateBtn = modal.querySelector(".rotate-btn");
         const cancelBtn = modal.querySelector(".cancel-btn");
 
-        // Get the viewer that initiated the rotate command (this)
-        const targetViewer = this;
+        // Store the viewer that initiated the rotate command (the window where the menu was clicked)
+        const initiatingViewer = this;
+        console.log("Dialog initiated from viewer:", initiatingViewer.container.id);
 
         if (!modal || !imageSelect) {
             console.error("Required modal elements not found");
@@ -1173,12 +1174,10 @@ class ImageViewer {
                     body: JSON.stringify({
                         image_data: sourceViewer.imageData,
                         metadata: {
-                            dimensions: [
-                                sourceViewer.width,
-                                sourceViewer.height
-                            ],
+                            dimensions: [sourceViewer.width, sourceViewer.height],
                             min_value: sourceViewer.minVal,
-                            max_value: sourceViewer.maxVal
+                            max_value: sourceViewer.maxVal,
+                            total_slices: sourceViewer.totalSlices
                         }
                     })
                 });
@@ -1191,8 +1190,14 @@ class ImageViewer {
                 console.log("Rotation response:", result);
 
                 if (result.success) {
-                    // Update the target viewer (where the command was initiated) with the rotated data
-                    targetViewer.setState({
+                    // Update the initiating viewer with the rotated image data
+                    console.log("Updating initiating viewer with rotated data");
+
+                    // First clear the existing state
+                    initiatingViewer.clearImageState();
+
+                    // Then set the new state with rotated data
+                    initiatingViewer.setState({
                         imageData: result.data,
                         width: result.metadata.dimensions[0],
                         height: result.metadata.dimensions[1],
@@ -1201,17 +1206,18 @@ class ImageViewer {
                         windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
                         windowWidth: result.metadata.max_value - result.metadata.min_value,
                         totalSlices: result.data.length,
-                        currentSlice: targetViewer.currentSlice,
-                        is3DMode: targetViewer.is3DMode,
-                        rotation: targetViewer.rotation,
-                        imageLabel: sourceViewer.getLabel() ? `${sourceViewer.getLabel()} (Rotated)` : 'Rotated Image'
+                        currentSlice: 0,
+                        is3DMode: false,
+                        rotation: 0,
+                        imageLabel: `${sourceViewer.getLabel()} (Rotated)`
                     });
+
                     modal.classList.remove("show");
                 } else {
                     throw new Error(result.message || "Rotation failed");
                 }
             } catch (error) {
-                console.error("Rotation error:", error);
+                console.error("Error during rotation:", error);
                 alert(`Failed to rotate image: ${error.message}`);
             }
         };
