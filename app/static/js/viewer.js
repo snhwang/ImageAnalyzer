@@ -3,6 +3,8 @@ const BASE_URL = window.location.origin;
 class ImageViewer {
     constructor(container) {
         this.container = container;
+        // Attach viewer instance to container element
+        container.viewer = this;
         this.imageContainer = container.querySelector(".image-container");
         this.is3DMode = true;
         this.currentSlice = 0;
@@ -1121,14 +1123,15 @@ class ImageViewer {
 
         imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
 
-        const viewers = Array.from(document.querySelectorAll(".image-window"))
+        const viewers = Array.from(document.getElementsByClassName("image-window"))
             .map((container, index) => {
-                const viewer = container.viewer;
-                if (viewer && viewer.imageData) {
+                console.log("Container:", container);
+                console.log("Viewer instance:", container.viewer);
+                if (container.viewer && container.viewer.imageData) {
                     return {
                         index: index + 1,
-                        label: viewer.getLabel() || "Unlabeled",
-                        viewer: viewer
+                        label: container.viewer.getLabel() || "Unlabeled",
+                        viewer: container.viewer
                     };
                 }
                 return null;
@@ -1154,7 +1157,6 @@ class ImageViewer {
             return;
         }
 
-        // Remove any existing event listeners
         const newRotateBtn = rotateBtn.cloneNode(true);
         const newCancelBtn = cancelBtn.cloneNode(true);
         rotateBtn.parentNode.replaceChild(newRotateBtn, rotateBtn);
@@ -1228,7 +1230,6 @@ class ImageViewer {
             modal.classList.remove("show");
         });
     }
-
 }
 
 function updateGridLayout() {
