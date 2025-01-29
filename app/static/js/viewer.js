@@ -925,7 +925,7 @@ class ImageViewer {
             );
             if (!response.ok) {
                 throw new Error(`Failed to load directory: ${response.statusText}`);
-            }}
+            }
 
             const data = await response.json();
             console.log("Directory contents:", data);
@@ -939,7 +939,7 @@ class ImageViewer {
                 parentDir.className = "directory-item folder";
                 parentDir.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
                 parentDir.addEventListener("click", () =>
-                    this.showDirectoryBrowser(parentPath),
+                    this.showDirectoryBrowser(parentPath)
                 );
                 this.directoryList.appendChild(parentDir);
             }
@@ -957,7 +957,7 @@ class ImageViewer {
             data.files?.forEach((file) => {
                 if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
                     const fileElement = document.createElement("div");
-                    fileElement.className = "directoryitem image";
+                    fileElement.className = "directory-item image";
                     fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
                     fileElement.addEventListener("click", () => {
                         this.loadRemoteFile(`${path}/${file}`);
@@ -970,6 +970,7 @@ class ImageViewer {
             this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
     }
+
     async showRegistrationDialog() {
         console.log("Opening registration dialog");
         const modal = document.getElementById("registrationModal");
