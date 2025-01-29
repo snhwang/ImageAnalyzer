@@ -922,9 +922,9 @@ class ImageViewer {
 
             const response = await fetch(
                 `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
-                        );
+            );
             if (!response.ok) {
-                throw new Error(`Failed to load directory: ${response.statusText}`,
+                throw new Error(`Failed to load directory: ${response.statusText},
                 );
             }
 
@@ -980,9 +980,15 @@ class ImageViewer {
         }
 
         // Get all viewers with loaded images
-        const viewers = Array.from(document.querySelectorAll(".viewer-container"))
-            .map((container) => container.viewer)
-            .filter(viewer => viewer && viewer.imageData);
+        const viewers = Array.from(document.querySelectorAll(".image-window"))
+            .map((container, index) => ({
+                index,
+                label: container.viewer?.getLabel() || `Image ${index + 1}`,
+                viewer: container.viewer
+            }))
+            .filter(viewer => viewer.viewer && viewer.viewer.imageData);
+
+        console.log(`Found ${viewers.length} viewers with images`);
 
         if (viewers.length < 2) {
             alert("Please load at least two images before attempting registration");
@@ -992,13 +998,17 @@ class ImageViewer {
         const sourceSelect = document.getElementById("registrationSourceSelect");
         const targetSelect = document.getElementById("registrationTargetSelect");
 
+        if (!sourceSelect || !targetSelect) {
+            console.error("Registration selects not found");
+            return;
+        }
+
         // Clear previous options
         sourceSelect.innerHTML = '<option value="">Select moving image...</option>';
         targetSelect.innerHTML = '<option value="">Select fixed image...</option>';
 
         // Add options for each viewer
-        viewers.forEach((viewer, index) => {
-            const label = viewer.getLabel() || `Image ${index + 1}`;
+        viewers.forEach(({index, label}) => {
             const option = document.createElement('option');
             option.value = index;
             option.textContent = label;
@@ -1027,13 +1037,17 @@ class ImageViewer {
                     return;
                 }
 
-                const movingViewer = viewers[sourceIndex];
-                const fixedViewer = viewers[targetIndex];
+                const movingViewer = viewers[sourceIndex].viewer;
+                const fixedViewer = viewers[targetIndex].viewer;
 
                 if (!movingViewer || !fixedViewer) {
                     alert("Selected viewers not found");
                     return;
                 }
+
+                console.log("Preparing registration data...");
+                console.log(`Moving viewer dimensions: ${movingViewer.width}x${movingViewer.height}`);
+                console.log(`Fixed viewer dimensions: ${fixedViewer.width}x${fixedViewer.height}`);
 
                 const requestData = {
                     moving_image: {
@@ -1055,6 +1069,8 @@ class ImageViewer {
                 };
 
                 modal.classList.add("loading");
+                console.log("Sending registration request...");
+
                 const response = await fetch(`${BASE_URL}/api/registration`, {
                     method: "POST",
                     headers: {
@@ -1063,17 +1079,17 @@ class ImageViewer {
                     body: JSON.stringify(requestData)
                 });
 
-                const result = await response.json();
-
                 if (!response.ok) {
-                    throw new Error(result.message || "Registration failed");
+                    throw new Error(`Registration failed: ${response.statusText}`);
                 }
+
+                const result = await response.json();
 
                 if (result.success && result.data) {
                     // Update the moving image viewer with registered data
+                    console.log("Registration successful, updating viewer...");
                     movingViewer.loadImageData(result);
-                    modal.classList.remove("show");
-                    modal.classList.remove("loading");
+                    modal.classList.remove("show", "loading");
                 } else {
                     throw new Error(result.message || "Registration failed");
                 }

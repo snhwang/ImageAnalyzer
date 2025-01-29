@@ -592,6 +592,29 @@
                 background-color: var(--psu-gray);
                 color: white;
             }
+            /* Additional styles for registration modal */
+            .registration-modal.loading .loading-indicator {
+                display: flex !important;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+
+            .registration-modal.loading .registration-form,
+            .registration-modal.loading .buttons {
+                opacity: 0.5;
+                pointer-events: none;
+            }
+
+            .loading-indicator {
+                text-align: center;
+            }
+
+            .loading-indicator p {
+                margin-top: 10px;
+                color: var(--psu-blue);
+            }
         </style>
     </head>
     <body>
@@ -770,6 +793,12 @@
                         </select>
                     </div>
                 </div>
+                <div class="loading-indicator" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Processing registration...</p>
+                </div>
                 <div class="buttons">
                     <button class="btn btn-primary register-btn">Register Images</button>
                     <button class="btn btn-secondary cancel-btn">Cancel</button>
@@ -884,9 +913,9 @@
                         class="hidden-file-input"
                         accept=".nii,.nii.gz,.dcm,.jpg,.png,.bmp"
                         style="display: none"
-                    />
-                </div>
-            </template>
+                    />`
+                    </div>
+        </template>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
         <!-- Load viewer.js as a regular script after Babylon.js -->
