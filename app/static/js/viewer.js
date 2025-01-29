@@ -924,9 +924,8 @@ class ImageViewer {
                 `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
             );
             if (!response.ok) {
-                throw new Error(`Failed to load directory: ${response.statusText},
-                );
-            }
+                throw new Error(`Failed to load directory: ${response.statusText}`);
+            }}
 
             const data = await response.json();
             console.log("Directory contents:", data);

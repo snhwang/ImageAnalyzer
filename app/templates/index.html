@@ -827,94 +827,94 @@
 
         <!-- Template for new grid cells -->
         <template id="imageWindowTemplate">
-                <div class="image-window">
-                    <div class="toolbar">
-                        <button class="tool-button upload-btn" title="Upload Image">
-                            <i class="fas fa-upload"></i>
+            <div class="image-window">
+                <div class="toolbar">
+                    <button class="tool-button upload-btn" title="Upload Image">
+                        <i class="fas fa-upload"></i>
+                    </button>
+                    <button class="tool-button browse-btn" title="Browse Remote Images">
+                        <i class="fas fa-folder-open"></i>
+                    </button>
+                    <button class="tool-button rotate-left-btn" title="Rotate Left">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button class="tool-button rotate-right-btn" title="Rotate Right">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button class="tool-button view-mode-btn" title="Toggle View Mode">
+                        <i class="fas fa-cube"></i>
+                    </button>
+                    <button class="tool-button optimize-window-btn" title="Adjust Window with ROI">
+                        <i class="fas fa-adjust"></i>
+                    </button>
+                    <button class="tool-button window-level-btn" title="Window/Level">
+                        <i class="fas fa-adjust"></i>
+                    </button>
+                    <select class="image-label">
+                        <option value="">Select image type...</option>
+                        <option value="T1">T1</option>
+                        <option value="T2">T2</option>
+                        <option value="FLAIR">FLAIR</option>
+                        <option value="PostT1">PostT1</option>
+                        <option value="MPRAGE">MPRAGE</option>
+                        <option value="PostMPRAGE">PostMPRAGE</option>
+                    </select>
+                    <div class="menu-container">
+                        <button class="tool-button menu-btn" title="Menu">
+                            <i class="fas fa-bars"></i>
                         </button>
-                        <button class="tool-button browse-btn" title="Browse Remote Images">
-                            <i class="fas fa-folder-open"></i>
-                        </button>
-                        <button class="tool-button rotate-left-btn" title="Rotate Left">
-                            <i class="fas fa-undo"></i>
-                        </button>
-                        <button class="tool-button rotate-right-btn" title="Rotate Right">
-                            <i class="fas fa-redo"></i>
-                        </button>
-                        <button class="tool-button view-mode-btn" title="Toggle View Mode">
-                            <i class="fas fa-cube"></i>
-                        </button>
-                        <button class="tool-button optimize-window-btn" title="Adjust Window with ROI">
-                            <i class="fas fa-adjust"></i>
-                        </button>
-                        <button class="tool-button window-level-btn" title="Window/Level">
-                            <i class="fas fa-adjust"></i>
-                        </button>
-                        <select class="image-label">
-                            <option value="">Select image type...</option>
-                            <option value="T1">T1</option>
-                            <option value="T2">T2</option>
-                            <option value="FLAIR">FLAIR</option>
-                            <option value="PostT1">PostT1</option>
-                            <option value="MPRAGE">MPRAGE</option>
-                            <option value="PostMPRAGE">PostMPRAGE</option>
-                        </select>
-                        <div class="menu-container">
-                            <button class="tool-button menu-btn" title="Menu">
-                                <i class="fas fa-bars"></i>
-                            </button>
-                            <div class="menu-dropdown">
-                                <div class="menu-item" data-action="upload-file">
-                                    <i class="fas fa-upload"></i> Upload Image
-                                </div>
-                                <div class="menu-item" data-action="browse-remote">
-                                    <i class="fas fa-folder-open"></i> Browse Remote Images
-                                </div>
-                                <div class="menu-item" data-action="rotate-left">
-                                    <i class="fas fa-undo"></i> Rotate Left
-                                </div>
-                                <div class="menu-item" data-action="rotate-right">
-                                    <i class="fas fa-redo"></i> Rotate Right
-                                </div>
-                                <div class="menu-item" data-action="optimize-window">
-                                    <i class="fas fa-adjust"></i> Adjust Window with ROI
-                                </div>
-                                <div class="menu-item" data-action="window-level">
-                                    <i class="fas fa-adjust"></i> Window/Level
-                                </div>
-                                <div class="menu-item" data-action="toggle-view">
-                                    <i class="fas fa-cube"></i> Toggle View Mode
-                                </div>
-                                <!-- Add Register Images menu item to template -->
-                                <div class="menu-item" data-action="register-images">
-                                    <i class="fas fa-object-group"></i> Register Images
-                                </div>
-                                <!-- Add Rotate 180 menu item -->
-                                <div class="menu-item" data-action="rotate-180">
-                                    <i class="fas fa-sync-alt"></i> Rotate 180°
-                                </div>
+                        <div class="menu-dropdown">
+                            <div class="menu-item" data-action="upload-file">
+                                <i class="fas fa-upload"></i> Upload Image
+                            </div>
+                            <div class="menu-item" data-action="browse-remote">
+                                <i class="fas fa-folder-open"></i> Browse Remote Images
+                            </div>
+                            <div class="menu-item" data-action="rotate-left">
+                                <i class="fas fa-undo"></i> Rotate Left
+                            </div>
+                            <div class="menu-item" data-action="rotate-right">
+                                <i class="fas fa-redo"></i> Rotate Right
+                            </div>
+                            <div class="menu-item" data-action="optimize-window">
+                                <i class="fas fa-adjust"></i> Adjust Window with ROI
+                            </div>
+                            <div class="menu-item" data-action="window-level">
+                                <i class="fas fa-adjust"></i> Window/Level
+                            </div>
+                            <div class="menu-item" data-action="toggle-view">
+                                <i class="fas fa-cube"></i> Toggle View Mode
+                            </div>
+                            <!-- Add Register Images menu item to template -->
+                            <div class="menu-item" data-action="register-images">
+                                <i class="fas fa-object-group"></i> Register Images
+                            </div>
+                            <!-- Add Rotate 180 menu item -->
+                            <div class="menu-item" data-action="rotate-180">
+                                <i class="fas fa-sync-alt"></i> Rotate 180°
                             </div>
                         </div>
                     </div>
-                    <div class="image-container">
-                        <div class="canvas-container">
-                            <div class="upload-overlay">
-                                <div class="upload-text">
-                                    Drag images here<br />
-                                    <small>Supports DICOM, NIfTI (.nii, .nii.gz), and common image formats</small>
-                                </div>
+                </div>
+                <div class="image-container">
+                    <div class="canvas-container">
+                        <div class="upload-overlay">
+                            <div class="upload-text">
+                                Drag images here<br />
+                                <small>Supports DICOM, NIfTI (.nii, .nii.gz), and common image formats</small>
                             </div>
-                            <img src="" alt="" style="display: none" />
                         </div>
+                        <img src="" alt="" style="display: none" />
                     </div>
-                    <div class="image-info">Window: C: 0 W: 0 | Slice: 0/0</div>
-                    <input
-                        type="file"
-                        class="hidden-file-input"
-                        accept=".nii,.nii.gz,.dcm,.jpg,.png,.bmp"
-                        style="display: none"
-                    />`
-                    </div>
+                </div>
+                <div class="image-info">Window: C: 0 W: 0 | Slice: 0/0</div>
+                <input
+                    type="file"
+                    class="hidden-file-input"
+                    accept=".nii,.nii.gz,.dcm,.jpg,.png,.bmp"
+                    style="display: none"
+                />
+            </div>
         </template>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
