@@ -924,7 +924,7 @@ class ImageViewer {
                 `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
             );
             if (!response.ok) {
-                throw new Error(                    `Failedto load directory: ${response.statusText}`,
+                throw new Error(`Failed to load directory: ${response.statusText}`,
                 );
             }
 
@@ -971,7 +971,7 @@ class ImageViewer {
             this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
     }
-    showRegistrationDialog() {
+    async showRegistrationDialog() {
         console.log("Opening registration dialog");
         const modal = document.getElementById("registrationModal");
         const sourceSelect = document.getElementById("registrationSourceSelect");
@@ -979,6 +979,7 @@ class ImageViewer {
 
         if (!modal || !sourceSelect || !targetSelect) {
             console.error("Required modal elements not found");
+            alert("Registration dialog elements not found. Please try again.");
             return;
         }
 
@@ -1016,24 +1017,31 @@ class ImageViewer {
         const cancelBtn = modal.querySelector(".cancel-btn");
 
         const handleRegister = async () => {
-            const sourceIdx = parseInt(sourceSelect.value);
-            const targetIdx = parseInt(targetSelect.value);
-
-            if (isNaN(sourceIdx) || isNaN(targetIdx)) {
-                alert("Please select both source and target images");
-                return;
-            }
-
-            const sourceViewer = viewers.find(v => v.index === sourceIdx)?.viewer;
-            const targetViewer = viewers.find(v => v.index === targetIdx)?.viewer;
-
-            if (!sourceViewer || !targetViewer) {
-                alert("Selected images not found");
-                return;
-            }
-
             try {
-                const response = await fetch(`${BASE_URL}/api/registration`, {
+                const sourceIdx = parseInt(sourceSelect.value);
+                const targetIdx = parseInt(targetSelect.value);
+
+                if (isNaN(sourceIdx) || isNaN(targetIdx)) {
+                    alert("Please select both source and target images");
+                    return;
+                }
+
+                const sourceViewer = viewers[sourceIdx]?.viewer;
+                const targetViewer = viewers[targetIdx]?.viewer;
+
+                if (!sourceViewer || !targetViewer) {
+                    alert("Invalid image selection");
+                    return;
+                }
+
+                // Construct the full URL using BASE_URL
+                const registrationUrl = `${BASE_URL}/api/registration/`;
+
+                console.log("Sending registration request to:", registrationUrl);
+                console.log("Source dimensions:", sourceViewer.width, sourceViewer.height);
+                console.log("Target dimensions:", targetViewer.width, targetViewer.height);
+
+                const response = await fetch(registrationUrl, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -1059,7 +1067,8 @@ class ImageViewer {
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Registration failed: ${response.statusText}`);
+                    const errorText = await response.text();
+                    throw new Error(`Registration failed: ${response.status} - ${errorText}`);
                 }
 
                 const result = await response.json();
