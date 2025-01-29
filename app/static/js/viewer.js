@@ -1028,76 +1028,7 @@ class ImageViewer {
         cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
 
         newRegisterBtn.addEventListener("click", async () => {
-            try {
-                const sourceIndex = parseInt(sourceSelect.value);
-                const targetIndex = parseInt(targetSelect.value);
-
-                if (isNaN(sourceIndex) || isNaN(targetIndex)) {
-                    alert("Please select both moving and fixed images");
-                    return;
-                }
-
-                const movingViewer = viewers[sourceIndex].viewer;
-                const fixedViewer = viewers[targetIndex].viewer;
-
-                if (!movingViewer || !fixedViewer) {
-                    alert("Selected viewers not found");
-                    return;
-                }
-
-                console.log("Preparing registration data...");
-                console.log(`Moving viewer dimensions: ${movingViewer.width}x${movingViewer.height}`);
-                console.log(`Fixed viewer dimensions: ${fixedViewer.width}x${fixedViewer.height}`);
-
-                const requestData = {
-                    moving_image: {
-                        data: movingViewer.imageData,
-                        metadata: {
-                            dimensions: [movingViewer.width, movingViewer.height],
-                            min_value: movingViewer.minVal,
-                            max_value: movingViewer.maxVal
-                        }
-                    },
-                    fixed_image: {
-                        data: fixedViewer.imageData,
-                        metadata: {
-                            dimensions: [fixedViewer.width, fixedViewer.height],
-                            min_value: fixedViewer.minVal,
-                            max_value: fixedViewer.maxVal
-                        }
-                    }
-                };
-
-                modal.classList.add("loading");
-                console.log("Sending registration request...");
-
-                const response = await fetch(`${BASE_URL}/api/registration`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(requestData)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Registration failed: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-
-                if (result.success && result.data) {
-                    // Update the moving image viewer with registered data
-                    console.log("Registration successful, updating viewer...");
-                    movingViewer.loadImageData(result);
-                    modal.classList.remove("show", "loading");
-                } else {
-                    throw new Error(result.message || "Registration failed");
-                }
-            } catch (error) {
-                modal.classList.remove("loading");
-                console.error("Registration error:", error);
-                alert(`Registration failed: ${error.message}`);
-            }
+            await handleRegister.call(this, modal, sourceSelect, targetSelect);
         });
 
         newCancelBtn.addEventListener("click", () => {
@@ -1227,6 +1158,1076 @@ class ImageViewer {
         // Show the modal
         modal.classList.add("show");
     }
+
+    async handleRegister(modal, sourceSelect, targetSelect) {
+        try {
+            const sourceIndex = parseInt(sourceSelect.value);
+            const targetIndex = parseInt(targetSelect.value);
+
+            if (isNaN(sourceIndex) || isNaN(targetIndex)) {
+                alert("Please select both moving and fixed images");
+                return;
+            }
+
+            const movingViewer = viewers[sourceIndex].viewer;
+            const fixedViewer = viewers[targetIndex].viewer;
+            const initiatingViewer = this; // Store the viewer that initiated the registration
+
+            if (!movingViewer || !fixedViewer) {
+                alert("Selected viewers not found");
+                return;
+            }
+
+            console.log("Preparing registration data...");
+            console.log(`Moving viewer dimensions: ${movingViewer.width}x${movingViewer.height}`);
+            console.log(`Fixed viewer dimensions: ${fixedViewer.width}x${fixedViewer.height}`);
+
+            const requestData = {
+                moving_image: {
+                    data: movingViewer.imageData,
+                    metadata: {
+                        dimensions: [movingViewer.width, movingViewer.height],
+                        spacing: [1.0, 1.0, movingViewer.imageData.length / fixedViewer.imageData.length]  // Estimate spacing
+                    }
+                },
+                fixed_image: {
+                    data: fixedViewer.imageData,
+                    metadata: {
+                        dimensions: [fixedViewer.width, fixedViewer.height],
+                        spacing: [1.0, 1.0, 1.0]  // Reference spacing
+                    }
+                }
+            };
+
+            modal.classList.add("loading");
+            console.log("Sending registration request...");
+
+            const response = await fetch(`${BASE_URL}/api/registration`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Registration failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                // Update the initiating viewer with registered data
+                console.log("Registration successful, updating viewer...");
+                initiatingViewer.loadImageData(result);
+                modal.classList.remove("show", "loading");
+            } else {
+                throw new Error(result.message || "Registration failed");
+            }
+
+        } catch (error) {
+            console.error("Registration error:", error);
+            alert(`Registration failed: ${error.message}`);
+            modal.classList.remove("loading");
+        }
+    }
+
+    getState() {
+        return {
+            imageData: this.imageData,
+            currentSlice: this.currentSlice,
+            totalSlices: this.totalSlices,
+            windowCenter: this.windowCenter,
+            windowWidth: this.windowWidth,
+            rotation: this.rotation,
+            width: this.width,
+            height: this.height,
+            minVal: this.minVal,
+            maxVal: this.maxVal,
+            is3DMode: this.is3DMode,
+            imageLabel: this.imageLabel,
+        };
+    }
+
+    setState(state) {
+        if (!state) return;
+
+        this.imageData = state.imageData ? [...state.imageData] : null;
+        this.currentSlice = state.currentSlice || 0;
+        this.totalSlices = state.totalSlices || 1;
+        if (!isNaN(state.windowCenter)) {
+            this.windowCenter = state.windowCenter;
+        }
+        if (!isNaN(state.windowWidth) && state.windowWidth > 0) {
+            this.windowWidth = state.windowWidth;
+        }
+        this.rotation = state.rotation || 0;
+        this.width = state.width || 0;
+        this.height = state.height || 0;
+        this.minVal = state.minVal || 0;
+        this.maxVal = state.maxVal || 255;
+        this.is3DMode = state.is3DMode || false;
+
+        if (this.imageData) {
+            this.resizeCanvases();
+            this.canvas2D.style.display = this.is3DMode ? "none" : "block";
+            this.canvas3D.style.display = this.is3DMode ? "block" : "none";
+            this.roiCanvas.style.display = this.is3DMode ? "none" : "block";
+
+            if (this.is3DMode) {
+                this.updateTexture();
+            } else {
+                this.updateSlice();
+            }
+
+            if (this.uploadOverlay) {
+                this.uploadOverlay.style.display = "none";
+            }
+        }
+        if (state.imageLabel) {
+            this.setLabel(state.imageLabel);
+        }
+    }
+
+    initializeBabylonScene() {
+        this.engine = new BABYLON.Engine(this.canvas3D, true);
+        this.scene = new BABYLON.Scene(this.engine);
+        this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+
+        this.camera = new BABYLON.ArcRotateCamera(
+            "camera",
+            0,
+            Math.PI / 3,
+            10,
+            BABYLON.Vector3.Zero(),
+            this.scene,
+        );
+        this.camera.setTarget(BABYLON.Vector3.Zero());
+        this.camera.attachControl(this.canvas3D, true);
+
+        const material = new BABYLON.StandardMaterial(
+            "cubeMaterial",
+            this.scene,
+        );
+        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+        this.cube = BABYLON.MeshBuilder.CreateBox(
+            "cube",
+            { size: 2 },
+            this.scene,
+        );
+        this.cube.material = material;
+
+        new BABYLON.HemisphericLight(
+            "light",
+            new BABYLON.Vector3(0, 1, 0),
+            this.scene,
+        );
+
+        this.engine.runRenderLoop(() => {
+            this.scene.render();
+        });
+    }
+
+    async uploadFile(file) {
+        try {
+            this.clearImageState();
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await fetch(`${BASE_URL}/upload`, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log("Upload response:", result);
+
+            if (result.success && result.data) {
+                console.log("Upload successful, processing image data...");
+
+                if (this.uploadOverlay) {
+                    this.uploadOverlay.style.display = "none";
+                }
+
+                this.loadImageData(result);
+            } else {
+                console.error("Upload failed:", result.message);
+            }
+        } catch (error) {
+            console.error("Error uploading file:", error);
+        }
+    }
+
+    async loadRemoteFile(path) {
+        console.log("Loading remote file:", path);
+        try {
+            this.clearImageState();
+
+            const response = await fetch(
+                `${BASE_URL}/load?path=${encodeURIComponent(path)}`,
+            );
+            if (!response.ok) {
+                throw new Error(`Failed to load file: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (result.success && result.data) {
+                this.loadImageData(result);
+                this.urlImportModal.classList.remove("show");
+            } else {
+                throw new Error(result.message || "Failed to load image data");
+            }
+        } catch (error) {
+            console.error("Error loading remote file:", error);
+        }
+    }
+
+    clearImageState() {
+        this.imageData = null;
+        this.currentSlice = 0;
+        this.totalSlices = 1;
+        this.windowCenter = 128;
+        this.windowWidth = 256;
+        this.rotation = 0;
+        this.width = 0;
+        this.height = 0;
+        this.minVal = 0;
+        this.maxVal = 255;
+
+        this.pixelCache.clear();
+
+        this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+        this.roiCtx.clearRect(
+            0,
+            0,
+            this.roiCanvas.width,
+            this.roiCanvas.height,
+        );
+
+        this.isDrawingROI = false;
+        this.roiStart = null;
+        this.roiEnd = null;
+
+        if (this.texture) {
+            this.texture.dispose();
+            this.texture = null;
+        }
+
+        const infoElement = this.container.querySelector(".image-info");
+        if (infoElement) {
+            infoElement.textContent = "Window: C: 0 W: 0 | Slice: 0/0";
+        }
+    }
+
+    loadImageData(result) {
+        this.imageData = result.data;
+        this.totalSlices = this.imageData.length;
+        this.currentSlice = 0;
+        this.minVal = result.metadata.min_value;
+        this.maxVal = result.metadata.max_value;
+        this.width = result.metadata.dimensions[0];
+        this.height = result.metadata.dimensions[1];
+
+        this.windowWidth = (this.maxVal - this.minVal) / 2;
+        this.windowCenter = this.minVal + this.windowWidth;
+
+        if (this.is3DMode) {
+            this.toggleViewMode();
+        }
+
+        this.resizeCanvases();
+        this.updateSlice();
+    }
+
+    async showDirectoryBrowser(path = "images") {
+        console.log("Showing directory browser for path:", path);
+        this.urlImportModal.classList.add("show");
+        this.currentPathElement.textContent = path;
+
+        try {
+            this.directoryList.innerHTML =
+                '<div class="loading">Loading...</div>';
+
+            const response = await fetch(
+                `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
+            );
+            if (!response.ok) {
+                throw new Error(`Failed to load directory: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log("Directory contents:", data);
+
+            this.directoryList.innerHTML = "";
+
+            if (path !== "images") {
+                const parentPath =
+                    path.split("/").slice(0, -1).join("/") || "images";
+                const parentDir = document.createElement("div");
+                parentDir.className = "directory-item folder";
+                parentDir.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
+                parentDir.addEventListener("click", () =>
+                    this.showDirectoryBrowser(parentPath)
+                );
+                this.directoryList.appendChild(parentDir);
+            }
+
+            data.directories?.forEach((dir) => {
+                const dirElement = document.createElement("div");
+                dirElement.className = "directory-item folder";
+                dirElement.innerHTML = `<i class="fas fa-folder"></i> ${dir}`;
+                dirElement.addEventListener("click", () => {
+                    this.showDirectoryBrowser(`${path}/${dir}`);
+                });
+                this.directoryList.appendChild(dirElement);
+            });
+
+            data.files?.forEach((file) => {
+                if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
+                    const fileElement = document.createElement("div");
+                    fileElement.className = "directory-item image";
+                    fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
+                    fileElement.addEventListener("click", () => {
+                        this.loadRemoteFile(`${path}/${file}`);
+                    });
+                    this.directoryList.appendChild(fileElement);
+                }
+            });
+        } catch (error) {
+            console.error("Error loading directory:", error);
+            this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
+        }
+    }
+
+    async showRegistrationDialog() {
+        console.log("Opening registration dialog");
+        const modal = document.getElementById("registrationModal");
+        if (!modal) {
+            console.error("Registration modal not found");
+            return;
+        }
+
+        // Get all viewers with loaded images
+        const viewers = Array.from(document.querySelectorAll(".image-window"))
+            .map((container, index) => ({
+                index,
+                label: container.viewer?.getLabel() || `Image ${index + 1}`,
+                viewer: container.viewer
+            }))
+            .filter(viewer => viewer.viewer && viewer.viewer.imageData);
+
+        console.log(`Found ${viewers.length} viewers with images`);
+
+        if (viewers.length < 2) {
+            alert("Please load at least two images before attempting registration");
+            return;
+        }
+
+        const sourceSelect = document.getElementById("registrationSourceSelect");
+        const targetSelect = document.getElementById("registrationTargetSelect");
+
+        if (!sourceSelect || !targetSelect) {
+            console.error("Registration selects not found");
+            return;
+        }
+
+        // Clear previous options
+        sourceSelect.innerHTML = '<option value="">Select moving image...</option>';
+        targetSelect.innerHTML = '<option value="">Select fixed image...</option>';
+
+        // Add options for each viewer
+        viewers.forEach(({index, label}) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = label;
+
+            sourceSelect.appendChild(option.cloneNode(true));
+            targetSelect.appendChild(option.cloneNode(true));
+        });
+
+        // Handle registration
+        const registerBtn = modal.querySelector(".register-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
+
+        // Remove any existing event listeners
+        const newRegisterBtn = registerBtn.cloneNode(true);
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        registerBtn.parentNode.replaceChild(newRegisterBtn, registerBtn);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+        newRegisterBtn.addEventListener("click", async () => {
+            await handleRegister.call(this, modal, sourceSelect, targetSelect);
+        });
+
+        newCancelBtn.addEventListener("click", () => {
+            modal.classList.remove("show");
+        });
+
+        // Show the modal
+        modal.classList.add("show");
+    }
+
+    showRotate180Dialog() {
+        console.log("Opening rotate 180 dialog");
+        const modal = document.getElementById("rotate180Modal");
+        const imageSelect = document.getElementById("rotate180ImageSelect");
+        const rotateBtn = modal.querySelector(".rotate-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
+
+        // Store the viewer that initiated the rotate command (the window where the menu was clicked)
+        const initiatingViewer = this;
+        console.log("Dialog initiated from viewer:", initiatingViewer.container.id);
+
+        if (!modal || !imageSelect) {
+            console.error("Required modal elements not found");
+            return;
+        }
+
+        // Clear and initialize the select dropdown
+        imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
+
+        // Find all viewers with images
+        const viewers = [];
+        document.querySelectorAll(".image-window").forEach((container, index) => {
+            if (container.viewer && container.viewer.imageData) {
+                const label = container.viewer.getLabel() || `Unlabeled`;
+                viewers.push({
+                    index,
+                    label,
+                    viewer: container.viewer
+                });
+            }
+        });
+
+        // Populate select options
+        viewers.forEach((viewerInfo) => {
+            const option = document.createElement('option');
+            option.value = viewerInfo.index;
+            option.textContent = `Image ${viewerInfo.index + 1} (${viewerInfo.label})`;
+            imageSelect.appendChild(option);
+        });
+
+        // Handle rotate button click
+        rotateBtn.onclick = async () => {
+            const selectedIdx = parseInt(imageSelect.value);
+            if (isNaN(selectedIdx)) {
+                alert("Please select an image to rotate");
+                return;
+            }
+
+            const sourceViewer = viewers.find(v => v.index === selectedIdx)?.viewer;
+            if (!sourceViewer) {
+                alert("Selected image not found");
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/api/rotate180`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        image_data: sourceViewer.imageData,
+                        metadata: {
+                            dimensions: [sourceViewer.width, sourceViewer.height],
+                            min_value: sourceViewer.minVal,
+                            max_value: sourceViewer.maxVal,
+                            total_slices: sourceViewer.totalSlices
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log("Rotation response:", result);
+
+                if (result.success) {
+                    // Update the initiating viewer with the rotated image data
+                    console.log("Updating initiating viewer with rotated data");
+
+                    // First clear the existing state
+                    initiatingViewer.clearImageState();
+
+                    // Then set the new state with rotated data
+                    initiatingViewer.setState({
+                        imageData: result.data,
+                        width: result.metadata.dimensions[0],
+                        height: result.metadata.dimensions[1],
+                        minVal: result.metadata.min_value,
+                        maxVal: result.metadata.max_value,
+                        windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
+                        windowWidth: result.metadata.max_value - result.metadata.min_value,
+                        totalSlices: result.data.length,
+                        currentSlice: 0,
+                        is3DMode: false,
+                        rotation: 0,
+                        imageLabel: `${sourceViewer.getLabel()} (Rotated)`
+                    });
+
+                    modal.classList.remove("show");
+                } else {
+                    throw new Error(result.message || "Rotation failed");
+                }
+            } catch (error) {
+                console.error("Error during rotation:", error);
+                alert(`Failed to rotate image: ${error.message}`);
+            }
+        };
+
+        // Handle cancel button click
+        cancelBtn.onclick = () => {
+            modal.classList.remove("show");
+        };
+
+        // Show the modal
+        modal.classList.add("show");
+    }
+
+    async handleRegister(modal, sourceSelect, targetSelect) {
+        try {
+            const sourceIndex = parseInt(sourceSelect.value);
+            const targetIndex = parseInt(targetSelect.value);
+
+            if (isNaN(sourceIndex) || isNaN(targetIndex)) {
+                alert("Please select both moving and fixed images");
+                return;
+            }
+
+            const movingViewer = viewers[sourceIndex].viewer;
+            const fixedViewer = viewers[targetIndex].viewer;
+            const initiatingViewer = this; // Store the viewer that initiated the registration
+
+            if (!movingViewer || !fixedViewer) {
+                alert("Selected viewers not found");
+                return;
+            }
+
+            console.log("Preparing registration data...");
+            console.log(`Moving viewer dimensions: ${movingViewer.width}x${movingViewer.height}`);
+            console.log(`Fixed viewer dimensions: ${fixedViewer.width}x${fixedViewer.height}`);
+
+            const requestData = {
+                moving_image: {
+                    data: movingViewer.imageData,
+                    metadata: {
+                        dimensions: [movingViewer.width, movingViewer.height],
+                        spacing: [1.0, 1.0, movingViewer.imageData.length / fixedViewer.imageData.length]  // Estimate spacing
+                    }
+                },
+                fixed_image: {
+                    data: fixedViewer.imageData,
+                    metadata: {
+                        dimensions: [fixedViewer.width, fixedViewer.height],
+                        spacing: [1.0, 1.0, 1.0]  // Reference spacing
+                    }
+                }
+            };
+
+            modal.classList.add("loading");
+            console.log("Sending registration request...");
+
+            const response = await fetch(`${BASE_URL}/api/registration`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Registration failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                // Update the initiating viewer with registered data
+                console.log("Registration successful, updating viewer...");
+                initiatingViewer.loadImageData(result);
+                modal.classList.remove("show", "loading");
+            } else {
+                throw new Error(result.message || "Registration failed");
+            }
+
+        } catch (error) {
+            console.error("Registration error:", error);
+            alert(`Registration failed: ${error.message}`);
+            modal.classList.remove("loading");
+        }
+    }
+
+    getState() {
+        return {
+            imageData: this.imageData,
+            currentSlice: this.currentSlice,
+            totalSlices: this.totalSlices,
+            windowCenter: this.windowCenter,
+            windowWidth: this.windowWidth,
+            rotation: this.rotation,
+            width: this.width,
+            height: this.height,
+            minVal: this.minVal,
+            maxVal: this.maxVal,
+            is3DMode: this.is3DMode,
+            imageLabel: this.imageLabel,
+        };
+    }
+
+    setState(state) {
+        if (!state) return;
+
+        this.imageData = state.imageData ? [...state.imageData] : null;
+        this.currentSlice = state.currentSlice || 0;
+        this.totalSlices = state.totalSlices || 1;
+        if (!isNaN(state.windowCenter)) {
+            this.windowCenter = state.windowCenter;
+        }
+        if (!isNaN(state.windowWidth) && state.windowWidth > 0) {
+            this.windowWidth = state.windowWidth;
+        }
+        this.rotation = state.rotation || 0;
+        this.width = state.width || 0;
+        this.height = state.height || 0;
+        this.minVal = state.minVal || 0;
+        this.maxVal = state.maxVal || 255;
+        this.is3DMode = state.is3DMode || false;
+
+        if (this.imageData) {
+            this.resizeCanvases();
+            this.canvas2D.style.display = this.is3DMode ? "none" : "block";
+            this.canvas3D.style.display = this.is3DMode ? "block" : "none";
+            this.roiCanvas.style.display = this.is3DMode ? "none" : "block";
+
+            if (this.is3DMode) {
+                this.updateTexture();
+            } else {
+                this.updateSlice();
+            }
+
+            if (this.uploadOverlay) {
+                this.uploadOverlay.style.display = "none";
+            }
+        }
+        if (state.imageLabel) {
+            this.setLabel(state.imageLabel);
+        }
+    }
+
+    initializeBabylonScene() {
+        this.engine = new BABYLON.Engine(this.canvas3D, true);
+        this.scene = new BABYLON.Scene(this.engine);
+        this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+
+        this.camera = new BABYLON.ArcRotateCamera(
+            "camera",
+            0,
+            Math.PI / 3,
+            10,
+            BABYLON.Vector3.Zero(),
+            this.scene,
+        );
+        this.camera.setTarget(BABYLON.Vector3.Zero());
+        this.camera.attachControl(this.canvas3D, true);
+
+        const material = new BABYLON.StandardMaterial(
+            "cubeMaterial",
+            this.scene,
+        );
+        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+        this.cube = BABYLON.MeshBuilder.CreateBox(
+            "cube",
+            { size: 2 },
+            this.scene,
+        );
+        this.cube.material = material;
+
+        new BABYLON.HemisphericLight(
+            "light",
+            new BABYLON.Vector3(0, 1, 0),
+            this.scene,
+        );
+
+        this.engine.runRenderLoop(() => {
+            this.scene.render();
+        });
+    }
+
+    async uploadFile(file) {
+        try {
+            this.clearImageState();
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await fetch(`${BASE_URL}/upload`, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log("Upload response:", result);
+
+            if (result.success && result.data) {
+                console.log("Upload successful, processing image data...");
+
+                if (this.uploadOverlay) {
+                    this.uploadOverlay.style.display = "none";}
+
+                this.loadImageData(result);
+            } else {
+                console.error("Upload failed:", result.message);
+            }
+        } catch (error) {
+            console.error("Error uploading file:", error);
+        }
+    }
+
+    async loadRemoteFile(path) {
+        console.log("Loading remote file:", path);
+        try {
+            this.clearImageState();
+
+            const response = await fetch(
+                `${BASE_URL}/load?path=${encodeURIComponent(path)}`,
+            );
+            if (!response.ok) {
+                throw new Error(`Failed to load file: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (result.success && result.data) {
+                this.loadImageData(result);
+                this.urlImportModal.classList.remove("show");
+            } else {
+                throw new Error(result.message || "Failed to load image data");
+            }
+        } catch (error) {
+            console.error("Error loading remote file:", error);
+        }
+    }
+
+    clearImageState() {
+        this.imageData = null;
+        this.currentSlice = 0;
+        this.totalSlices = 1;
+        this.windowCenter = 128;
+        this.windowWidth = 256;
+        this.rotation = 0;
+        this.width = 0;
+        this.height = 0;
+        this.minVal = 0;
+        this.maxVal = 255;
+
+        this.pixelCache.clear();
+
+        this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+        this.roiCtx.clearRect(
+            0,
+            0,
+            this.roiCanvas.width,
+            this.roiCanvas.height,
+        );
+
+        this.isDrawingROI = false;
+        this.roiStart = null;
+        this.roiEnd = null;
+
+        if (this.texture) {
+            this.texture.dispose();
+            this.texture = null;
+        }
+
+        const infoElement = this.container.querySelector(".image-info");
+        if (infoElement) {
+            infoElement.textContent = "Window: C: 0 W: 0 | Slice: 0/0";
+        }
+    }
+
+    loadImageData(result) {
+        this.imageData = result.data;
+        this.totalSlices = this.imageData.length;
+        this.currentSlice = 0;
+        this.minVal = result.metadata.min_value;
+        this.maxVal = result.metadata.max_value;
+        this.width = result.metadata.dimensions[0];
+        this.height = result.metadata.dimensions[1];
+
+        this.windowWidth = (this.maxVal - this.minVal) / 2;
+        this.windowCenter = this.minVal + this.windowWidth;
+
+        if (this.is3DMode) {
+            this.toggleViewMode();
+        }
+
+        this.resizeCanvases();
+        this.updateSlice();
+    }
+
+    async showDirectoryBrowser(path = "images") {
+        console.log("Showing directory browser for path:", path);
+        this.urlImportModal.classList.add("show");
+        this.currentPathElement.textContent = path;
+
+        try {
+            this.directoryList.innerHTML =
+                '<div class="loading">Loading...</div>';
+
+            const response = await fetch(
+                `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
+            );
+            if (!response.ok) {
+                throw new Error(`Failed to load directory: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log("Directory contents:", data);
+
+            this.directoryList.innerHTML = "";
+
+            if (path !== "images") {
+                const parentPath =
+                    path.split("/").slice(0, -1).join("/") || "images";
+                const parentDir = document.createElement("div");
+                parentDir.className = "directory-item folder";
+                parentDir.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
+                parentDir.addEventListener("click", () =>
+                    this.showDirectoryBrowser(parentPath)
+                );
+                this.directoryList.appendChild(parentDir);
+            }
+
+            data.directories?.forEach((dir) => {
+                const dirElement = document.createElement("div");
+                dirElement.className = "directory-item folder";
+                dirElement.innerHTML = `<i class="fas fa-folder"></i> ${dir}`;
+                dirElement.addEventListener("click", () => {
+                    this.showDirectoryBrowser(`${path}/${dir}`);
+                });
+                this.directoryList.appendChild(dirElement);
+            });
+
+            data.files?.forEach((file) => {
+                if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
+                    const fileElement = document.createElement("div");
+                    fileElement.className = "directory-item image";
+                    fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
+                    fileElement.addEventListener("click", () => {
+                        this.loadRemoteFile(`${path}/${file}`);
+                    });
+                    this.directoryList.appendChild(fileElement);
+                }
+            });
+        } catch (error) {
+            console.error("Error loading directory:", error);
+            this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
+        }
+    }
+
+    async showRegistrationDialog() {
+        console.log("Opening registration dialog");
+        const modal = document.getElementById("registrationModal");
+        if (!modal) {
+            console.error("Registration modal not found");
+            return;
+        }
+
+        // Get all viewers with loaded images
+        const viewers = Array.from(document.querySelectorAll(".image-window"))
+            .map((container, index) => ({
+                index,
+                label: container.viewer?.getLabel() || `Image ${index + 1}`,
+                viewer: container.viewer
+            }))
+            .filter(viewer => viewer.viewer && viewer.viewer.imageData);
+
+        console.log(`Found ${viewers.length} viewers with images`);
+
+        if (viewers.length < 2) {
+            alert("Please load at least two images before attempting registration");
+            return;
+        }
+
+        const sourceSelect = document.getElementById("registrationSourceSelect");
+        const targetSelect = document.getElementById("registrationTargetSelect");
+
+        if (!sourceSelect || !targetSelect) {
+            console.error("Registration selects not found");
+            return;
+        }
+
+        // Clear previous options
+        sourceSelect.innerHTML = '<option value="">Select moving image...</option>';
+        targetSelect.innerHTML = '<option value="">Select fixed image...</option>';
+
+        // Add options for each viewer
+        viewers.forEach(({index, label}) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = label;
+
+            sourceSelect.appendChild(option.cloneNode(true));
+            targetSelect.appendChild(option.cloneNode(true));
+        });
+
+        // Handle registration
+        const registerBtn = modal.querySelector(".register-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
+
+        // Remove any existing event listeners
+        const newRegisterBtn = registerBtn.cloneNode(true);
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        registerBtn.parentNode.replaceChild(newRegisterBtn, registerBtn);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+        newRegisterBtn.addEventListener("click", async () => {
+            await this.handleRegister(modal, sourceSelect, targetSelect);
+        });
+
+        newCancelBtn.addEventListener("click", () => {
+            modal.classList.remove("show");
+        });
+
+        // Show the modal
+        modal.classList.add("show");
+    }
+
+    showRotate180Dialog() {
+        console.log("Opening rotate 180 dialog");
+        const modal = document.getElementById("rotate180Modal");
+        const imageSelect = document.getElementById("rotate180ImageSelect");
+        const rotateBtn = modal.querySelector(".rotate-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
+
+        // Store the viewer that initiated the rotate command (the window where the menu was clicked)
+        const initiatingViewer = this;
+        console.log("Dialog initiated from viewer:", initiatingViewer.container.id);
+
+        if (!modal || !imageSelect) {
+            console.error("Required modal elements not found");
+            return;
+        }
+
+        // Clear and initialize the select dropdown
+        imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
+
+        // Find all viewers with images
+        const viewers = [];
+        document.querySelectorAll(".image-window").forEach((container, index) => {
+            if (container.viewer && container.viewer.imageData) {
+                const label = container.viewer.getLabel() || `Unlabeled`;
+                viewers.push({
+                    index,
+                    label,
+                    viewer: container.viewer
+                });
+            }
+        });
+
+        // Populate select options
+        viewers.forEach((viewerInfo) => {
+            const option = document.createElement('option');
+            option.value = viewerInfo.index;
+            option.textContent = `Image ${viewerInfo.index + 1} (${viewerInfo.label})`;
+            imageSelect.appendChild(option);
+        });
+
+        // Handle rotate button click
+        rotateBtn.onclick = async () => {
+            const selectedIdx = parseInt(imageSelect.value);
+            if (isNaN(selectedIdx)) {
+                alert("Please select an image to rotate");
+                return;
+            }
+
+            const sourceViewer = viewers.find(v => v.index === selectedIdx)?.viewer;
+            if (!sourceViewer) {
+                alert("Selected image not found");
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/api/rotate180`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        image_data: sourceViewer.imageData,
+                        metadata: {
+                            dimensions: [sourceViewer.width, sourceViewer.height],
+                            min_value: sourceViewer.minVal,
+                            max_value: sourceViewer.maxVal,
+                            total_slices: sourceViewer.totalSlices
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log("Rotation response:", result);
+
+                if (result.success) {
+                    // Update the initiating viewer with the rotated image data
+                    console.log("Updating initiating viewer with rotated data");
+
+                    // First clear the existing state
+                    initiatingViewer.clearImageState();
+
+                    // Then set the new state with rotated data
+                    initiatingViewer.setState({
+                        imageData: result.data,
+                        width: result.metadata.dimensions[0],
+                        height: result.metadata.dimensions[1],
+                        minVal: result.metadata.min_value,
+                        maxVal: result.metadata.max_value,
+                        windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
+                        windowWidth: result.metadata.max_value - result.metadata.min_value,
+                        totalSlices: result.data.length,
+                        currentSlice: 0,
+                        is3DMode: false,
+                        rotation: 0,
+                        imageLabel: `${sourceViewer.getLabel()} (Rotated)`
+                    });
+
+                    modal.classList.remove("show");
+                } else {
+                    throw new Error(result.message || "Rotation failed");
+                }
+            } catch (error) {
+                console.error("Error during rotation:", error);
+                alert(`Failed to rotate image: ${error.message}`);
+            }
+        };
+
+        // Handle cancel button click
+        cancelBtn.onclick = () => {
+            modal.classList.remove("show");
+        };
+
+        // Show the modal
+        modal.classList.add("show");
+    }
+
 
 }
 

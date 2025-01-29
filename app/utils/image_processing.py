@@ -6,7 +6,8 @@ import traceback
 logger = logging.getLogger(__name__)
 
 def register_images(fixed_array: np.ndarray, moving_array: np.ndarray,
-                   fixed_image: sitk.Image, moving_image: sitk.Image) -> np.ndarray:
+                   fixed_image: sitk.Image, moving_image: sitk.Image,
+                   fixed_metadata: dict = None, moving_metadata: dict = None) -> np.ndarray:
     """
     Register the moving image to the fixed image using SimpleITK.
 
@@ -15,6 +16,8 @@ def register_images(fixed_array: np.ndarray, moving_array: np.ndarray,
         moving_array: Image to be registered as numpy array
         fixed_image: Reference image as SimpleITK image
         moving_image: Image to be registered as SimpleITK image
+        fixed_metadata: Metadata for fixed image including spacing/thickness
+        moving_metadata: Metadata for moving image including spacing/thickness
 
     Returns:
         Registered image as numpy array
@@ -23,6 +26,17 @@ def register_images(fixed_array: np.ndarray, moving_array: np.ndarray,
         logger.info("Starting image registration")
         logger.info(f"Fixed image shape: {fixed_array.shape}")
         logger.info(f"Moving image shape: {moving_array.shape}")
+
+        # Set physical space information
+        if fixed_metadata and 'spacing' in fixed_metadata:
+            fixed_spacing = fixed_metadata['spacing']
+            fixed_image.SetSpacing(fixed_spacing)
+            logger.info(f"Set fixed image spacing: {fixed_spacing}")
+
+        if moving_metadata and 'spacing' in moving_metadata:
+            moving_spacing = moving_metadata['spacing']
+            moving_image.SetSpacing(moving_spacing)
+            logger.info(f"Set moving image spacing: {moving_spacing}")
 
         # Initialize the registration method
         registration_method = sitk.ImageRegistrationMethod()
@@ -35,16 +49,16 @@ def register_images(fixed_array: np.ndarray, moving_array: np.ndarray,
         # Set the interpolator
         registration_method.SetInterpolator(sitk.sitkLinear)
 
-        # Set up the optimizer - we'll use gradient descent optimizer
+        # Set up optimizer with more iterations and finer control
         registration_method.SetOptimizerAsGradientDescent(
             learningRate=1.0,
-            numberOfIterations=100,
-            convergenceMinimumValue=1e-6,
+            numberOfIterations=200,  # Increased iterations
+            convergenceMinimumValue=1e-7,  # More strict convergence
             convergenceWindowSize=10
         )
         registration_method.SetOptimizerScalesFromPhysicalShift()
 
-        # Set up initial transform
+        # Set up initial transform with physical space consideration
         initial_transform = sitk.CenteredTransformInitializer(
             fixed_image,
             moving_image,
@@ -72,7 +86,7 @@ def register_images(fixed_array: np.ndarray, moving_array: np.ndarray,
         final_transform = registration_method.Execute(fixed_image, moving_image)
         logger.info("Registration completed")
 
-        # Apply transform to moving image
+        # Apply transform to moving image with proper resampling
         registered_image = sitk.Resample(
             moving_image,
             fixed_image,

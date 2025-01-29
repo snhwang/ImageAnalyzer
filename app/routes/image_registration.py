@@ -9,7 +9,6 @@ import base64
 from ..utils.image_processing import register_images
 
 router = APIRouter(tags=["registration"])
-
 logger = logging.getLogger(__name__)
 
 @router.post("/api/registration")
@@ -24,9 +23,12 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
         fixed_data = request_data["fixed_image"]
         moving_data = request_data["moving_image"]
 
-        # Get dimensions from metadata
-        fixed_width, fixed_height = fixed_data["metadata"]["dimensions"]
-        moving_width, moving_height = moving_data["metadata"]["dimensions"]
+        # Get dimensions and metadata from request
+        fixed_metadata = fixed_data["metadata"]
+        moving_metadata = moving_data["metadata"]
+
+        fixed_width, fixed_height = fixed_metadata["dimensions"]
+        moving_width, moving_height = moving_metadata["dimensions"]
 
         # Process each slice for fixed image
         fixed_slices = []
@@ -56,12 +58,25 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
         fixed_array = np.stack(fixed_slices)
         moving_array = np.stack(moving_slices)
 
+        # Calculate voxel spacing if not provided
+        if 'spacing' not in fixed_metadata:
+            fixed_metadata['spacing'] = [1.0, 1.0, 1.0]  # Default isotropic spacing
+        if 'spacing' not in moving_metadata:
+            moving_metadata['spacing'] = [1.0, 1.0, 1.0]  # Default isotropic spacing
+
         # Convert to SimpleITK images for registration
         fixed_image = sitk.GetImageFromArray(fixed_array)
         moving_image = sitk.GetImageFromArray(moving_array)
 
-        # Process registration
-        registered_array = register_images(fixed_array, moving_array, fixed_image, moving_image)
+        # Process registration with metadata
+        registered_array = register_images(
+            fixed_array, 
+            moving_array, 
+            fixed_image, 
+            moving_image,
+            fixed_metadata,
+            moving_metadata
+        )
 
         # Convert registered results back to base64
         registered_data = []
@@ -77,6 +92,7 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
             "data": registered_data,
             "metadata": {
                 "dimensions": [int(fixed_width), int(fixed_height)],
+                "spacing": fixed_metadata['spacing'],
                 "min_value": float(np.min(registered_array)),
                 "max_value": float(np.max(registered_array))
             }
