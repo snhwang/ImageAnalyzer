@@ -8,10 +8,11 @@ import traceback
 import base64
 from ..utils.image_processing import register_images
 
-router = APIRouter(prefix="/api/registration", tags=["registration"])
+router = APIRouter(tags=["registration"])
+
 logger = logging.getLogger(__name__)
 
-@router.post("/")
+@router.post("/api/registration")
 async def register_images_endpoint(request_data: Dict[str, Any]):
     try:
         logger.info("Starting image registration process")
