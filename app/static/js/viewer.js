@@ -922,7 +922,7 @@ class ImageViewer {
 
             const response = await fetch(
                 `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
-            );
+                        );
             if (!response.ok) {
                 throw new Error(`Failed to load directory: ${response.statusText}`,
                 );
@@ -973,84 +973,69 @@ class ImageViewer {
     }
     async showRegistrationDialog() {
         console.log("Opening registration dialog");
-        const viewers = Array.from(document.querySelectorAll('.viewer-container'))
-            .map((container, index) => ({
-                index,
-                label: container.viewer?.getLabel() || `Image ${index + 1}`,
-                viewer: container.viewer
-            }))
-            .filter(v => v.viewer?.imageData);
-
-        if (viewers.length < 2) {
-            alert("Please load at least two images for registration");
+        const modal = document.getElementById("registrationModal");
+        if (!modal) {
+            console.error("Registration modal not found");
             return;
         }
 
-        // Create modal dynamically if it doesn't exist
-        let modal = document.getElementById('registrationModal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'registrationModal';
-            modal.className = 'modal';
-            modal.innerHTML = `
-                <div class="modal-content">
-                    <h3>Image Registration</h3>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label>Fixed Image:</label>
-                            <select id="registrationTargetSelect"></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Moving Image:</label>
-                            <select id="registrationSourceSelect"></select>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="register-btn">Register</button>
-                        <button class="cancel-btn">Cancel</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
+        // Get all viewers with loaded images
+        const viewers = Array.from(document.querySelectorAll(".viewer-container"))
+            .map((container) => container.viewer)
+            .filter(viewer => viewer && viewer.imageData);
+
+        if (viewers.length < 2) {
+            alert("Please load at least two images before attempting registration");
+            return;
         }
 
-        const sourceSelect = document.getElementById('registrationSourceSelect');
-        const targetSelect = document.getElementById('registrationTargetSelect');
+        const sourceSelect = document.getElementById("registrationSourceSelect");
+        const targetSelect = document.getElementById("registrationTargetSelect");
 
-        // Clear existing options
-        sourceSelect.innerHTML = '';
-        targetSelect.innerHTML = '';
+        // Clear previous options
+        sourceSelect.innerHTML = '<option value="">Select moving image...</option>';
+        targetSelect.innerHTML = '<option value="">Select fixed image...</option>';
 
-        // Add viewer options
-        viewers.forEach(({index, label}) => {
-            const sourceOption = document.createElement('option');
-            sourceOption.value = index;
-            sourceOption.textContent = label;
-            sourceSelect.appendChild(sourceOption.cloneNode(true));
-            targetSelect.appendChild(sourceOption);
+        // Add options for each viewer
+        viewers.forEach((viewer, index) => {
+            const label = viewer.getLabel() || `Image ${index + 1}`;
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = label;
+
+            sourceSelect.appendChild(option.cloneNode(true));
+            targetSelect.appendChild(option.cloneNode(true));
         });
 
-        // Set up event handlers
-        const handleRegister = async () => {
-            try {
-                const sourceIdx = parseInt(sourceSelect.value);
-                const targetIdx = parseInt(targetSelect.value);
+        // Handle registration
+        const registerBtn = modal.querySelector(".register-btn");
+        const cancelBtn = modal.querySelector(".cancel-btn");
 
-                if (isNaN(sourceIdx) || isNaN(targetIdx)) {
+        // Remove any existing event listeners
+        const newRegisterBtn = registerBtn.cloneNode(true);
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        registerBtn.parentNode.replaceChild(newRegisterBtn, registerBtn);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+        newRegisterBtn.addEventListener("click", async () => {
+            try {
+                const sourceIndex = parseInt(sourceSelect.value);
+                const targetIndex = parseInt(targetSelect.value);
+
+                if (isNaN(sourceIndex) || isNaN(targetIndex)) {
                     alert("Please select both moving and fixed images");
                     return;
                 }
 
-                const movingViewer = viewers[sourceIdx]?.viewer;
-                const fixedViewer = viewers[targetIdx]?.viewer;
+                const movingViewer = viewers[sourceIndex];
+                const fixedViewer = viewers[targetIndex];
 
                 if (!movingViewer || !fixedViewer) {
-                    alert("Selected images not found");
+                    alert("Selected viewers not found");
                     return;
                 }
 
-                console.log("Preparing registration request...");
-                const registrationData = {
+                const requestData = {
                     moving_image: {
                         data: movingViewer.imageData,
                         metadata: {
@@ -1069,51 +1054,42 @@ class ImageViewer {
                     }
                 };
 
-                console.log("Sending registration request...");
+                modal.classList.add("loading");
                 const response = await fetch(`${BASE_URL}/api/registration`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify(registrationData)
+                    body: JSON.stringify(requestData)
                 });
 
+                const result = await response.json();
+
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Registration failed: ${response.status} - ${errorText}`);
+                    throw new Error(result.message || "Registration failed");
                 }
 
-                const result = await response.json();
                 if (result.success && result.data) {
-                    // Update the moving image viewer with the registered data
+                    // Update the moving image viewer with registered data
                     movingViewer.loadImageData(result);
-                    modal.style.display = "none";
+                    modal.classList.remove("show");
+                    modal.classList.remove("loading");
                 } else {
                     throw new Error(result.message || "Registration failed");
                 }
             } catch (error) {
+                modal.classList.remove("loading");
                 console.error("Registration error:", error);
                 alert(`Registration failed: ${error.message}`);
             }
-        };
+        });
 
-        const registerBtn = modal.querySelector(".register-btn");
-        const cancelBtn = modal.querySelector(".cancel-btn");
-
-        // Remove existing event listeners
-        const newRegisterBtn = registerBtn.cloneNode(true);
-        const newCancelBtn = cancelBtn.cloneNode(true);
-        registerBtn.parentNode.replaceChild(newRegisterBtn, registerBtn);
-        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-
-        // Add new event listeners
-        newRegisterBtn.addEventListener("click", handleRegister);
         newCancelBtn.addEventListener("click", () => {
-            modal.style.display = "none";
+            modal.classList.remove("show");
         });
 
         // Show the modal
-        modal.style.display = "block";
+        modal.classList.add("show");
     }
 
     showRotate180Dialog() {
