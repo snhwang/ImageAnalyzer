@@ -1487,12 +1487,13 @@ class ImageViewer {
             const newRatio = parseFloat(e.target.value) / 100;
             console.log('Slider value changed:', newRatio);
             blendValue.textContent = `${Math.round(newRatio * 100)}%`;
-            // Store current slice to maintain position
-            const currentSlice = this.currentSlice;
+            
             await this.updateBlendedImage(newRatio);
-            // Restore slice position after blend
-            this.currentSlice = currentSlice;
-            await this.updateSlice();
+            requestAnimationFrame(() => {
+                this.updateSlice();
+                this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+                this.updateSlice();
+            });
         });
 
         // Set the blend label
