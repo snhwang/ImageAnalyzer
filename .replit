@@ -1,11 +1,12 @@
-modules = ["python-3.11", "nodejs-20"]
+modules = ["python-3.11", "nodejs-20", "web", "nix"]
+run = "python -m app.main"
 
 [nix]
 channel = "stable-24_05"
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 5000 --reload"]
+run = ["sh", "-c", "python -m app.main"]
 
 [workflows]
 runButton = "Project"
