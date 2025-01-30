@@ -901,9 +901,15 @@ class ImageViewer {
     }
 
     clearImageState() {
-        const wasBlendMode = this.isBlendMode;
-        const previousBaseViewer = this.baseViewer;
-        const previousOverlayViewer = this.overlayViewer;
+        // Always clear blend state when loading new image
+        const blendControls = this.imageContainer.querySelector('.blend-controls-container');
+        if (blendControls) {
+            blendControls.style.display = 'none';
+            blendControls.classList.remove('visible');
+        }
+        this.isBlendMode = false;
+        this.baseViewer = null;
+        this.overlayViewer = null;
 
         this.imageData = null;
         this.currentSlice = 0;
@@ -1473,8 +1479,8 @@ class ImageViewer {
 
         newSlider.addEventListener('input', async (e) => {
             console.log('Slider value changed:', e.target.value);
-            const newRatio = 1 - (e.target.value / 100); // Invert ratio for correct blending
-            blendValue.textContent = `${Math.round((1 - newRatio) * 100)}%`;
+            const newRatio = e.target.value / 100;
+            blendValue.textContent = `${Math.round(newRatio * 100)}%`;
             await this.updateBlendedImage(newRatio);
         });
 
