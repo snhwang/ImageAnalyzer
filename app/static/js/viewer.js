@@ -509,15 +509,14 @@ class ImageViewer {
         const tempCanvas = document.createElement("canvas");
         tempCanvas.width = this.width;
         tempCanvas.height = this.height;
-        const tempCtx = tempCanvas.getContext("2d");
+        const tempCtx = tempCanvas.getContext("2d", { willReadFrequently: true });
 
-        const imageData = new ImageData(this.width, this.height);
+        const imageData = tempCtx.createImageData(this.width, this.height);
         const data = imageData.data;
 
         const low = this.windowCenter - this.windowWidth / 2;
         const high = this.windowCenter + this.windowWidth / 2;
         const range = high - low;
-        const valueScale = 255 / range;
 
         console.log(`Window settings - Center: ${this.windowCenter}, Width: ${this.windowWidth}`);
         console.log(`Value range - Low: ${low}, High: ${high}`);
@@ -526,11 +525,9 @@ class ImageViewer {
         for (let i = 0; i < length; i++) {
             const value = pixels[i];
             const normalizedValue = Math.max(0, Math.min(1, (value - low) / range));
-            const pixelValue = Math.round(normalizedValue * 255);
             const index = i << 2;
-            data[index] = pixelValue;
-            data[index + 1] = pixelValue;
-            data[index + 2] = pixelValue;
+            // Store normalized floating point values (0-1) multiplied by 255
+            data[index] = data[index + 1] = data[index + 2] = normalizedValue * 255;
             data[index + 3] = 255;
         }
 
@@ -549,30 +546,30 @@ class ImageViewer {
 
         console.log(`Drawing image at (${x}, ${y}) with scale ${displayScale}`);
 
-            if (this.rotation !== 0) {
-                this.ctx2D.save();
+        if (this.rotation !== 0) {
+            this.ctx2D.save();
             this.ctx2D.translate(this.canvas2D.width / 2, this.canvas2D.height / 2);
-                this.ctx2D.rotate((this.rotation * Math.PI) / 180);
+            this.ctx2D.rotate((this.rotation * Math.PI) / 180);
             this.ctx2D.translate(-this.canvas2D.width / 2, -this.canvas2D.height / 2);
         }
 
         // Draw the image
-            this.ctx2D.drawImage(
-                tempCanvas,
-                x,
-                y,
+        this.ctx2D.drawImage(
+            tempCanvas,
+            x,
+            y,
             this.width * displayScale,
             this.height * displayScale
-            );
+        );
 
-            if (this.rotation !== 0) {
-                this.ctx2D.restore();
-            }
+        if (this.rotation !== 0) {
+            this.ctx2D.restore();
+        }
 
-            const infoElement = this.container.querySelector(".image-info");
-            if (infoElement) {
-                infoElement.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices} | Voxel Size: ${this.voxelWidth.toFixed(2)} × ${this.voxelHeight.toFixed(2)} × ${this.voxelDepth.toFixed(2)} mm`;
-            }
+        const infoElement = this.container.querySelector(".image-info");
+        if (infoElement) {
+            infoElement.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices} | Voxel Size: ${this.voxelWidth.toFixed(2)} × ${this.voxelHeight.toFixed(2)} × ${this.voxelDepth.toFixed(2)} mm`;
+        }
 
         // Hide the upload overlay if it exists
         if (this.uploadOverlay) {
