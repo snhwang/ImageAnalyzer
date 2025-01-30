@@ -964,11 +964,15 @@ class ImageViewer {
         this.maxVal = result.metadata.max_value;
         this.width = result.metadata.dimensions[0];
         this.height = result.metadata.dimensions[1];
-        // Store voxel dimensions with validation
-        const voxelDims = result.metadata.voxel_dimensions || [1.0, 1.0, 1.0];
-        this.voxelWidth = parseFloat(voxelDims[0]) || 1.0;
-        this.voxelHeight = parseFloat(voxelDims[1]) || 1.0;
-        this.voxelDepth = parseFloat(voxelDims[2]) || 1.0;
+        // Store voxel dimensions
+        const voxelDims = result.metadata.voxel_dimensions;
+        if (!voxelDims || voxelDims.length !== 3) {
+            console.error('Invalid or missing voxel dimensions in metadata');
+            throw new Error('Invalid voxel dimensions');
+        }
+        this.voxelWidth = parseFloat(voxelDims[0]);
+        this.voxelHeight = parseFloat(voxelDims[1]);
+        this.voxelDepth = parseFloat(voxelDims[2]);
         console.log(`Loaded voxel dimensions: ${this.voxelWidth} x ${this.voxelHeight} x ${this.voxelDepth}`);
 
         // Preserve current slice if in blend mode, otherwise reset to 0
@@ -1565,9 +1569,9 @@ class ImageViewer {
                 min_value: Math.min(baseMin, overlayMin),
                 max_value: Math.max(baseMax, overlayMax),
                 voxel_dimensions: [
-                    this.baseViewer.voxelWidth || 1.0,
-                    this.baseViewer.voxelHeight || 1.0,
-                    this.baseViewer.voxelDepth || 1.0
+                    this.baseViewer.voxelWidth,
+                    this.baseViewer.voxelHeight,
+                    this.baseViewer.voxelDepth
                 ]
             },
             isBlendMode: true,
