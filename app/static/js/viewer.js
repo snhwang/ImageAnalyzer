@@ -3,10 +3,10 @@ const BASE_URL = window.location.origin;
 class ImageViewer {
     constructor(container) {
         this.container = container;
-        // Attach viewer instance to container element
+        // Attach viewer instance to container
         container.viewer = this;
         this.imageContainer = container.querySelector(".image-container");
-        this.is3DMode = true;
+        this.is3DMode = false;  // Set to false by default for 2D view
         this.currentSlice = 0;
         this.totalSlices = 1;
         this.windowCenter = 128;
@@ -24,53 +24,16 @@ class ImageViewer {
             this.imageLabel = labelSelect.value;
         }
 
-        this.canvas2D = document.createElement("canvas");
-        this.ctx2D = this.canvas2D.getContext("2d");
-        this.canvas2D.style.width = "100%";
-        this.canvas2D.style.height = "100%";
-        this.canvas2D.style.position = "absolute";
-        this.canvas2D.style.top = "0";
-        this.canvas2D.style.left = "0";
-        this.canvas2D.style.display = "none";
-        this.canvas2D.style.userSelect = "none";
-        this.imageContainer
-            .querySelector(".canvas-container")
-            .appendChild(this.canvas2D);
-
-        this.canvas3D = document.createElement("canvas");
-        this.canvas3D.style.width = "100%";
-        this.canvas3D.style.height = "100%";
-        this.canvas3D.style.position = "absolute";
-        this.canvas3D.style.top = "0";
-        this.canvas3D.style.left = "0";
-        this.canvas3D.style.userSelect = "none";
-        this.imageContainer
-            .querySelector(".canvas-container")
-            .appendChild(this.canvas3D);
-
-        this.roiCanvas = document.createElement("canvas");
-        this.roiCtx = this.roiCanvas.getContext("2d");
-        this.roiCanvas.style.width = "100%";
-        this.roiCanvas.style.height = "100%";
-        this.roiCanvas.style.position = "absolute";
-        this.roiCanvas.style.top = "0";
-        this.roiCanvas.style.left = "0";
-        this.roiCanvas.style.pointerEvents = "none";
-        this.roiCanvas.style.display = "none";
-        this.roiCanvas.style.userSelect = "none";
-        this.imageContainer
-            .querySelector(".canvas-container")
-            .appendChild(this.roiCanvas);
-
+        // Initialize canvases
+        this.initializeCanvases();
+        
+        // Get UI elements
         this.uploadOverlay = this.container.querySelector(".upload-overlay");
-
         this.fileInput = container.querySelector(".hidden-file-input");
         this.uploadBtn = container.querySelector(".upload-btn");
         this.viewModeBtn = container.querySelector(".view-mode-btn");
         this.windowLevelBtn = container.querySelector(".window-level-btn");
-        this.optimizeWindowBtn = container.querySelector(
-            ".optimize-window-btn",
-        );
+        this.optimizeWindowBtn = container.querySelector(".optimize-window-btn");
         this.rotateLeftBtn = container.querySelector(".rotate-left-btn");
         this.rotateRightBtn = container.querySelector(".rotate-right-btn");
         this.menuBtn = container.querySelector(".menu-btn");
@@ -85,8 +48,48 @@ class ImageViewer {
         this.directoryList = document.getElementById("directoryList");
         this.currentPathElement = document.getElementById("currentPath");
 
-        this.setupEventListeners();
+        // Initialize Babylon.js scene first
         this.initializeBabylonScene();
+        // Then set up event listeners
+        this.setupEventListeners();
+    }
+
+    initializeCanvases() {
+        // Create and set up 2D canvas
+        this.canvas2D = document.createElement("canvas");
+        this.ctx2D = this.canvas2D.getContext("2d");
+        this.canvas2D.style.width = "100%";
+        this.canvas2D.style.height = "100%";
+        this.canvas2D.style.position = "absolute";
+        this.canvas2D.style.top = "0";
+        this.canvas2D.style.left = "0";
+        this.canvas2D.style.display = "block";
+        this.canvas2D.style.userSelect = "none";
+        this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas2D);
+
+        // Create and set up 3D canvas
+        this.canvas3D = document.createElement("canvas");
+        this.canvas3D.style.width = "100%";
+        this.canvas3D.style.height = "100%";
+        this.canvas3D.style.position = "absolute";
+        this.canvas3D.style.top = "0";
+        this.canvas3D.style.left = "0";
+        this.canvas3D.style.display = "none";
+        this.canvas3D.style.userSelect = "none";
+        this.imageContainer.querySelector(".canvas-container").appendChild(this.canvas3D);
+
+        // Create and set up ROI canvas
+        this.roiCanvas = document.createElement("canvas");
+        this.roiCtx = this.roiCanvas.getContext("2d");
+        this.roiCanvas.style.width = "100%";
+        this.roiCanvas.style.height = "100%";
+        this.roiCanvas.style.position = "absolute";
+        this.roiCanvas.style.top = "0";
+        this.roiCanvas.style.left = "0";
+        this.roiCanvas.style.pointerEvents = "none";
+        this.roiCanvas.style.display = "none";
+        this.roiCanvas.style.userSelect = "none";
+        this.imageContainer.querySelector(".canvas-container").appendChild(this.roiCanvas);
     }
 
     getLabel() {
@@ -102,28 +105,29 @@ class ImageViewer {
     }
 
     setupEventListeners() {
-        this.uploadBtn?.addEventListener("click", () => {
-            console.log("Upload button clicked");
-            this.fileInput?.click();
-        });
+        if (this.uploadBtn) {
+            this.uploadBtn.onclick = () => {
+                console.log("Upload button clicked");
+                if (this.fileInput) this.fileInput.click();
+            };
+        }
 
-        this.fileInput?.addEventListener("change", (e) => {
-            console.log("File input changed");
-            const file = e.target.files[0];
-            if (file) {
-                this.uploadFile(file);
-            }
-        });
+        if (this.fileInput) {
+            this.fileInput.onchange = (e) => {
+                console.log("File input changed");
+                const file = e.target.files[0];
+                if (file) {
+                    this.uploadFile(file);
+                }
+            };
+        }
 
-        this.viewModeBtn?.addEventListener("click", () => {
-            console.log("View mode button clicked");
-            this.toggleViewMode();
-        });
-
-        this.windowLevelBtn?.addEventListener("click", () => {
-            console.log("Window level button clicked");
-            this.toggleWindowLevelMode();
-        });
+        if (this.windowLevelBtn) {
+            this.windowLevelBtn.addEventListener("click", () => {
+                console.log("Window level button clicked");
+                this.toggleWindowLevelMode();
+            });
+        }
 
         this.optimizeWindowBtn?.addEventListener("click", () => {
             console.log("Optimize window button clicked");
@@ -282,35 +286,48 @@ class ImageViewer {
         );
 
         this.canvas2D.addEventListener("mousedown", (e) => {
-            if (
-                !this.is3DMode &&
-                this.windowLevelBtn.classList.contains("active")
-            ) {
+            if (this.windowLevelBtn?.classList.contains("active")) {
                 console.log("Starting window/level adjustment");
                 this.isDragging = true;
                 this.dragStart = { x: e.clientX, y: e.clientY };
                 this.startWindowCenter = this.windowCenter;
                 this.startWindowWidth = this.windowWidth;
                 e.preventDefault();
+                this.canvas2D.style.cursor = "crosshair";
             }
         });
 
         this.canvas2D.addEventListener("mousemove", (e) => {
-            if (
-                this.isDragging &&
-                this.windowLevelBtn.classList.contains("active")
-            ) {
-                this.handleWindowLevelDrag(e);
+            if (this.isDragging && this.windowLevelBtn?.classList.contains("active")) {
+                const dx = e.clientX - this.dragStart.x;
+                const dy = this.dragStart.y - e.clientY;
+
+                const windowWidthScale = (this.maxVal - this.minVal) / 500;
+                const windowCenterScale = (this.maxVal - this.minVal) / 500;
+
+                this.windowWidth = Math.max(1, this.startWindowWidth + dx * windowWidthScale);
+                this.windowCenter = this.startWindowCenter + dy * windowCenterScale;
+
+                this.windowCenter = Math.max(this.minVal, Math.min(this.maxVal, this.windowCenter));
+
+                console.log(`Window/Level adjusted - C: ${this.windowCenter.toFixed(2)}, W: ${this.windowWidth.toFixed(2)}`);
+                this.updateSlice();
                 e.preventDefault();
             }
         });
 
         this.canvas2D.addEventListener("mouseup", () => {
-            this.isDragging = false;
+            if (this.isDragging) {
+                this.isDragging = false;
+                this.canvas2D.style.cursor = this.windowLevelBtn?.classList.contains("active") ? "crosshair" : "default";
+            }
         });
 
         this.canvas2D.addEventListener("mouseleave", () => {
-            this.isDragging = false;
+            if (this.isDragging) {
+                this.isDragging = false;
+                this.canvas2D.style.cursor = this.windowLevelBtn?.classList.contains("active") ? "crosshair" : "default";
+            }
         });
 
         window.addEventListener("resize", () => {
@@ -357,86 +374,89 @@ class ImageViewer {
         this.is3DMode = !this.is3DMode;
         console.log(`Switching to ${this.is3DMode ? "3D" : "2D"} mode`);
 
-        this.canvas2D.style.display = this.is3DMode ? "none" : "block";
-        this.canvas3D.style.display = this.is3DMode ? "block" : "none";
-        this.roiCanvas.style.display = this.is3DMode ? "none" : "block";
-
-        this.canvas2D.style.pointerEvents = this.is3DMode ? "none" : "auto";
-        this.canvas3D.style.pointerEvents = this.is3DMode ? "auto" : "none";
-
-        this.viewModeBtn.classList.toggle("active");
-        this.windowLevelBtn.classList.remove("active");
-        this.optimizeWindowBtn.classList.remove("active");
-
         if (this.is3DMode) {
-            this.camera.attachControl(this.canvas3D, true);
+            // Switch to 3D mode
+            this.canvas2D.style.display = "none";
+            this.canvas3D.style.display = "block";
+            this.roiCanvas.style.display = "none";
+            
+            if (this.camera3D) {
+                this.camera3D.attachControl(this.canvas3D, true);
+                this.scene.activeCamera = this.camera3D;
+            }
+            
+            if (this.cube) {
+                this.cube.setEnabled(true);
+            }
+            
             if (this.imageData) {
                 this.updateTexture();
             }
         } else {
-            this.camera.detachControl();
-            this.resizeCanvases();
-            this.updateSlice();
+            // Switch to 2D mode
+            this.canvas2D.style.display = "block";
+            this.canvas3D.style.display = "none";
+            this.roiCanvas.style.display = "block";
+            
+            if (this.camera3D) {
+                this.camera3D.detachControl();
+            }
+            
+            if (this.cube) {
+                this.cube.setEnabled(false);
+            }
+            
+            if (this.imageData) {
+                this.resizeCanvases();
+                this.updateSlice();
+            }
+        }
+
+        if (this.viewModeBtn) {
+            this.viewModeBtn.classList.toggle("active");
+            this.windowLevelBtn?.classList.remove("active");
+            this.optimizeWindowBtn?.classList.remove("active");
         }
     }
 
     toggleWindowLevelMode() {
         if (!this.is3DMode) {
             console.log("Toggling window/level mode");
-            this.windowLevelBtn.classList.toggle("active");
-            this.optimizeWindowBtn.classList.remove("active");
-            this.canvas2D.style.cursor = this.windowLevelBtn.classList.contains(
-                "active",
-            )
-                ? "crosshair"
-                : "default";
-            this.roiCanvas.style.pointerEvents = "none";
+            
+            // Toggle the active state of the window/level button
+            if (this.windowLevelBtn) {
+                const isActive = this.windowLevelBtn.classList.toggle("active");
+                
+                // Update cursor style based on active state
+                this.canvas2D.style.cursor = isActive ? "crosshair" : "default";
+                
+                // If activating window/level, deactivate optimize window
+                if (isActive && this.optimizeWindowBtn) {
+                    this.optimizeWindowBtn.classList.remove("active");
+                    this.roiCanvas.style.pointerEvents = "none";
+                }
+            }
         }
     }
 
     toggleOptimizeWindow() {
         if (!this.is3DMode) {
             console.log("Toggling optimize window mode");
-            this.optimizeWindowBtn.classList.toggle("active");
-            this.windowLevelBtn.classList.remove("active");
-
-            if (this.optimizeWindowBtn.classList.contains("active")) {
-                this.roiCanvas.style.pointerEvents = "auto";
-                this.roiCanvas.style.touchAction = "none";
-                this.roiCanvas.style.zIndex = "1";
-            } else {
-                this.roiCanvas.style.pointerEvents = "none";
-                this.roiCanvas.style.touchAction = "auto";
-                this.roiCanvas.style.zIndex = "0";
+            
+            // Toggle the active state of the optimize window button
+            const isActive = this.optimizeWindowBtn.classList.toggle("active");
+            
+            // If activating optimize window, deactivate window/level
+            if (isActive && this.windowLevelBtn) {
+                this.windowLevelBtn.classList.remove("active");
+                this.canvas2D.style.cursor = "default";
             }
-            this.canvas2D.style.cursor = "default";
+
+            // Update ROI canvas interaction based on active state
+            this.roiCanvas.style.pointerEvents = isActive ? "auto" : "none";
+            this.roiCanvas.style.touchAction = isActive ? "none" : "auto";
+            this.roiCanvas.style.zIndex = isActive ? "1" : "0";
         }
-    }
-
-    handleWindowLevelDrag(e) {
-        if (!this.isDragging) return;
-
-        const dx = e.clientX - this.dragStart.x;
-        const dy = this.dragStart.y - e.clientY;
-
-        const windowWidthScale = (this.maxVal - this.minVal) / 500;
-        const windowCenterScale = (this.maxVal - this.minVal) / 500;
-
-        this.windowWidth = Math.max(
-            1,
-            this.startWindowWidth + dx * windowWidthScale,
-        );
-        this.windowCenter = this.startWindowCenter + dy * windowCenterScale;
-
-        this.windowCenter = Math.max(
-            this.minVal,
-            Math.min(this.maxVal, this.windowCenter),
-        );
-
-        console.log(
-            `Window/Level adjusted - C: ${this.windowCenter}, W: ${this.windowWidth}`,
-        );
-        this.updateSlice();
     }
 
     rotate(degrees) {
@@ -474,14 +494,17 @@ class ImageViewer {
     }
 
     async updateSlice() {
-        if (!this.imageData || !this.imageData.length) return;
-
-        if (this.is3DMode) {
-            this.updateTexture();
+        if (!this.imageData || !this.imageData.length) {
+            console.log("No image data available");
             return;
         }
 
+        console.log(`Updating slice ${this.currentSlice + 1}/${this.totalSlices}`);
+        console.log(`Canvas dimensions: ${this.canvas2D.width}x${this.canvas2D.height}`);
+        console.log(`Image dimensions: ${this.width}x${this.height}`);
+
         const pixels = await this.loadSliceData(this.currentSlice);
+        console.log("Loaded slice data, length:", pixels.length);
 
         const tempCanvas = document.createElement("canvas");
         tempCanvas.width = this.width;
@@ -494,15 +517,15 @@ class ImageViewer {
         const low = this.windowCenter - this.windowWidth / 2;
         const high = this.windowCenter + this.windowWidth / 2;
         const range = high - low;
-        const scale = 255 / range;
+        const valueScale = 255 / range;
+
+        console.log(`Window settings - Center: ${this.windowCenter}, Width: ${this.windowWidth}`);
+        console.log(`Value range - Low: ${low}, High: ${high}`);
 
         const length = pixels.length;
         for (let i = 0; i < length; i++) {
             const value = pixels[i];
-            const normalizedValue = Math.max(
-                0,
-                Math.min(1, (value - low) / range),
-            );
+            const normalizedValue = Math.max(0, Math.min(1, (value - low) / range));
             const pixelValue = Math.round(normalizedValue * 255);
             const index = i << 2;
             data[index] = pixelValue;
@@ -513,40 +536,33 @@ class ImageViewer {
 
         tempCtx.putImageData(imageData, 0, 0);
 
-        requestAnimationFrame(() => {
-            this.ctx2D.clearRect(
-                0,
-                0,
-                this.canvas2D.width,
-                this.canvas2D.height,
-            );
+        // Clear the entire canvas before drawing
+        this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+
+        // Calculate the scaling to fit the image while maintaining aspect ratio
+        const displayScale = Math.min(
+            this.canvas2D.width / this.width,
+            this.canvas2D.height / this.height
+        );
+        const x = (this.canvas2D.width - this.width * displayScale) / 2;
+        const y = (this.canvas2D.height - this.height * displayScale) / 2;
+
+        console.log(`Drawing image at (${x}, ${y}) with scale ${displayScale}`);
 
             if (this.rotation !== 0) {
                 this.ctx2D.save();
-                this.ctx2D.translate(
-                    this.canvas2D.width / 2,
-                    this.canvas2D.height / 2,
-                );
+            this.ctx2D.translate(this.canvas2D.width / 2, this.canvas2D.height / 2);
                 this.ctx2D.rotate((this.rotation * Math.PI) / 180);
-                this.ctx2D.translate(
-                    -this.canvas2D.width / 2,
-                    -this.canvas2D.height / 2,
-                );
-            }
+            this.ctx2D.translate(-this.canvas2D.width / 2, -this.canvas2D.height / 2);
+        }
 
-            const scale = Math.min(
-                this.canvas2D.width / this.width,
-                this.canvas2D.height / this.height,
-            );
-            const x = (this.canvas2D.width - this.width * scale) / 2;
-            const y = (this.canvas2D.height - this.height * scale) / 2;
-
+        // Draw the image
             this.ctx2D.drawImage(
                 tempCanvas,
                 x,
                 y,
-                this.width * scale,
-                this.height * scale,
+            this.width * displayScale,
+            this.height * displayScale
             );
 
             if (this.rotation !== 0) {
@@ -555,9 +571,13 @@ class ImageViewer {
 
             const infoElement = this.container.querySelector(".image-info");
             if (infoElement) {
-                infoElement.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices}`;
+                infoElement.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices} | Voxel Size: ${this.voxelWidth.toFixed(2)} × ${this.voxelHeight.toFixed(2)} × ${this.voxelDepth.toFixed(2)} mm`;
             }
-        });
+
+        // Hide the upload overlay if it exists
+        if (this.uploadOverlay) {
+            this.uploadOverlay.style.display = "none";
+        }
     }
 
     drawROI() {
@@ -680,16 +700,14 @@ class ImageViewer {
                 false,
                 false,
                 BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-                BABYLON.Engine.TEXTURETYPE_FLOAT,
+                BABYLON.Engine.TEXTURETYPE_FLOAT
             );
 
-            const material = new BABYLON.StandardMaterial(
-                "imageMaterial",
-                this.scene,
-            );
+            const material = new BABYLON.StandardMaterial("imageMaterial", this.scene);
             material.diffuseTexture = this.texture;
             material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
             material.useFloatValues = true;
+            material.backFaceCulling = false;
 
             this.cube.material = material;
         } else {
@@ -711,6 +729,9 @@ class ImageViewer {
             maxVal: this.maxVal,
             is3DMode: this.is3DMode,
             imageLabel: this.imageLabel,
+            voxelWidth: this.voxelWidth,
+            voxelHeight: this.voxelHeight,
+            voxelDepth: this.voxelDepth
         };
     }
 
@@ -732,6 +753,9 @@ class ImageViewer {
         this.minVal = state.minVal || 0;
         this.maxVal = state.maxVal || 255;
         this.is3DMode = state.is3DMode || false;
+        this.voxelWidth = state.voxelWidth || 1;
+        this.voxelHeight = state.voxelHeight || 1;
+        this.voxelDepth = state.voxelDepth || 1;
 
         if (this.imageData) {
             this.resizeCanvases();
@@ -759,36 +783,30 @@ class ImageViewer {
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
-        this.camera = new BABYLON.ArcRotateCamera(
-            "camera",
+        // Create camera for 3D view
+        this.camera3D = new BABYLON.ArcRotateCamera(
+            "camera3D",
             0,
             Math.PI / 3,
             10,
             BABYLON.Vector3.Zero(),
-            this.scene,
+            this.scene
         );
-        this.camera.setTarget(BABYLON.Vector3.Zero());
-        this.camera.attachControl(this.canvas3D, true);
+        this.camera3D.setTarget(BABYLON.Vector3.Zero());
+        this.camera3D.attachControl(this.canvas3D, true);
 
-        const material = new BABYLON.StandardMaterial(
-            "cubeMaterial",
-            this.scene,
-        );
-        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        // Create materials
+        const material = new BABYLON.StandardMaterial("imageMaterial", this.scene);
         material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+        material.useFloatValues = true;
+        material.backFaceCulling = false;
 
-        this.cube = BABYLON.MeshBuilder.CreateBox(
-            "cube",
-            { size: 2 },
-            this.scene,
-        );
+        // Create cube for 3D view
+        this.cube = BABYLON.MeshBuilder.CreateBox("cube", { size: 2 }, this.scene);
         this.cube.material = material;
+        this.cube.setEnabled(false);  // Hide initially
 
-        new BABYLON.HemisphericLight(
-            "light",
-            new BABYLON.Vector3(0, 1, 0),
-            this.scene,
-        );
+        new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), this.scene);
 
         this.engine.runRenderLoop(() => {
             this.scene.render();
@@ -899,12 +917,23 @@ class ImageViewer {
         this.maxVal = result.metadata.max_value;
         this.width = result.metadata.dimensions[0];
         this.height = result.metadata.dimensions[1];
+        // Store voxel dimensions
+        this.voxelWidth = result.metadata.voxel_dimensions?.[0] || 1;
+        this.voxelHeight = result.metadata.voxel_dimensions?.[1] || 1;
+        this.voxelDepth = result.metadata.voxel_dimensions?.[2] || 1;
 
         this.windowWidth = (this.maxVal - this.minVal) / 2;
         this.windowCenter = this.minVal + this.windowWidth;
 
-        if (this.is3DMode) {
-            this.toggleViewMode();
+        // Use 2D canvas by default for initial load
+        this.is3DMode = false;
+        this.canvas2D.style.display = "block";
+        this.canvas3D.style.display = "none";
+        this.roiCanvas.style.display = "block";
+
+        // Hide the upload overlay
+        if (this.uploadOverlay) {
+            this.uploadOverlay.style.display = "none";
         }
 
         this.resizeCanvases();
@@ -979,8 +1008,8 @@ class ImageViewer {
             return;
         }
 
-        // Get all viewers with loaded images
-        const viewers = Array.from(document.querySelectorAll(".image-window"))
+        // Get all viewers with loaded images and store as class property
+        this.registrationViewers = Array.from(document.querySelectorAll(".image-window"))
             .map((container, index) => ({
                 index,
                 label: container.viewer?.getLabel() || `Image ${index + 1}`,
@@ -988,9 +1017,9 @@ class ImageViewer {
             }))
             .filter(viewer => viewer.viewer && viewer.viewer.imageData);
 
-        console.log(`Found ${viewers.length} viewers with images`);
+        console.log(`Found ${this.registrationViewers.length} viewers with images`);
 
-        if (viewers.length < 2) {
+        if (this.registrationViewers.length < 2) {
             alert("Please load at least two images before attempting registration");
             return;
         }
@@ -1008,7 +1037,7 @@ class ImageViewer {
         targetSelect.innerHTML = '<option value="">Select fixed image...</option>';
 
         // Add options for each viewer
-        viewers.forEach(({index, label}) => {
+        this.registrationViewers.forEach(({index, label}) => {
             const option = document.createElement('option');
             option.value = index;
             option.textContent = label;
@@ -1028,550 +1057,103 @@ class ImageViewer {
         cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
 
         newRegisterBtn.addEventListener("click", async () => {
-            await handleRegister.call(this, modal, sourceSelect, targetSelect);
+            await this.handleRegister();
         });
 
         newCancelBtn.addEventListener("click", () => {
             modal.classList.remove("show");
         });
 
-        // Show the modal
         modal.classList.add("show");
     }
 
-    showRotate180Dialog() {
-        console.log("Opening rotate 180 dialog");
-        const modal = document.getElementById("rotate180Modal");
-        const imageSelect = document.getElementById("rotate180ImageSelect");
-        const rotateBtn = modal.querySelector(".rotate-btn");
-        const cancelBtn = modal.querySelector(".cancel-btn");
-
-        // Store the viewer that initiated the rotate command (the window where the menu was clicked)
-        const initiatingViewer = this;
-        console.log("Dialog initiated from viewer:", initiatingViewer.container.id);
-
-        if (!modal || !imageSelect) {
-            console.error("Required modal elements not found");
-            return;
-        }
-
-        // Clear and initialize the select dropdown
-        imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
-
-        // Find all viewers with images
-        const viewers = [];
-        document.querySelectorAll(".image-window").forEach((container, index) => {
-            if (container.viewer && container.viewer.imageData) {
-                const label = container.viewer.getLabel() || `Unlabeled`;
-                viewers.push({
-                    index,
-                    label,
-                    viewer: container.viewer
-                });
-            }
-        });
-
-        // Populate select options
-        viewers.forEach((viewerInfo) => {
-            const option = document.createElement('option');
-            option.value = viewerInfo.index;
-            option.textContent = `Image ${viewerInfo.index + 1} (${viewerInfo.label})`;
-            imageSelect.appendChild(option);
-        });
-
-        // Handle rotate button click
-        rotateBtn.onclick = async () => {
-            const selectedIdx = parseInt(imageSelect.value);
-            if (isNaN(selectedIdx)) {
-                alert("Please select an image to rotate");
-                return;
-            }
-
-            const sourceViewer = viewers.find(v => v.index === selectedIdx)?.viewer;
-            if (!sourceViewer) {
-                alert("Selected image not found");
-                return;
-            }
-
-            try {
-                const response = await fetch(`${BASE_URL}/api/rotate180`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        image_data: sourceViewer.imageData,
-                        metadata: {
-                            dimensions: [sourceViewer.width, sourceViewer.height],
-                            min_value: sourceViewer.minVal,
-                            max_value: sourceViewer.maxVal,
-                            total_slices: sourceViewer.totalSlices
-                        }
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Server returned ${response.status}`);
-                }
-
-                const result = await response.json();
-                console.log("Rotation response:", result);
-
-                if (result.success) {
-                    // Update the initiating viewer with the rotated image data
-                    console.log("Updating initiating viewer with rotated data");
-
-                    // First clear the existing state
-                    initiatingViewer.clearImageState();
-
-                    // Then set the new state with rotated data
-                    initiatingViewer.setState({
-                        imageData: result.data,
-                        width: result.metadata.dimensions[0],
-                        height: result.metadata.dimensions[1],
-                        minVal: result.metadata.min_value,
-                        maxVal: result.metadata.max_value,
-                        windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
-                        windowWidth: result.metadata.max_value - result.metadata.min_value,
-                        totalSlices: result.data.length,
-                        currentSlice: 0,
-                        is3DMode: false,
-                        rotation: 0,
-                        imageLabel: `${sourceViewer.getLabel()} (Rotated)`
-                    });
-
-                    modal.classList.remove("show");
-                } else {
-                    throw new Error(result.message || "Rotation failed");
-                }
-            } catch (error) {
-                console.error("Error during rotation:", error);
-                alert(`Failed to rotate image: ${error.message}`);
-            }
-        };
-
-        // Handle cancel button click
-        cancelBtn.onclick = () => {
-            modal.classList.remove("show");
-        };
-
-        // Show the modal
-        modal.classList.add("show");
-    }
-
-    async handleRegister(modal, sourceSelect, targetSelect) {
+    async handleRegister() {
         try {
-            const sourceIndex = parseInt(sourceSelect.value);
-            const targetIndex = parseInt(targetSelect.value);
+            const sourceSelect = document.getElementById("registrationSourceSelect");
+            const targetSelect = document.getElementById("registrationTargetSelect");
 
-            if (isNaN(sourceIndex) || isNaN(targetIndex)) {
-                alert("Please select both moving and fixed images");
+            if (!sourceSelect || !targetSelect) {
+                console.error("Source or target select not found");
                 return;
             }
 
-            const movingViewer = viewers[sourceIndex].viewer;
-            const fixedViewer = viewers[targetIndex].viewer;
-            const initiatingViewer = this; // Store the viewer that initiated the registration
+            const sourceViewer = this.registrationViewers[sourceSelect.value].viewer;
+            const targetViewer = this.registrationViewers[targetSelect.value].viewer;
 
-            if (!movingViewer || !fixedViewer) {
-                alert("Selected viewers not found");
+            if (!sourceViewer || !targetViewer) {
+                console.error("Source or target viewer not found");
                 return;
             }
 
-            console.log("Preparing registration data...");
-            console.log(`Moving viewer dimensions: ${movingViewer.width}x${movingViewer.height}`);
-            console.log(`Fixed viewer dimensions: ${fixedViewer.width}x${fixedViewer.height}`);
+            const sourceState = sourceViewer.getState();
+            const targetState = targetViewer.getState();
 
             const requestData = {
-                moving_image: {
-                    data: movingViewer.imageData,
+                fixed_image: {
+                    data: targetState.imageData,
                     metadata: {
-                        dimensions: [movingViewer.width, movingViewer.height],
-                        spacing: [1.0, 1.0, movingViewer.imageData.length / fixedViewer.imageData.length]  // Estimate spacing
+                        dimensions: [targetState.width, targetState.height],
+                        voxel_dimensions: [targetState.voxelWidth, targetState.voxelHeight, targetState.voxelDepth],
+                        min_value: targetState.minVal,
+                        max_value: targetState.maxVal
                     }
                 },
-                fixed_image: {
-                    data: fixedViewer.imageData,
+                moving_image: {
+                    data: sourceState.imageData,
                     metadata: {
-                        dimensions: [fixedViewer.width, fixedViewer.height],
-                        spacing: [1.0, 1.0, 1.0]  // Reference spacing
+                        dimensions: [sourceState.width, sourceState.height],
+                        voxel_dimensions: [sourceState.voxelWidth, sourceState.voxelHeight, sourceState.voxelDepth],
+                        min_value: sourceState.minVal,
+                        max_value: sourceState.maxVal
                     }
                 }
             };
 
-            modal.classList.add("loading");
-            console.log("Sending registration request...");
-
             const response = await fetch(`${BASE_URL}/api/registration`, {
-                method: "POST",
+                method: 'POST',
                 headers: {
-                    "Content-Type": "application/json"
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(requestData)
             });
 
-            if (!response.ok) {
-                throw new Error(`Registration failed: ${response.statusText}`);
-            }
-
             const result = await response.json();
+            if (result.success) {
+                // Clear the existing state of the initiating viewer
+                this.clearImageState();
 
-            if (result.success && result.data) {
-                // Update the initiating viewer with registered data
-                console.log("Registration successful, updating viewer...");
-                initiatingViewer.loadImageData(result);
-                modal.classList.remove("show", "loading");
-            } else {
-                throw new Error(result.message || "Registration failed");
-            }
-
-        } catch (error) {
-            console.error("Registration error:", error);
-            alert(`Registration failed: ${error.message}`);
-            modal.classList.remove("loading");
-        }
-    }
-
-    getState() {
-        return {
-            imageData: this.imageData,
-            currentSlice: this.currentSlice,
-            totalSlices: this.totalSlices,
-            windowCenter: this.windowCenter,
-            windowWidth: this.windowWidth,
-            rotation: this.rotation,
-            width: this.width,
-            height: this.height,
-            minVal: this.minVal,
-            maxVal: this.maxVal,
-            is3DMode: this.is3DMode,
-            imageLabel: this.imageLabel,
-        };
-    }
-
-    setState(state) {
-        if (!state) return;
-
-        this.imageData = state.imageData ? [...state.imageData] : null;
-        this.currentSlice = state.currentSlice || 0;
-        this.totalSlices = state.totalSlices || 1;
-        if (!isNaN(state.windowCenter)) {
-            this.windowCenter = state.windowCenter;
-        }
-        if (!isNaN(state.windowWidth) && state.windowWidth > 0) {
-            this.windowWidth = state.windowWidth;
-        }
-        this.rotation = state.rotation || 0;
-        this.width = state.width || 0;
-        this.height = state.height || 0;
-        this.minVal = state.minVal || 0;
-        this.maxVal = state.maxVal || 255;
-        this.is3DMode = state.is3DMode || false;
-
-        if (this.imageData) {
-            this.resizeCanvases();
-            this.canvas2D.style.display = this.is3DMode ? "none" : "block";
-            this.canvas3D.style.display = this.is3DMode ? "block" : "none";
-            this.roiCanvas.style.display = this.is3DMode ? "none" : "block";
-
-            if (this.is3DMode) {
-                this.updateTexture();
-            } else {
-                this.updateSlice();
-            }
-
-            if (this.uploadOverlay) {
-                this.uploadOverlay.style.display = "none";
-            }
-        }
-        if (state.imageLabel) {
-            this.setLabel(state.imageLabel);
-        }
-    }
-
-    initializeBabylonScene() {
-        this.engine = new BABYLON.Engine(this.canvas3D, true);
-        this.scene = new BABYLON.Scene(this.engine);
-        this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
-
-        this.camera = new BABYLON.ArcRotateCamera(
-            "camera",
-            0,
-            Math.PI / 3,
-            10,
-            BABYLON.Vector3.Zero(),
-            this.scene,
-        );
-        this.camera.setTarget(BABYLON.Vector3.Zero());
-        this.camera.attachControl(this.canvas3D, true);
-
-        const material = new BABYLON.StandardMaterial(
-            "cubeMaterial",
-            this.scene,
-        );
-        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-        material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-
-        this.cube = BABYLON.MeshBuilder.CreateBox(
-            "cube",
-            { size: 2 },
-            this.scene,
-        );
-        this.cube.material = material;
-
-        new BABYLON.HemisphericLight(
-            "light",
-            new BABYLON.Vector3(0, 1, 0),
-            this.scene,
-        );
-
-        this.engine.runRenderLoop(() => {
-            this.scene.render();
-        });
-    }
-
-    async uploadFile(file) {
-        try {
-            this.clearImageState();
-
-            const formData = new FormData();
-            formData.append("file", file);
-
-            const response = await fetch(`${BASE_URL}/upload`, {
-                method: "POST",
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error(`Upload failed: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-            console.log("Upload response:", result);
-
-            if (result.success && result.data) {
-                console.log("Upload successful, processing image data...");
-
-                if (this.uploadOverlay) {
-                    this.uploadOverlay.style.display = "none";
-                }
-
-                this.loadImageData(result);
-            } else {
-                console.error("Upload failed:", result.message);
-            }
-        } catch (error) {
-            console.error("Error uploading file:", error);
-        }
-    }
-
-    async loadRemoteFile(path) {
-        console.log("Loading remote file:", path);
-        try {
-            this.clearImageState();
-
-            const response = await fetch(
-                `${BASE_URL}/load?path=${encodeURIComponent(path)}`,
-            );
-            if (!response.ok) {
-                throw new Error(`Failed to load file: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-            if (result.success && result.data) {
-                this.loadImageData(result);
-                this.urlImportModal.classList.remove("show");
-            } else {
-                throw new Error(result.message || "Failed to load image data");
-            }
-        } catch (error) {
-            console.error("Error loading remote file:", error);
-        }
-    }
-
-    clearImageState() {
-        this.imageData = null;
-        this.currentSlice = 0;
-        this.totalSlices = 1;
-        this.windowCenter = 128;
-        this.windowWidth = 256;
-        this.rotation = 0;
-        this.width = 0;
-        this.height = 0;
-        this.minVal = 0;
-        this.maxVal = 255;
-
-        this.pixelCache.clear();
-
-        this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
-        this.roiCtx.clearRect(
-            0,
-            0,
-            this.roiCanvas.width,
-            this.roiCanvas.height,
-        );
-
-        this.isDrawingROI = false;
-        this.roiStart = null;
-        this.roiEnd = null;
-
-        if (this.texture) {
-            this.texture.dispose();
-            this.texture = null;
-        }
-
-        const infoElement = this.container.querySelector(".image-info");
-        if (infoElement) {
-            infoElement.textContent = "Window: C: 0 W: 0 | Slice: 0/0";
-        }
-    }
-
-    loadImageData(result) {
-        this.imageData = result.data;
-        this.totalSlices = this.imageData.length;
-        this.currentSlice = 0;
-        this.minVal = result.metadata.min_value;
-        this.maxVal = result.metadata.max_value;
-        this.width = result.metadata.dimensions[0];
-        this.height = result.metadata.dimensions[1];
-
-        this.windowWidth = (this.maxVal - this.minVal) / 2;
-        this.windowCenter = this.minVal + this.windowWidth;
-
-        if (this.is3DMode) {
-            this.toggleViewMode();
-        }
-
-        this.resizeCanvases();
-        this.updateSlice();
-    }
-
-    async showDirectoryBrowser(path = "images") {
-        console.log("Showing directory browser for path:", path);
-        this.urlImportModal.classList.add("show");
-        this.currentPathElement.textContent = path;
-
-        try {
-            this.directoryList.innerHTML =
-                '<div class="loading">Loading...</div>';
-
-            const response = await fetch(
-                `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
-            );
-            if (!response.ok) {
-                throw new Error(`Failed to load directory: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            console.log("Directory contents:", data);
-
-            this.directoryList.innerHTML = "";
-
-            if (path !== "images") {
-                const parentPath =
-                    path.split("/").slice(0, -1).join("/") || "images";
-                const parentDir = document.createElement("div");
-                parentDir.className = "directory-item folder";
-                parentDir.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
-                parentDir.addEventListener("click", () =>
-                    this.showDirectoryBrowser(parentPath)
-                );
-                this.directoryList.appendChild(parentDir);
-            }
-
-            data.directories?.forEach((dir) => {
-                const dirElement = document.createElement("div");
-                dirElement.className = "directory-item folder";
-                dirElement.innerHTML = `<i class="fas fa-folder"></i> ${dir}`;
-                dirElement.addEventListener("click", () => {
-                    this.showDirectoryBrowser(`${path}/${dir}`);
+                // Update the initiating viewer with the registered image
+                this.setState({
+                    imageData: result.data,
+                    width: result.metadata.dimensions[0],
+                    height: result.metadata.dimensions[1],
+                    minVal: result.metadata.min_value,
+                    maxVal: result.metadata.max_value,
+                    totalSlices: result.data.length,
+                    currentSlice: 0,
+                    windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
+                    windowWidth: result.metadata.max_value - result.metadata.min_value,
+                    voxelWidth: result.metadata.voxel_dimensions[0],
+                    voxelHeight: result.metadata.voxel_dimensions[1],
+                    voxelDepth: result.metadata.voxel_dimensions[2],
+                    is3DMode: false,
+                    rotation: 0,
+                    imageLabel: `${sourceViewer.getLabel()} (Registered to ${targetViewer.getLabel()})`
                 });
-                this.directoryList.appendChild(dirElement);
-            });
 
-            data.files?.forEach((file) => {
-                if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
-                    const fileElement = document.createElement("div");
-                    fileElement.className = "directory-item image";
-                    fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
-                    fileElement.addEventListener("click", () => {
-                        this.loadRemoteFile(`${path}/${file}`);
-                    });
-                    this.directoryList.appendChild(fileElement);
+                // Close the registration dialog
+                const modal = document.getElementById("registrationModal");
+                if (modal) {
+                    modal.classList.remove("show");
                 }
-            });
+            } else {
+                console.error("Registration failed:", result.message);
+                alert("Registration failed: " + result.message);
+            }
         } catch (error) {
-            console.error("Error loading directory:", error);
-            this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
+            console.error("Error during registration:", error);
+            alert("Error during registration: " + error.message);
         }
-    }
-
-    async showRegistrationDialog() {
-        console.log("Opening registration dialog");
-        const modal = document.getElementById("registrationModal");
-        if (!modal) {
-            console.error("Registration modal not found");
-            return;
-        }
-
-        // Get all viewers with loaded images
-        const viewers = Array.from(document.querySelectorAll(".image-window"))
-            .map((container, index) => ({
-                index,
-                label: container.viewer?.getLabel() || `Image ${index + 1}`,
-                viewer: container.viewer
-            }))
-            .filter(viewer => viewer.viewer && viewer.viewer.imageData);
-
-        console.log(`Found ${viewers.length} viewers with images`);
-
-        if (viewers.length < 2) {
-            alert("Please load at least two images before attempting registration");
-            return;
-        }
-
-        const sourceSelect = document.getElementById("registrationSourceSelect");
-        const targetSelect = document.getElementById("registrationTargetSelect");
-
-        if (!sourceSelect || !targetSelect) {
-            console.error("Registration selects not found");
-            return;
-        }
-
-        // Clear previous options
-        sourceSelect.innerHTML = '<option value="">Select moving image...</option>';
-        targetSelect.innerHTML = '<option value="">Select fixed image...</option>';
-
-        // Add options for each viewer
-        viewers.forEach(({index, label}) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = label;
-
-            sourceSelect.appendChild(option.cloneNode(true));
-            targetSelect.appendChild(option.cloneNode(true));
-        });
-
-        // Handle registration
-        const registerBtn = modal.querySelector(".register-btn");
-        const cancelBtn = modal.querySelector(".cancel-btn");
-
-        // Remove any existing event listeners
-        const newRegisterBtn = registerBtn.cloneNode(true);
-        const newCancelBtn = cancelBtn.cloneNode(true);
-        registerBtn.parentNode.replaceChild(newRegisterBtn, registerBtn);
-        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-
-        newRegisterBtn.addEventListener("click", async () => {
-            await handleRegister.call(this, modal, sourceSelect, targetSelect);
-        });
-
-        newCancelBtn.addEventListener("click", () => {
-            modal.classList.remove("show");
-        });
-
-        // Show the modal
-        modal.classList.add("show");
     }
 
     showRotate180Dialog() {
@@ -1692,633 +1274,124 @@ class ImageViewer {
 
         // Show the modal
         modal.classList.add("show");
-    }
-
-    async handleRegister(modal, sourceSelect, targetSelect) {
-        try {
-            const sourceIndex = parseInt(sourceSelect.value);
-            const targetIndex = parseInt(targetSelect.value);
-
-            if (isNaN(sourceIndex) || isNaN(targetIndex)) {
-                alert("Please select both moving and fixed images");
-                return;
-            }
-
-            const movingViewer = viewers[sourceIndex].viewer;
-            const fixedViewer = viewers[targetIndex].viewer;
-            const initiatingViewer = this; // Store the viewer that initiated the registration
-
-            if (!movingViewer || !fixedViewer) {
-                alert("Selected viewers not found");
-                return;
-            }
-
-            console.log("Preparing registration data...");
-            console.log(`Moving viewer dimensions: ${movingViewer.width}x${movingViewer.height}`);
-            console.log(`Fixed viewer dimensions: ${fixedViewer.width}x${fixedViewer.height}`);
-
-            const requestData = {
-                moving_image: {
-                    data: movingViewer.imageData,
-                    metadata: {
-                        dimensions: [movingViewer.width, movingViewer.height],
-                        spacing: [1.0, 1.0, movingViewer.imageData.length / fixedViewer.imageData.length]  // Estimate spacing
-                    }
-                },
-                fixed_image: {
-                    data: fixedViewer.imageData,
-                    metadata: {
-                        dimensions: [fixedViewer.width, fixedViewer.height],
-                        spacing: [1.0, 1.0, 1.0]  // Reference spacing
-                    }
-                }
-            };
-
-            modal.classList.add("loading");
-            console.log("Sending registration request...");
-
-            const response = await fetch(`${BASE_URL}/api/registration`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(requestData)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Registration failed: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-
-            if (result.success && result.data) {
-                // Update the initiating viewer with registered data
-                console.log("Registration successful, updating viewer...");
-                initiatingViewer.loadImageData(result);
-                modal.classList.remove("show", "loading");
-            } else {
-                throw new Error(result.message || "Registration failed");
-            }
-
-        } catch (error) {
-            console.error("Registration error:", error);
-            alert(`Registration failed: ${error.message}`);
-            modal.classList.remove("loading");
-        }
-    }
-
-    getState() {
-        return {
-            imageData: this.imageData,
-            currentSlice: this.currentSlice,
-            totalSlices: this.totalSlices,
-            windowCenter: this.windowCenter,
-            windowWidth: this.windowWidth,
-            rotation: this.rotation,
-            width: this.width,
-            height: this.height,
-            minVal: this.minVal,
-            maxVal: this.maxVal,
-            is3DMode: this.is3DMode,
-            imageLabel: this.imageLabel,
-        };
-    }
-
-    setState(state) {
-        if (!state) return;
-
-        this.imageData = state.imageData ? [...state.imageData] : null;
-        this.currentSlice = state.currentSlice || 0;
-        this.totalSlices = state.totalSlices || 1;
-        if (!isNaN(state.windowCenter)) {
-            this.windowCenter = state.windowCenter;
-        }
-        if (!isNaN(state.windowWidth) && state.windowWidth > 0) {
-            this.windowWidth = state.windowWidth;
-        }
-        this.rotation = state.rotation || 0;
-        this.width = state.width || 0;
-        this.height = state.height || 0;
-        this.minVal = state.minVal || 0;
-        this.maxVal = state.maxVal || 255;
-        this.is3DMode = state.is3DMode || false;
-
-        if (this.imageData) {
-            this.resizeCanvases();
-            this.canvas2D.style.display = this.is3DMode ? "none" : "block";
-            this.canvas3D.style.display = this.is3DMode ? "block" : "none";
-            this.roiCanvas.style.display = this.is3DMode ? "none" : "block";
-
-            if (this.is3DMode) {
-                this.updateTexture();
-            } else {
-                this.updateSlice();
-            }
-
-            if (this.uploadOverlay) {
-                this.uploadOverlay.style.display = "none";
-            }
-        }
-        if (state.imageLabel) {
-            this.setLabel(state.imageLabel);
-        }
-    }
-
-    initializeBabylonScene() {
-        this.engine = new BABYLON.Engine(this.canvas3D, true);
-        this.scene = new BABYLON.Scene(this.engine);
-        this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
-
-        this.camera = new BABYLON.ArcRotateCamera(
-            "camera",
-            0,
-            Math.PI / 3,
-            10,
-            BABYLON.Vector3.Zero(),
-            this.scene,
-        );
-        this.camera.setTarget(BABYLON.Vector3.Zero());
-        this.camera.attachControl(this.canvas3D, true);
-
-        const material = new BABYLON.StandardMaterial(
-            "cubeMaterial",
-            this.scene,
-        );
-        material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-        material.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-
-        this.cube = BABYLON.MeshBuilder.CreateBox(
-            "cube",
-            { size: 2 },
-            this.scene,
-        );
-        this.cube.material = material;
-
-        new BABYLON.HemisphericLight(
-            "light",
-            new BABYLON.Vector3(0, 1, 0),
-            this.scene,
-        );
-
-        this.engine.runRenderLoop(() => {
-            this.scene.render();
-        });
-    }
-
-    async uploadFile(file) {
-        try {
-            this.clearImageState();
-
-            const formData = new FormData();
-            formData.append("file", file);
-
-            const response = await fetch(`${BASE_URL}/upload`, {
-                method: "POST",
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error(`Upload failed: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-            console.log("Upload response:", result);
-
-            if (result.success && result.data) {
-                console.log("Upload successful, processing image data...");
-
-                if (this.uploadOverlay) {
-                    this.uploadOverlay.style.display = "none";}
-
-                this.loadImageData(result);
-            } else {
-                console.error("Upload failed:", result.message);
-            }
-        } catch (error) {
-            console.error("Error uploading file:", error);
-        }
-    }
-
-    async loadRemoteFile(path) {
-        console.log("Loading remote file:", path);
-        try {
-            this.clearImageState();
-
-            const response = await fetch(
-                `${BASE_URL}/load?path=${encodeURIComponent(path)}`,
-            );
-            if (!response.ok) {
-                throw new Error(`Failed to load file: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-            if (result.success && result.data) {
-                this.loadImageData(result);
-                this.urlImportModal.classList.remove("show");
-            } else {
-                throw new Error(result.message || "Failed to load image data");
-            }
-        } catch (error) {
-            console.error("Error loading remote file:", error);
-        }
-    }
-
-    clearImageState() {
-        this.imageData = null;
-        this.currentSlice = 0;
-        this.totalSlices = 1;
-        this.windowCenter = 128;
-        this.windowWidth = 256;
-        this.rotation = 0;
-        this.width = 0;
-        this.height = 0;
-        this.minVal = 0;
-        this.maxVal = 255;
-
-        this.pixelCache.clear();
-
-        this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
-        this.roiCtx.clearRect(
-            0,
-            0,
-            this.roiCanvas.width,
-            this.roiCanvas.height,
-        );
-
-        this.isDrawingROI = false;
-        this.roiStart = null;
-        this.roiEnd = null;
-
-        if (this.texture) {
-            this.texture.dispose();
-            this.texture = null;
-        }
-
-        const infoElement = this.container.querySelector(".image-info");
-        if (infoElement) {
-            infoElement.textContent = "Window: C: 0 W: 0 | Slice: 0/0";
-        }
-    }
-
-    loadImageData(result) {
-        this.imageData = result.data;
-        this.totalSlices = this.imageData.length;
-        this.currentSlice = 0;
-        this.minVal = result.metadata.min_value;
-        this.maxVal = result.metadata.max_value;
-        this.width = result.metadata.dimensions[0];
-        this.height = result.metadata.dimensions[1];
-
-        this.windowWidth = (this.maxVal - this.minVal) / 2;
-        this.windowCenter = this.minVal + this.windowWidth;
-
-        if (this.is3DMode) {
-            this.toggleViewMode();
-        }
-
-        this.resizeCanvases();
-        this.updateSlice();
-    }
-
-    async showDirectoryBrowser(path = "images") {
-        console.log("Showing directory browser for path:", path);
-        this.urlImportModal.classList.add("show");
-        this.currentPathElement.textContent = path;
-
-        try {
-            this.directoryList.innerHTML =
-                '<div class="loading">Loading...</div>';
-
-            const response = await fetch(
-                `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
-            );
-            if (!response.ok) {
-                throw new Error(`Failed to load directory: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            console.log("Directory contents:", data);
-
-            this.directoryList.innerHTML = "";
-
-            if (path !== "images") {
-                const parentPath =
-                    path.split("/").slice(0, -1).join("/") || "images";
-                const parentDir = document.createElement("div");
-                parentDir.className = "directory-item folder";
-                parentDir.innerHTML = '<i class="fas fa-level-up-alt"></i> ..';
-                parentDir.addEventListener("click", () =>
-                    this.showDirectoryBrowser(parentPath)
-                );
-                this.directoryList.appendChild(parentDir);
-            }
-
-            data.directories?.forEach((dir) => {
-                const dirElement = document.createElement("div");
-                dirElement.className = "directory-item folder";
-                dirElement.innerHTML = `<i class="fas fa-folder"></i> ${dir}`;
-                dirElement.addEventListener("click", () => {
-                    this.showDirectoryBrowser(`${path}/${dir}`);
-                });
-                this.directoryList.appendChild(dirElement);
-            });
-
-            data.files?.forEach((file) => {
-                if (file.match(/\.(nii|nii\.gz|dcm|jpg|png|bmp)$/i)) {
-                    const fileElement = document.createElement("div");
-                    fileElement.className = "directory-item image";
-                    fileElement.innerHTML = `<i class="fas fa-file-image"></i> ${file}`;
-                    fileElement.addEventListener("click", () => {
-                        this.loadRemoteFile(`${path}/${file}`);
-                    });
-                    this.directoryList.appendChild(fileElement);
-                }
-            });
-        } catch (error) {
-            console.error("Error loading directory:", error);
-            this.directoryList.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
-        }
-    }
-
-    async showRegistrationDialog() {
-        console.log("Opening registration dialog");
-        const modal = document.getElementById("registrationModal");
-        if (!modal) {
-            console.error("Registration modal not found");
-            return;
-        }
-
-        // Get all viewers with loaded images
-        const viewers = Array.from(document.querySelectorAll(".image-window"))
-            .map((container, index) => ({
-                index,
-                label: container.viewer?.getLabel() || `Image ${index + 1}`,
-                viewer: container.viewer
-            }))
-            .filter(viewer => viewer.viewer && viewer.viewer.imageData);
-
-        console.log(`Found ${viewers.length} viewers with images`);
-
-        if (viewers.length < 2) {
-            alert("Please load at least two images before attempting registration");
-            return;
-        }
-
-        const sourceSelect = document.getElementById("registrationSourceSelect");
-        const targetSelect = document.getElementById("registrationTargetSelect");
-
-        if (!sourceSelect || !targetSelect) {
-            console.error("Registration selects not found");
-            return;
-        }
-
-        // Clear previous options
-        sourceSelect.innerHTML = '<option value="">Select moving image...</option>';
-        targetSelect.innerHTML = '<option value="">Select fixed image...</option>';
-
-        // Add options for each viewer
-        viewers.forEach(({index, label}) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = label;
-
-            sourceSelect.appendChild(option.cloneNode(true));
-            targetSelect.appendChild(option.cloneNode(true));
-        });
-
-        // Handle registration
-        const registerBtn = modal.querySelector(".register-btn");
-        const cancelBtn = modal.querySelector(".cancel-btn");
-
-        // Remove any existing event listeners
-        const newRegisterBtn = registerBtn.cloneNode(true);
-        const newCancelBtn = cancelBtn.cloneNode(true);
-        registerBtn.parentNode.replaceChild(newRegisterBtn, registerBtn);
-        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-
-        newRegisterBtn.addEventListener("click", async () => {
-            await this.handleRegister(modal, sourceSelect, targetSelect);
-        });
-
-        newCancelBtn.addEventListener("click", () => {
-            modal.classList.remove("show");
-        });
-
-        // Show the modal
-        modal.classList.add("show");
-    }
-
-    showRotate180Dialog() {
-        console.log("Opening rotate 180 dialog");
-        const modal = document.getElementById("rotate180Modal");
-        const imageSelect = document.getElementById("rotate180ImageSelect");
-        const rotateBtn = modal.querySelector(".rotate-btn");
-        const cancelBtn = modal.querySelector(".cancel-btn");
-
-        // Store the viewer that initiated the rotate command (the window where the menu was clicked)
-        const initiatingViewer = this;
-        console.log("Dialog initiated from viewer:", initiatingViewer.container.id);
-
-        if (!modal || !imageSelect) {
-            console.error("Required modal elements not found");
-            return;
-        }
-
-        // Clear and initialize the select dropdown
-        imageSelect.innerHTML = '<option value="">Select image to rotate...</option>';
-
-        // Find all viewers with images
-        const viewers = [];
-        document.querySelectorAll(".image-window").forEach((container, index) => {
-            if (container.viewer && container.viewer.imageData) {
-                const label = container.viewer.getLabel() || `Unlabeled`;
-                viewers.push({
-                    index,
-                    label,
-                    viewer: container.viewer
-                });
-            }
-        });
-
-        // Populate select options
-        viewers.forEach((viewerInfo) => {
-            const option = document.createElement('option');
-            option.value = viewerInfo.index;
-            option.textContent = `Image ${viewerInfo.index + 1} (${viewerInfo.label})`;
-            imageSelect.appendChild(option);
-        });
-
-        // Handle rotate button click
-        rotateBtn.onclick = async () => {
-            const selectedIdx = parseInt(imageSelect.value);
-            if (isNaN(selectedIdx)) {
-                alert("Please select an image to rotate");
-                return;
-            }
-
-            const sourceViewer = viewers.find(v => v.index === selectedIdx)?.viewer;
-            if (!sourceViewer) {
-                alert("Selected image not found");
-                return;
-            }
-
-            try {
-                const response = await fetch(`${BASE_URL}/api/rotate180`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        image_data: sourceViewer.imageData,
-                        metadata: {
-                            dimensions: [sourceViewer.width, sourceViewer.height],
-                            min_value: sourceViewer.minVal,
-                            max_value: sourceViewer.maxVal,
-                            total_slices: sourceViewer.totalSlices
-                        }
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Server returned ${response.status}`);
-                }
-
-                const result = await response.json();
-                console.log("Rotation response:", result);
-
-                if (result.success) {
-                    // Update the initiating viewer with the rotated image data
-                    console.log("Updating initiating viewer with rotated data");
-
-                    // First clear the existing state
-                    initiatingViewer.clearImageState();
-
-                    // Then set the new state with rotated data
-                    initiatingViewer.setState({
-                        imageData: result.data,
-                        width: result.metadata.dimensions[0],
-                        height: result.metadata.dimensions[1],
-                        minVal: result.metadata.min_value,
-                        maxVal: result.metadata.max_value,
-                        windowCenter: (result.metadata.max_value + result.metadata.min_value) / 2,
-                        windowWidth: result.metadata.max_value - result.metadata.min_value,
-                        totalSlices: result.data.length,
-                        currentSlice: 0,
-                        is3DMode: false,
-                        rotation: 0,
-                        imageLabel: `${sourceViewer.getLabel()} (Rotated)`
-                    });
-
-                    modal.classList.remove("show");
-                } else {
-                    throw new Error(result.message || "Rotation failed");
-                }
-            } catch (error) {
-                console.error("Error during rotation:", error);
-                alert(`Failed to rotate image: ${error.message}`);
-            }
-        };
-
-        // Handle cancel button click
-        cancelBtn.onclick = () => {
-            modal.classList.remove("show");
-        };
-
-        // Show the modal
-        modal.classList.add("show");
-    }
-
-
-}
-
-function updateGridLayout() {
-    const gridSelect = document.getElementById("gridLayout");
-    const imageGrid = document.querySelector(".image-grid");
-    const template = document.getElementById("imageWindowTemplate");
-
-    if (!gridSelect || !imageGrid || !template) {
-        console.error("Required elements not found. Retrying in 500ms...");
-        setTimeout(updateGridLayout, 500);
-        return;
-    }
-
-    const layout = gridSelect.value.split("x");
-    const rows = parseInt(layout[0]);
-    const cols = parseInt(layout[1]);
-    const totalViewers = rows * cols;
-
-    const existingStates = Array.from(imageGrid.children).map((container) => {
-        return container.viewer?.getState();
-    });
-
-    while (imageGrid.firstChild) {
-        const viewer = imageGrid.firstChild.viewer;
-        if (viewer) {
-            viewer.cleanup && viewer.cleanup();
-        }
-        imageGrid.removeChild(imageGrid.firstChild);
-    }
-
-    imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-    imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-
-    for (let i = 0; i < totalViewers; i++) {
-        try {
-            const viewer = template.content.cloneNode(true);
-            const container = viewer.querySelector(".image-window");
-
-            if (!container) {
-                console.error("Container not found in template!");
-                continue;
-            }
-
-            container.id = `viewer-${i + 1}`;
-
-            imageGrid.appendChild(container);
-
-            requestAnimationFrame(() => {
-                try {
-                    const viewerInstance = new ImageViewer(container);
-                    container.viewer = viewerInstance;
-
-                    if (existingStates[i]) {
-                        viewerInstance.setState(existingStates[i]);
-                    }
-                } catch (error) {
-                    console.error(`Error initializing viewer ${i + 1}:`, error);
-                }
-            });
-        } catch (error) {
-            console.error(`Error creating viewer ${i + 1}:`, error);
-        }
     }
 }
 
 function initializeGridLayout() {
     const gridSelect = document.getElementById("gridLayout");
-    if (!gridSelect) {
-        console.warn("Grid select not found, retrying in 100ms...");
-        setTimeout(initializeGridLayout, 100);
-        return;
+    if (!gridSelect) return;
+
+    const layout = gridSelect.value.split("x");
+    const rows = parseInt(layout[0]);
+    const cols = parseInt(layout[1]);
+    const totalViewers = rows * cols;
+    
+    const imageGrid = document.querySelector(".image-grid");
+    if (!imageGrid) return;
+
+    // Store existing viewer states
+    const existingViewers = Array.from(document.querySelectorAll(".image-window")).map(container => {
+        if (container.viewer) {
+            return {
+                state: container.viewer.getState(),
+                label: container.viewer.getLabel()
+            };
+        }
+        return null;
+    }).filter(state => state !== null);
+
+    // Clear existing viewers
+    imageGrid.innerHTML = '';
+    
+    imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+    // Create new viewers and restore states
+    for (let i = 0; i < totalViewers; i++) {
+        const viewer = createImageViewer();
+        if (i < existingViewers.length && viewer) {
+            viewer.setLabel(existingViewers[i].label);
+            viewer.setState(existingViewers[i].state);
+        }
+    }
+}
+
+function updateGridLayout(event) {
+    const layout = event.target.value.split("x");
+    const rows = parseInt(layout[0]);
+    const cols = parseInt(layout[1]);
+    const totalViewers = rows * cols;
+    
+    const imageGrid = document.querySelector(".image-grid");
+    if (!imageGrid) return;
+
+    // Store existing viewer states
+    const existingViewers = Array.from(document.querySelectorAll(".image-window")).map(container => {
+        if (container.viewer) {
+            return {
+                state: container.viewer.getState(),
+                label: container.viewer.getLabel()
+            };
+        }
+        return null;
+    }).filter(state => state !== null);
+
+    // Clear existing viewers
+    imageGrid.innerHTML = '';
+    
+    imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+    // Create new viewers and restore states
+    for (let i = 0; i < totalViewers; i++) {
+        const viewer = createImageViewer();
+        if (i < existingViewers.length && viewer) {
+            viewer.setLabel(existingViewers[i].label);
+            viewer.setState(existingViewers[i].state);
+        }
+    }
+}
+
+// Initialize event listeners for toolbar buttons
+function initializeToolbarButtons(container) {
+    // Remove the upload button handler as it's handled in setupEventListeners
+    const viewModeBtn = container.querySelector(".view-mode-btn");
+    const rotateBtn = container.querySelector(".rotate-btn");
+    const roiBtn = container.querySelector(".roi-btn");
+    const labelSelect = container.querySelector(".image-label");
+
+    if (viewModeBtn) {
+        viewModeBtn.addEventListener("click", () => {
+            if (container.viewer) {
+                container.viewer.toggleViewMode();
+            }
+        });
     }
 
-    gridSelect.addEventListener("change", updateGridLayout);
-    updateGridLayout();
+    if (rotateBtn) {
+        rotateBtn.addEventListener("click", () => {
+            if (container.viewer) {
+                container.viewer.showRotate180Dialog();
+            }
+        });
+    }
+
+    if (roiBtn) {
+        roiBtn.addEventListener("click", () => {
+            if (container.viewer) {
+                container.viewer.toggleROIMode();
+            }
+        });
+    }
+
+    if (labelSelect) {
+        labelSelect.addEventListener("change", (event) => {
+            if (container.viewer) {
+                container.viewer.imageLabel = event.target.value;
+            }
+        });
+    }
 }
-
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () =>
-        setTimeout(initializeGridLayout, 100),
-    );
-} else {
-    setTimeout(initializeGridLayout, 100);
-}
-
-document
-    .getElementById("gridLayout")
-    ?.addEventListener("change", updateGridLayout);
-
-window.ImageViewer = ImageViewer;
 
 function createImageViewer() {
     const imageGrid = document.querySelector(".image-grid");
@@ -2332,6 +1405,10 @@ function createImageViewer() {
 
     const viewerInstance = new ImageViewer(container);
     container.viewer = viewerInstance;
+    
+    // Initialize toolbar buttons for the new viewer
+    initializeToolbarButtons(container);
+    
     return viewerInstance;
 }
 
@@ -2349,7 +1426,24 @@ function createImageWindow(imageData, metadata) {
             currentSlice: 0,
             windowCenter: (metadata.max_value + metadata.min_value) / 2,
             windowWidth: metadata.max_value - metadata.min_value,
+            voxelWidth: metadata.voxel_dimensions[0],
+            voxelHeight: metadata.voxel_dimensions[1],
+            voxelDepth: metadata.voxel_dimensions[2]
         };
         viewer.setState(state);
     }
 }
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () =>
+        setTimeout(initializeGridLayout, 100),
+    );
+} else {
+    setTimeout(initializeGridLayout, 100);
+}
+
+document
+    .getElementById("gridLayout")
+    ?.addEventListener("change", updateGridLayout);
+
+window.ImageViewer = ImageViewer;
