@@ -478,6 +478,20 @@ class ImageViewer {
     }
 
     async loadSliceData(sliceIndex) {
+        // For blend mode, always compute fresh values
+        if (this.isBlendMode) {
+            const baseSlice = await this.baseViewer.loadSliceData(sliceIndex);
+            const overlaySlice = await this.overlayViewer.loadSliceData(sliceIndex);
+            const blendedSlice = new Float32Array(baseSlice.length);
+            const blendRatio = parseFloat(document.querySelector('.blend-slider')?.value || 50) / 100;
+            
+            for (let i = 0; i < blendedSlice.length; i++) {
+                blendedSlice[i] = (1 - blendRatio) * baseSlice[i] + blendRatio * overlaySlice[i];
+            }
+            return blendedSlice;
+        }
+
+        // For non-blend mode, use cache
         if (this.pixelCache.has(sliceIndex)) {
             return this.pixelCache.get(sliceIndex);
         }
@@ -1508,6 +1522,9 @@ class ImageViewer {
             return;
         }
         console.log('Updating blend with ratio:', blendRatio);
+        
+        // Clear the pixel cache to force recomputation of blended values
+        this.pixelCache.clear();
 
         // Get global min/max values for both images
         const baseMin = this.baseViewer.minVal;
