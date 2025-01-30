@@ -1465,13 +1465,11 @@ class ImageViewer {
         const newSlider = blendSlider.cloneNode(true);
         blendSlider.parentNode.replaceChild(newSlider, blendSlider);
 
-        // Add slider event listener
         newSlider.oninput = async (e) => {
             console.log('Slider value changed:', e.target.value);
             const newRatio = e.target.value / 100;
             blendValue.textContent = `${Math.round(newRatio * 100)}%`;
             await this.updateBlendedImage(newRatio);
-            this.updateSlice();
         };
 
         // Set the blend label
@@ -1489,7 +1487,7 @@ class ImageViewer {
         const overlayMin = this.overlayViewer.minVal;
         const overlayMax = this.overlayViewer.maxVal;
 
-        // Store current state
+        // Store current state before updating
         const currentSlice = this.currentSlice;
         const currentWindowCenter = this.windowCenter;
         const currentWindowWidth = this.windowWidth;
@@ -1546,7 +1544,18 @@ class ImageViewer {
             blendedSlices.push(base64Slice);
         }
 
-        // Create result object in the format expected by loadImageData
+        // Create the blended image data right away to see changes
+        this.imageData = blendedSlices;
+        this.width = this.baseViewer.width;
+        this.height = this.baseViewer.height;
+        this.minVal = Math.min(baseMin, overlayMin);
+        this.maxVal = Math.max(baseMax, overlayMax);
+        this.totalSlices = blendedSlices.length;
+
+        // Force display update
+        await this.updateSlice();
+
+        // Create result object to maintain state
         const result = {
             data: blendedSlices,
             metadata: {
