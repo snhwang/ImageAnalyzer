@@ -1529,6 +1529,11 @@ class ImageViewer {
             blendedSlices.push(base64Slice);
         }
 
+        // Store current state
+        const currentSlice = this.currentSlice;
+        const currentWindowCenter = this.windowCenter;
+        const currentWindowWidth = this.windowWidth;
+
         // Create result object in the format expected by loadImageData
         const result = {
             data: blendedSlices,
@@ -1549,6 +1554,12 @@ class ImageViewer {
 
         // Update the image using loadImageData to ensure consistent state management
         this.loadImageData(result);
+
+        // Restore state
+        this.currentSlice = Math.min(currentSlice, this.totalSlices - 1);
+        this.windowCenter = currentWindowCenter;
+        this.windowWidth = currentWindowWidth;
+        this.updateSlice();
     }
 }
 
