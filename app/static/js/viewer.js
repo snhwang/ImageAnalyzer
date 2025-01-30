@@ -901,7 +901,12 @@ class ImageViewer {
     }
 
     clearImageState() {
-        // Always clear blend state when loading new image
+        // Store blend state before clearing
+        const wasBlendMode = this.isBlendMode;
+        const previousBaseViewer = this.baseViewer;
+        const previousOverlayViewer = this.overlayViewer;
+
+        // Clear blend controls
         const blendControls = this.imageContainer.querySelector('.blend-controls-container');
         if (blendControls) {
             blendControls.style.display = 'none';
