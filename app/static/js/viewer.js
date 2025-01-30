@@ -1473,8 +1473,8 @@ class ImageViewer {
 
         newSlider.addEventListener('input', async (e) => {
             console.log('Slider value changed:', e.target.value);
-            const newRatio = e.target.value / 100;
-            blendValue.textContent = `${Math.round(newRatio * 100)}%`;
+            const newRatio = 1 - (e.target.value / 100); // Invert ratio for correct blending
+            blendValue.textContent = `${Math.round((1 - newRatio) * 100)}%`;
             await this.updateBlendedImage(newRatio);
         });
 
@@ -1535,7 +1535,7 @@ class ImageViewer {
 
             // Blend pixel values using correct ratio
             for (let i = 0; i < blendedSlice.length; i++) {
-                blendedSlice[i] = (blendRatio) * baseSlice[i] + (1 - blendRatio) * overlaySlice[i];
+                blendedSlice[i] = (1 - blendRatio) * baseSlice[i] + blendRatio * overlaySlice[i];
             }
 
             // Convert the blended slice to base64
