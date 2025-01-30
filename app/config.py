@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 # General Settings
 APP_NAME = "Medical Image Viewer"
@@ -9,13 +10,31 @@ DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 SECRET_KEY = os.getenv("SECRET_KEY", "default_secret_key")
 
+# Base directory for the application
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Directory for storing images
+IMAGES_DIR = os.getenv("IMAGES_DIR", "./images")
+
+# Directory for storing uploaded files
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./images/uploads")
+
+# Maximum file size for uploads (in bytes)
+MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", 100 * 1024 * 1024))  # 100MB default
+
+# Supported file extensions
+SUPPORTED_EXTENSIONS = {
+    '.nii',     # NIfTI format
+    '.nii.gz',  # Compressed NIfTI
+    '.dcm',     # DICOM format
+    '.jpg',     # JPEG format
+    '.jpeg',    # JPEG format
+    '.png',     # PNG format
+    '.bmp',     # BMP format
+}
+
 # Database
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
-
-# File Upload
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
-MAX_FILE_SIZE_MB = 50
-ALLOWED_FILE_EXTENSIONS = {".nii", ".nii.gz", ".dcm", ".jpg", ".jpeg", ".png", ".bmp"}
 
 # CORS
 CORS_ORIGINS = [
@@ -25,13 +44,32 @@ CORS_ORIGINS = [
     "https://test-viewer.replit.app",
     "http://localhost:7000",
     "http://localhost:8000"
-
-
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ["*"]
 CORS_ALLOW_HEADERS = ["*"]
 
-# Logging
-LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO")
-LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# Logging configuration
+LOGGING_CONFIG = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'default': {
+            'level': 'INFO',
+            'formatter': 'standard',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['default'],
+            'level': 'INFO',
+            'propagate': True
+        }
+    }
+}

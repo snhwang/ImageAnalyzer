@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.config import UPLOAD_DIR, ALLOWED_FILE_EXTENSIONS
+from app.config import UPLOAD_DIR, SUPPORTED_EXTENSIONS
 from app.routes.image import image_storage
 from app.utils.image_processing import normalize_data, precompute_normalized_slices
 from app.utils.image_processing import calculate_optimal_window_settings
@@ -27,7 +27,7 @@ async def upload_file(file: UploadFile = File(...)):
     try:
         # Validate file extension
         filename = file.filename.lower()
-        valid_extensions = {'.nii', '.nii.gz', '.dcm', '.jpg', '.jpeg', '.png', '.bmp'}
+        valid_extensions = SUPPORTED_EXTENSIONS
         
         # Special handling for .nii.gz files
         if filename.endswith('.nii.gz'):

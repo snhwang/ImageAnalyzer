@@ -23,8 +23,8 @@ async def list_directory(path: str = "images"):
         if not path.startswith('images'):
             path = 'images'
 
-        # Get absolute paths
-        base_path = os.path.abspath(os.getcwd())
+        # Get absolute paths - go up one level from app directory to find project root
+        base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         target_path = os.path.join(base_path, path)
         logger.info(f"Resolved path: {target_path}")
 
@@ -91,8 +91,8 @@ async def load_remote_file(path: str):
         if not path.startswith('images/'):
             path = f'images/{path}'
 
-        # Get absolute paths
-        base_path = os.path.abspath(os.getcwd())
+        # Get absolute paths - go up one level from app directory to find project root
+        base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         file_path = os.path.join(base_path, path)
         logger.info(f"Full path resolved to: {file_path}")
 
@@ -128,6 +128,12 @@ async def load_remote_file(path: str):
                 data_type = header.get_data_dtype()
                 logger.info(f"NIfTI header data type: {data_type}")
 
+                # Get voxel dimensions from header
+                voxel_dims = img.header.get_zooms()
+                voxel_width = float(voxel_dims[0])
+                voxel_height = float(voxel_dims[1])
+                voxel_depth = float(voxel_dims[2]) if len(voxel_dims) > 2 else 1.0
+
                 # Load data without specifying dtype
                 data = img.get_fdata()
                 logger.info(f"Data shape: {data.shape}")
@@ -149,16 +155,13 @@ async def load_remote_file(path: str):
             elif file_ext == '.dcm':
                 logger.info("Processing DICOM file")
                 dcm = pydicom.dcmread(file_path)
-                # Get bit depth from DICOM header
-                bits_allocated = dcm.BitsAllocated
-                is_unsigned = dcm.PixelRepresentation == 0
-                logger.info(f"DICOM bits allocated: {bits_allocated}, unsigned: {is_unsigned}")
-
                 data = dcm.pixel_array
-                if is_unsigned:
-                    data = data.astype(np.uint16)
+                if hasattr(dcm, 'PixelSpacing'):
+                    voxel_width = float(dcm.PixelSpacing[0])
+                    voxel_height = float(dcm.PixelSpacing[1])
                 else:
-                    data = data.astype(np.int16)
+                    voxel_width = voxel_height = 1.0
+                voxel_depth = float(dcm.SliceThickness) if hasattr(dcm, 'SliceThickness') else 1.0
                 data = data.astype(np.float32)
                 dimensions = data.shape[:2]
 
@@ -169,6 +172,8 @@ async def load_remote_file(path: str):
                         img = img.convert('L')
                     data = np.array(img, dtype=np.float32)
                     dimensions = data.shape[:2]
+                    # Standard images use default 1.0 mm voxel dimensions
+                    voxel_width = voxel_height = voxel_depth = 1.0
 
             if data is None:
                 raise HTTPException(status_code=400, detail="Failed to load image data")
@@ -199,7 +204,8 @@ async def load_remote_file(path: str):
                 "metadata": {
                     "dimensions": dimensions,
                     "min_value": min_val,
-                    "max_value": max_val
+                    "max_value": max_val,
+                    "voxel_dimensions": [voxel_width, voxel_height, voxel_depth]
                 }
             }
 

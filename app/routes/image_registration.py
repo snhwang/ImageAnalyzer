@@ -58,15 +58,24 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
         fixed_array = np.stack(fixed_slices)
         moving_array = np.stack(moving_slices)
 
-        # Calculate voxel spacing if not provided
-        if 'spacing' not in fixed_metadata:
-            fixed_metadata['spacing'] = [1.0, 1.0, 1.0]  # Default isotropic spacing
-        if 'spacing' not in moving_metadata:
-            moving_metadata['spacing'] = [1.0, 1.0, 1.0]  # Default isotropic spacing
+        # Get voxel dimensions from metadata
+        fixed_voxel_dims = fixed_metadata.get('voxel_dimensions', [1.0, 1.0, 1.0])
+        moving_voxel_dims = moving_metadata.get('voxel_dimensions', [1.0, 1.0, 1.0])
+
+        # Update metadata with voxel dimensions as spacing
+        fixed_metadata['spacing'] = fixed_voxel_dims
+        moving_metadata['spacing'] = moving_voxel_dims
+
+        logger.info(f"Fixed image voxel dimensions: {fixed_voxel_dims}")
+        logger.info(f"Moving image voxel dimensions: {moving_voxel_dims}")
 
         # Convert to SimpleITK images for registration
         fixed_image = sitk.GetImageFromArray(fixed_array)
         moving_image = sitk.GetImageFromArray(moving_array)
+
+        # Set physical spacing for both images
+        fixed_image.SetSpacing(fixed_voxel_dims)
+        moving_image.SetSpacing(moving_voxel_dims)
 
         # Process registration with metadata
         registered_array = register_images(
@@ -92,7 +101,7 @@ async def register_images_endpoint(request_data: Dict[str, Any]):
             "data": registered_data,
             "metadata": {
                 "dimensions": [int(fixed_width), int(fixed_height)],
-                "spacing": fixed_metadata['spacing'],
+                "voxel_dimensions": fixed_voxel_dims,  # Include voxel dimensions in response
                 "min_value": float(np.min(registered_array)),
                 "max_value": float(np.max(registered_array))
             }

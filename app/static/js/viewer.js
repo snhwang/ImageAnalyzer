@@ -851,7 +851,7 @@ class ImageViewer {
             this.clearImageState();
 
             const response = await fetch(
-                `${BASE_URL}/load?path=${encodeURIComponent(path)}`,
+                `${BASE_URL}/api/load?path=${encodeURIComponent(path)}`,
             );
             if (!response.ok) {
                 throw new Error(`Failed to load file: ${response.statusText}`);
@@ -947,7 +947,7 @@ class ImageViewer {
                 '<div class="loading">Loading...</div>';
 
             const response = await fetch(
-                `${BASE_URL}/directory?path=${encodeURIComponent(path)}`,
+                `${BASE_URL}/api/directory?path=${encodeURIComponent(path)}`,
             );
             if (!response.ok) {
                 throw new Error(`Failed to load directory: ${response.statusText}`);

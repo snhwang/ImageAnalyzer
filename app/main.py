@@ -29,7 +29,7 @@ app = FastAPI(
 )
 
 # Set up upload directory
-UPLOAD_DIR = Path("app/static/uploads")
+UPLOAD_DIR = Path("images/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Mount static files
@@ -57,12 +57,19 @@ def process_medical_image(file_path):
             # Handle DICOM
             ds = pydicom.dcmread(str(file_path))
             img_array = ds.pixel_array.astype(np.float32)
+            
+            # Extract voxel dimensions from DICOM tags
+            voxel_width = float(ds.PixelSpacing[0]) if hasattr(ds, 'PixelSpacing') else 1.0
+            voxel_height = float(ds.PixelSpacing[1]) if hasattr(ds, 'PixelSpacing') else 1.0
+            voxel_depth = float(ds.SliceThickness) if hasattr(ds, 'SliceThickness') else 1.0
+            
             metadata = {
                 'total_slices': 1,
                 'dimensions': [int(ds.Rows), int(ds.Columns)],
                 'type': 'dicom',
                 'min_value': float(np.min(img_array)),
-                'max_value': float(np.max(img_array))
+                'max_value': float(np.max(img_array)),
+                'voxel_dimensions': [voxel_width, voxel_height, voxel_depth]
             }
             return img_array, metadata
 
@@ -70,12 +77,20 @@ def process_medical_image(file_path):
             # Handle NIfTI
             img = nib.load(str(file_path))
             img_array = img.get_fdata().astype(np.float32)
+            
+            # Extract voxel dimensions from NIfTI header
+            voxel_dims = img.header.get_zooms()
+            voxel_width = float(voxel_dims[0])
+            voxel_height = float(voxel_dims[1])
+            voxel_depth = float(voxel_dims[2]) if len(voxel_dims) > 2 else 1.0
+            
             metadata = {
                 'total_slices': img_array.shape[2] if len(img_array.shape) > 2 else 1,
                 'dimensions': [img_array.shape[0], img_array.shape[1]],
                 'type': 'nifti',
                 'min_value': float(np.min(img_array)),
-                'max_value': float(np.max(img_array))
+                'max_value': float(np.max(img_array)),
+                'voxel_dimensions': [voxel_width, voxel_height, voxel_depth]
             }
             return img_array, metadata
 
@@ -88,7 +103,8 @@ def process_medical_image(file_path):
                 'dimensions': [img_array.shape[0], img_array.shape[1]],
                 'type': 'standard',
                 'min_value': float(np.min(img_array)),
-                'max_value': float(np.max(img_array))
+                'max_value': float(np.max(img_array)),
+                'voxel_dimensions': [1.0, 1.0, 1.0]  # Default 1mm for standard images
             }
 
     except Exception as e:
