@@ -719,6 +719,10 @@
                                     <div class="menu-item" data-action="rotate-180">
                                         <i class="fas fa-sync-alt"></i> Rotate 180°
                                     </div>
+                                    <!-- Add blend images menu item -->
+                                    <div class="menu-item" data-action="blend-images">
+                                        <i class="fas fa-layer-group"></i> Blend Images
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -735,6 +739,15 @@
                                     </div>
                                 </div>
                                 <img src="" alt="" style="display: none" />
+                            </div>
+                            <div class="blend-controls-container" style="display: none;">
+                                <div class="blend-slider-group">
+                                    <input type="range" class="blend-slider" min="0" max="100" value="50">
+                                    <span class="blend-value">50%</span>
+                                </div>
+                                <div class="blend-info">
+                                    <span class="base-image-label"></span> ↔ <span class="overlay-image-label"></span>
+                                </div>
                             </div>
                         </div>
                         <div class="image-info">
@@ -893,6 +906,10 @@
                             <div class="menu-item" data-action="rotate-180">
                                 <i class="fas fa-sync-alt"></i> Rotate 180°
                             </div>
+                            <!-- Add blend images menu item -->
+                            <div class="menu-item" data-action="blend-images">
+                                <i class="fas fa-layer-group"></i> Blend Images
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -906,6 +923,15 @@
                         </div>
                         <img src="" alt="" style="display: none" />
                     </div>
+                    <div class="blend-controls-container" style="display: none;">
+                        <div class="blend-slider-group">
+                            <input type="range" class="blend-slider" min="0" max="100" value="50">
+                            <span class="blend-value">50%</span>
+                        </div>
+                        <div class="blend-info">
+                            <span class="base-image-label"></span> ↔ <span class="overlay-image-label"></span>
+                        </div>
+                    </div>
                 </div>
                 <div class="image-info">Window: C: 0 W: 0 | Slice: 0/0</div>
                 <input
@@ -916,6 +942,37 @@
                 />
             </div>
         </template>
+
+        <!-- Add this after the other modal dialogs -->
+        <div id="blendImagesModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Blend Images</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="image-selection">
+                        <div class="image-select-group">
+                            <label for="baseImage">Base Image:</label>
+                            <select id="baseImage" class="image-select"></select>
+                        </div>
+                        <div class="image-select-group">
+                            <label for="overlayImage">Overlay Image:</label>
+                            <select id="overlayImage" class="image-select"></select>
+                        </div>
+                    </div>
+                    <div class="blend-controls">
+                        <label for="blendSlider">Blend Ratio:</label>
+                        <input type="range" id="blendSlider" min="0" max="100" value="50">
+                        <span id="blendValue">50%</span>
+                    </div>
+                    <div class="modal-buttons">
+                        <button id="applyBlend" class="btn">Apply Blend</button>
+                        <button id="cancelBlend" class="btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
         <!-- Load viewer.js as a regular script after Babylon.js -->

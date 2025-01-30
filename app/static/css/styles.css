@@ -1,0 +1,210 @@
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal-content {
+    position: relative;
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: var(--psu-blue);
+    font-size: 1.5em;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* Image Blending Dialog Styles */
+.image-selection {
+    margin-bottom: 20px;
+}
+
+.image-select-group {
+    margin-bottom: 15px;
+}
+
+.image-select-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--psu-blue);
+}
+
+.image-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+}
+
+.blend-controls {
+    margin-bottom: 20px;
+}
+
+.blend-controls label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--psu-blue);
+}
+
+#blendSlider {
+    width: 100%;
+    margin: 10px 0;
+}
+
+#blendValue {
+    display: inline-block;
+    min-width: 40px;
+    text-align: right;
+    color: var(--psu-blue);
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-buttons .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+#applyBlend {
+    background-color: var(--psu-blue);
+    color: white;
+}
+
+#cancelBlend {
+    background-color: var(--psu-gray);
+    color: white;
+}
+
+#applyBlend:hover {
+    background-color: #15305d;
+}
+
+#cancelBlend:hover {
+    background-color: #7a7c7e;
+}
+
+.blend-controls-container {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(30, 64, 124, 0.9);
+    padding: 10px 15px;
+    border-radius: 8px;
+    color: white;
+    z-index: 1000;
+    width: 90%;
+    max-width: 300px;
+    display: none;  /* Hidden by default */
+    pointer-events: auto !important;  /* Ensure controls are interactive */
+}
+
+.blend-controls-container.visible {
+    display: block;
+}
+
+.blend-slider-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+    pointer-events: auto;
+}
+
+.blend-slider {
+    flex: 1;
+    height: 5px;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.blend-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.blend-slider::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.blend-value {
+    min-width: 40px;
+    text-align: right;
+    font-size: 0.9em;
+    color: white;
+}
+
+.blend-info {
+    font-size: 0.8em;
+    text-align: center;
+    opacity: 0.9;
+    margin-top: 5px;
+    color: white;
+}
+
+.blend-info span {
+    font-weight: bold;
+    color: white;
+} 

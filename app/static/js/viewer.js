@@ -52,6 +52,11 @@ class ImageViewer {
         this.initializeBabylonScene();
         // Then set up event listeners
         this.setupEventListeners();
+
+        // Add blend state properties
+        this.isBlendMode = false;
+        this.baseViewer = null;
+        this.overlayViewer = null;
     }
 
     initializeCanvases() {
@@ -198,6 +203,9 @@ class ImageViewer {
                     case "rotate-180":
                         console.log("Rotate 180 menu item clicked");
                         this.showRotate180Dialog();
+                        break;
+                    case "blend-images":
+                        this.showBlendDialog();
                         break;
                     default:
                         console.log("Unknown action:", action);
@@ -735,6 +743,10 @@ class ImageViewer {
     setState(state) {
         if (!state) return;
 
+        const wasBlendMode = this.isBlendMode;
+        const previousBaseViewer = this.baseViewer;
+        const previousOverlayViewer = this.overlayViewer;
+
         this.imageData = state.imageData ? [...state.imageData] : null;
         this.currentSlice = state.currentSlice || 0;
         this.totalSlices = state.totalSlices || 1;
@@ -754,11 +766,30 @@ class ImageViewer {
         this.voxelHeight = state.voxelHeight || 1;
         this.voxelDepth = state.voxelDepth || 1;
 
+        // Preserve blend mode state if this is a blend update
+        this.isBlendMode = state.isBlendMode !== undefined ? state.isBlendMode : wasBlendMode;
+        this.baseViewer = state.baseViewer || previousBaseViewer;
+        this.overlayViewer = state.overlayViewer || previousOverlayViewer;
+
         if (this.imageData) {
             this.resizeCanvases();
             this.canvas2D.style.display = this.is3DMode ? "none" : "block";
             this.canvas3D.style.display = this.is3DMode ? "block" : "none";
             this.roiCanvas.style.display = this.is3DMode ? "none" : "block";
+
+            // Only hide blend controls if we're not in blend mode
+            const blendControls = this.imageContainer.querySelector('.blend-controls-container');
+            if (blendControls) {
+                if (this.isBlendMode) {
+                    blendControls.style.removeProperty('display');
+                    blendControls.classList.add('visible');
+                    blendControls.style.visibility = 'visible';
+                    blendControls.style.opacity = '1';
+                } else {
+                    blendControls.style.display = 'none';
+                    blendControls.classList.remove('visible');
+                }
+            }
 
             if (this.is3DMode) {
                 this.updateTexture();
@@ -870,6 +901,10 @@ class ImageViewer {
     }
 
     clearImageState() {
+        const wasBlendMode = this.isBlendMode;
+        const previousBaseViewer = this.baseViewer;
+        const previousOverlayViewer = this.overlayViewer;
+
         this.imageData = null;
         this.currentSlice = 0;
         this.totalSlices = 1;
@@ -884,12 +919,7 @@ class ImageViewer {
         this.pixelCache.clear();
 
         this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
-        this.roiCtx.clearRect(
-            0,
-            0,
-            this.roiCanvas.width,
-            this.roiCanvas.height,
-        );
+        this.roiCtx.clearRect(0, 0, this.roiCanvas.width, this.roiCanvas.height);
 
         this.isDrawingROI = false;
         this.roiStart = null;
@@ -904,9 +934,30 @@ class ImageViewer {
         if (infoElement) {
             infoElement.textContent = "Window: C: 0 W: 0 | Slice: 0/0";
         }
+
+        // Only hide blend controls if we're clearing a non-blend state
+        if (!wasBlendMode) {
+            const blendControls = this.imageContainer.querySelector('.blend-controls-container');
+            if (blendControls) {
+                blendControls.classList.remove('visible');
+                blendControls.style.display = 'none';
+            }
+            this.isBlendMode = false;
+            this.baseViewer = null;
+            this.overlayViewer = null;
+        } else {
+            // Preserve blend state
+            this.isBlendMode = wasBlendMode;
+            this.baseViewer = previousBaseViewer;
+            this.overlayViewer = previousOverlayViewer;
+        }
     }
 
     loadImageData(result) {
+        // Store the blend controls state before updating
+        const blendControls = this.imageContainer.querySelector('.blend-controls-container');
+        const wasBlendControlsVisible = blendControls && window.getComputedStyle(blendControls).display !== 'none';
+
         this.imageData = result.data;
         this.totalSlices = this.imageData.length;
         this.currentSlice = 0;
@@ -935,6 +986,14 @@ class ImageViewer {
 
         this.resizeCanvases();
         this.updateSlice();
+
+        // Restore blend controls visibility if they were visible
+        if (wasBlendControlsVisible && blendControls) {
+            blendControls.style.removeProperty('display');
+            blendControls.classList.add('visible');
+            blendControls.style.visibility = 'visible';
+            blendControls.style.opacity = '1';
+        }
     }
 
     async showDirectoryBrowser(path = "images") {
@@ -1271,6 +1330,225 @@ class ImageViewer {
 
         // Show the modal
         modal.classList.add("show");
+    }
+
+    showBlendDialog() {
+        console.log("Opening blend dialog");
+        const modal = document.getElementById("blendImagesModal");
+        const baseSelect = document.getElementById("baseImage");
+        const overlaySelect = document.getElementById("overlayImage");
+        const blendSlider = document.getElementById("blendSlider");
+        const blendValue = document.getElementById("blendValue");
+        const applyBtn = document.getElementById("applyBlend");
+        const cancelBtn = document.getElementById("cancelBlend");
+        const closeBtn = modal.querySelector(".close");
+
+        // Clear previous options
+        baseSelect.innerHTML = '<option value="">Select base image...</option>';
+        overlaySelect.innerHTML = '<option value="">Select overlay image...</option>';
+
+        // Get all viewers with loaded images
+        const viewers = Array.from(document.querySelectorAll(".image-window"))
+            .map((container, index) => ({
+                index,
+                label: container.viewer?.getLabel() || `Image ${index + 1}`,
+                viewer: container.viewer
+            }))
+            .filter(viewer => viewer.viewer && viewer.viewer.imageData);
+
+        console.log(`Found ${viewers.length} viewers with images`);
+
+        if (viewers.length < 2) {
+            alert("Please load at least two images before attempting to blend");
+            return;
+        }
+
+        // Add options for each viewer
+        viewers.forEach(({index, label}) => {
+            const baseOption = document.createElement('option');
+            const overlayOption = document.createElement('option');
+            
+            baseOption.value = index;
+            overlayOption.value = index;
+            
+            baseOption.textContent = label;
+            overlayOption.textContent = label;
+
+            baseSelect.appendChild(baseOption);
+            overlaySelect.appendChild(overlayOption);
+        });
+
+        // Update blend value display
+        blendSlider.oninput = () => {
+            blendValue.textContent = `${blendSlider.value}%`;
+        };
+
+        // Handle apply button click
+        applyBtn.onclick = async () => {
+            const sourceViewer = viewers[baseSelect.value]?.viewer;
+            const overlayViewer = viewers[overlaySelect.value]?.viewer;
+            
+            if (sourceViewer && overlayViewer) {
+                await this.blendImages(sourceViewer, overlayViewer, blendSlider.value / 100);
+                modal.style.display = "none";
+            } else {
+                alert("Please select both base and overlay images");
+            }
+        };
+
+        // Handle cancel and close
+        const closeModal = () => {
+            modal.style.display = "none";
+        };
+        
+        cancelBtn.onclick = closeModal;
+        closeBtn.onclick = closeModal;
+        window.onclick = (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+
+        // Show the modal
+        modal.style.display = "block";
+    }
+
+    async blendImages(baseViewer, overlayViewer, blendRatio) {
+        console.log("Starting image blend with ratio:", blendRatio);
+        
+        // Set blend mode state
+        this.isBlendMode = true;
+        this.baseViewer = baseViewer;
+        this.overlayViewer = overlayViewer;
+        
+        // Show and set up blend controls
+        const blendControls = this.imageContainer.querySelector('.blend-controls-container');
+        console.log('Blend controls element:', blendControls);
+        
+        if (!blendControls) {
+            console.error('Blend controls container not found in image container');
+            return;
+        }
+
+        const blendSlider = blendControls.querySelector('.blend-slider');
+        const blendValue = blendControls.querySelector('.blend-value');
+        const baseLabel = blendControls.querySelector('.base-image-label');
+        const overlayLabel = blendControls.querySelector('.overlay-image-label');
+
+        // Set labels and initial values
+        baseLabel.textContent = this.baseViewer.getLabel() || 'Base Image';
+        overlayLabel.textContent = this.overlayViewer.getLabel() || 'Overlay Image';
+        blendSlider.value = blendRatio * 100;
+        blendValue.textContent = `${Math.round(blendRatio * 100)}%`;
+
+        // Ensure the controls are visible
+        blendControls.style.removeProperty('display');
+        blendControls.classList.add('visible');
+        blendControls.style.visibility = 'visible';
+        blendControls.style.opacity = '1';
+        blendControls.style.zIndex = '1000';
+
+        // Remove any existing event listeners
+        const newSlider = blendSlider.cloneNode(true);
+        blendSlider.parentNode.replaceChild(newSlider, blendSlider);
+
+        // Add slider event listener
+        newSlider.oninput = async (e) => {
+            console.log('Slider value changed:', e.target.value);
+            const newRatio = e.target.value / 100;
+            blendValue.textContent = `${Math.round(newRatio * 100)}%`;
+            await this.updateBlendedImage(newRatio);
+        };
+        
+        // Set the blend label
+        this.setLabel(`Blend: ${this.baseViewer.getLabel()} + ${this.overlayViewer.getLabel()}`);
+        
+        await this.updateBlendedImage(blendRatio);
+    }
+
+    async updateBlendedImage(blendRatio) {
+        console.log('Updating blend with ratio:', blendRatio);
+        
+        // Get global min/max values for both images
+        const baseMin = this.baseViewer.minVal;
+        const baseMax = this.baseViewer.maxVal;
+        const overlayMin = this.overlayViewer.minVal;
+        const overlayMax = this.overlayViewer.maxVal;
+
+        // Helper function to convert array buffer to base64 in chunks
+        const arrayBufferToBase64 = (buffer) => {
+            const bytes = new Uint8Array(buffer);
+            const chunkSize = 0x8000; // Process in 32KB chunks
+            let binary = '';
+            
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                const chunk = bytes.slice(i, i + chunkSize);
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+            
+            return btoa(binary);
+        };
+
+        // Create array to store the blended slices
+        const blendedSlices = [];
+        const totalSlices = this.baseViewer.totalSlices;
+        
+        // Process each slice
+        for (let slice = 0; slice < totalSlices; slice++) {
+            console.log(`Processing slice ${slice + 1}/${totalSlices}`);
+            
+            // Get slice data
+            const baseSlice = await this.baseViewer.loadSliceData(slice);
+            const overlaySlice = await this.overlayViewer.loadSliceData(slice);
+            
+            // Create the blended slice
+            const blendedSlice = new Float32Array(baseSlice.length);
+            
+            // Blend using the original intensity values
+            for (let i = 0; i < blendedSlice.length; i++) {
+                // Normalize each value to [0,1] range using their respective min/max
+                const normalizedBase = (baseSlice[i] - baseMin) / (baseMax - baseMin);
+                const normalizedOverlay = (overlaySlice[i] - overlayMin) / (overlayMax - overlayMin);
+                
+                // Blend the normalized values
+                const blendedNormalized = (1 - blendRatio) * normalizedBase + blendRatio * normalizedOverlay;
+                
+                // Store the blended value
+                blendedSlice[i] = blendedNormalized;
+            }
+            
+            // Convert the blended slice to base64
+            const buffer = new ArrayBuffer(blendedSlice.length * 4);
+            const view = new DataView(buffer);
+            for (let i = 0; i < blendedSlice.length; i++) {
+                view.setFloat32(i * 4, blendedSlice[i], true);
+            }
+            
+            // Convert to base64 using chunked approach
+            const base64Slice = arrayBufferToBase64(buffer);
+            blendedSlices.push(base64Slice);
+        }
+
+        // Create result object in the format expected by loadImageData
+        const result = {
+            data: blendedSlices,
+            metadata: {
+                dimensions: [this.baseViewer.width, this.baseViewer.height],
+                min_value: 0,
+                max_value: 1,
+                voxel_dimensions: [
+                    this.baseViewer.voxelWidth,
+                    this.baseViewer.voxelHeight,
+                    this.baseViewer.voxelDepth
+                ]
+            },
+            isBlendMode: true,
+            baseViewer: this.baseViewer,
+            overlayViewer: this.overlayViewer
+        };
+
+        // Update the image using loadImageData to ensure consistent state management
+        this.loadImageData(result);
     }
 }
 
