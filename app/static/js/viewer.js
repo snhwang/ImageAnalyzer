@@ -960,7 +960,6 @@ class ImageViewer {
 
         this.imageData = result.data;
         this.totalSlices = this.imageData.length;
-        this.currentSlice = 0;
         this.minVal = result.metadata.min_value;
         this.maxVal = result.metadata.max_value;
         this.width = result.metadata.dimensions[0];
@@ -970,8 +969,12 @@ class ImageViewer {
         this.voxelHeight = result.metadata.voxel_dimensions?.[1] || 1;
         this.voxelDepth = result.metadata.voxel_dimensions?.[2] || 1;
 
-        this.windowWidth = (this.maxVal - this.minVal) / 2;
-        this.windowCenter = this.minVal + this.windowWidth;
+        // Preserve current slice if in blend mode, otherwise reset to 0
+        if (!result.isBlendMode) {
+            this.currentSlice = 0;
+            this.windowWidth = (this.maxVal - this.minVal) / 2;
+            this.windowCenter = this.minVal + this.windowWidth;
+        }
 
         // Use 2D canvas by default for initial load
         this.is3DMode = false;
@@ -987,8 +990,18 @@ class ImageViewer {
         this.resizeCanvases();
         this.updateSlice();
 
-        // Restore blend controls visibility if they were visible
-        if (wasBlendControlsVisible && blendControls) {
+        // Update blend mode state and controls
+        if (result.isBlendMode) {
+            this.isBlendMode = true;
+            this.baseViewer = result.baseViewer;
+            this.overlayViewer = result.overlayViewer;
+            if (blendControls) {
+                blendControls.style.removeProperty('display');
+                blendControls.classList.add('visible');
+                blendControls.style.visibility = 'visible';
+                blendControls.style.opacity = '1';
+            }
+        } else if (wasBlendControlsVisible && blendControls) {
             blendControls.style.removeProperty('display');
             blendControls.classList.add('visible');
             blendControls.style.visibility = 'visible';
@@ -1475,6 +1488,11 @@ class ImageViewer {
         const overlayMin = this.overlayViewer.minVal;
         const overlayMax = this.overlayViewer.maxVal;
 
+        // Store current state
+        const currentSlice = this.currentSlice;
+        const currentWindowCenter = this.windowCenter;
+        const currentWindowWidth = this.windowWidth;
+
         // Helper function to convert array buffer to base64 in chunks
         const arrayBufferToBase64 = (buffer) => {
             const bytes = new Uint8Array(buffer);
@@ -1491,7 +1509,7 @@ class ImageViewer {
 
         // Create array to store the blended slices
         const blendedSlices = [];
-        const totalSlices = this.baseViewer.totalSlices;
+        const totalSlices = Math.min(this.baseViewer.totalSlices, this.overlayViewer.totalSlices);
 
         // Process each slice
         for (let slice = 0; slice < totalSlices; slice++) {
@@ -1510,7 +1528,7 @@ class ImageViewer {
             // Create the blended slice
             const blendedSlice = new Float32Array(baseSlice.length);
 
-            // Direct linear blending of pixel values
+            // Blend pixel values
             for (let i = 0; i < blendedSlice.length; i++) {
                 blendedSlice[i] = (1 - blendRatio) * baseSlice[i] + blendRatio * overlaySlice[i];
             }
@@ -1526,11 +1544,6 @@ class ImageViewer {
             const base64Slice = arrayBufferToBase64(buffer);
             blendedSlices.push(base64Slice);
         }
-
-        // Store current state
-        const currentSlice = this.currentSlice;
-        const currentWindowCenter = this.windowCenter;
-        const currentWindowWidth = this.windowWidth;
 
         // Create result object in the format expected by loadImageData
         const result = {
