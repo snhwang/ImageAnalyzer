@@ -26,7 +26,7 @@ class ImageViewer {
 
         // Initialize canvases
         this.initializeCanvases();
-        
+
         // Get UI elements
         this.uploadOverlay = this.container.querySelector(".upload-overlay");
         this.fileInput = container.querySelector(".hidden-file-input");
@@ -387,16 +387,16 @@ class ImageViewer {
             this.canvas2D.style.display = "none";
             this.canvas3D.style.display = "block";
             this.roiCanvas.style.display = "none";
-            
+
             if (this.camera3D) {
                 this.camera3D.attachControl(this.canvas3D, true);
                 this.scene.activeCamera = this.camera3D;
             }
-            
+
             if (this.cube) {
                 this.cube.setEnabled(true);
             }
-            
+
             if (this.imageData) {
                 this.updateTexture();
             }
@@ -405,15 +405,15 @@ class ImageViewer {
             this.canvas2D.style.display = "block";
             this.canvas3D.style.display = "none";
             this.roiCanvas.style.display = "block";
-            
+
             if (this.camera3D) {
                 this.camera3D.detachControl();
             }
-            
+
             if (this.cube) {
                 this.cube.setEnabled(false);
             }
-            
+
             if (this.imageData) {
                 this.resizeCanvases();
                 this.updateSlice();
@@ -430,14 +430,14 @@ class ImageViewer {
     toggleWindowLevelMode() {
         if (!this.is3DMode) {
             console.log("Toggling window/level mode");
-            
+
             // Toggle the active state of the window/level button
             if (this.windowLevelBtn) {
                 const isActive = this.windowLevelBtn.classList.toggle("active");
-                
+
                 // Update cursor style based on active state
                 this.canvas2D.style.cursor = isActive ? "crosshair" : "default";
-                
+
                 // If activating window/level, deactivate optimize window
                 if (isActive && this.optimizeWindowBtn) {
                     this.optimizeWindowBtn.classList.remove("active");
@@ -450,10 +450,10 @@ class ImageViewer {
     toggleOptimizeWindow() {
         if (!this.is3DMode) {
             console.log("Toggling optimize window mode");
-            
+
             // Toggle the active state of the optimize window button
             const isActive = this.optimizeWindowBtn.classList.toggle("active");
-            
+
             // If activating optimize window, deactivate window/level
             if (isActive && this.windowLevelBtn) {
                 this.windowLevelBtn.classList.remove("active");
@@ -1367,10 +1367,10 @@ class ImageViewer {
         viewers.forEach(({index, label}) => {
             const baseOption = document.createElement('option');
             const overlayOption = document.createElement('option');
-            
+
             baseOption.value = index;
             overlayOption.value = index;
-            
+
             baseOption.textContent = label;
             overlayOption.textContent = label;
 
@@ -1387,7 +1387,7 @@ class ImageViewer {
         applyBtn.onclick = async () => {
             const sourceViewer = viewers[baseSelect.value]?.viewer;
             const overlayViewer = viewers[overlaySelect.value]?.viewer;
-            
+
             if (sourceViewer && overlayViewer) {
                 await this.blendImages(sourceViewer, overlayViewer, blendSlider.value / 100);
                 modal.style.display = "none";
@@ -1400,7 +1400,7 @@ class ImageViewer {
         const closeModal = () => {
             modal.style.display = "none";
         };
-        
+
         cancelBtn.onclick = closeModal;
         closeBtn.onclick = closeModal;
         window.onclick = (event) => {
@@ -1415,16 +1415,16 @@ class ImageViewer {
 
     async blendImages(baseViewer, overlayViewer, blendRatio) {
         console.log("Starting image blend with ratio:", blendRatio);
-        
+
         // Set blend mode state
         this.isBlendMode = true;
         this.baseViewer = baseViewer;
         this.overlayViewer = overlayViewer;
-        
+
         // Show and set up blend controls
         const blendControls = this.imageContainer.querySelector('.blend-controls-container');
         console.log('Blend controls element:', blendControls);
-        
+
         if (!blendControls) {
             console.error('Blend controls container not found in image container');
             return;
@@ -1459,16 +1459,16 @@ class ImageViewer {
             blendValue.textContent = `${Math.round(newRatio * 100)}%`;
             await this.updateBlendedImage(newRatio);
         };
-        
+
         // Set the blend label
         this.setLabel(`Blend: ${this.baseViewer.getLabel()} + ${this.overlayViewer.getLabel()}`);
-        
+
         await this.updateBlendedImage(blendRatio);
     }
 
     async updateBlendedImage(blendRatio) {
         console.log('Updating blend with ratio:', blendRatio);
-        
+
         // Get global min/max values for both images
         const baseMin = this.baseViewer.minVal;
         const baseMax = this.baseViewer.maxVal;
@@ -1480,42 +1480,48 @@ class ImageViewer {
             const bytes = new Uint8Array(buffer);
             const chunkSize = 0x8000; // Process in 32KB chunks
             let binary = '';
-            
+
             for (let i = 0; i < bytes.length; i += chunkSize) {
                 const chunk = bytes.slice(i, i + chunkSize);
                 binary += String.fromCharCode.apply(null, chunk);
             }
-            
+
             return btoa(binary);
         };
 
         // Create array to store the blended slices
         const blendedSlices = [];
         const totalSlices = this.baseViewer.totalSlices;
-        
+
         // Process each slice
         for (let slice = 0; slice < totalSlices; slice++) {
             console.log(`Processing slice ${slice + 1}/${totalSlices}`);
-            
+
             // Get slice data
-            const baseSlice = await this.baseViewer.loadSliceData(slice);
-            const overlaySlice = await this.overlayViewer.loadSliceData(slice);
-            
+            let baseSlice, overlaySlice;
+            try {
+                baseSlice = await this.baseViewer.loadSliceData(slice);
+                overlaySlice = await this.overlayViewer.loadSliceData(slice);
+            } catch (error) {
+                console.error(`Error loading slice ${slice}:`, error);
+                continue;
+            }
+
             // Create the blended slice
             const blendedSlice = new Float32Array(baseSlice.length);
-            
+
             // Direct linear blending of pixel values
             for (let i = 0; i < blendedSlice.length; i++) {
                 blendedSlice[i] = (1 - blendRatio) * baseSlice[i] + blendRatio * overlaySlice[i];
             }
-            
+
             // Convert the blended slice to base64
             const buffer = new ArrayBuffer(blendedSlice.length * 4);
             const view = new DataView(buffer);
             for (let i = 0; i < blendedSlice.length; i++) {
                 view.setFloat32(i * 4, blendedSlice[i], true);
             }
-            
+
             // Convert to base64 using chunked approach
             const base64Slice = arrayBufferToBase64(buffer);
             blendedSlices.push(base64Slice);
@@ -1563,7 +1569,7 @@ function initializeGridLayout() {
     const rows = parseInt(layout[0]);
     const cols = parseInt(layout[1]);
     const totalViewers = rows * cols;
-    
+
     const imageGrid = document.querySelector(".image-grid");
     if (!imageGrid) return;
 
@@ -1580,7 +1586,7 @@ function initializeGridLayout() {
 
     // Clear existing viewers
     imageGrid.innerHTML = '';
-    
+
     imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
     imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
@@ -1599,7 +1605,7 @@ function updateGridLayout(event) {
     const rows = parseInt(layout[0]);
     const cols = parseInt(layout[1]);
     const totalViewers = rows * cols;
-    
+
     const imageGrid = document.querySelector(".image-grid");
     if (!imageGrid) return;
 
@@ -1616,7 +1622,7 @@ function updateGridLayout(event) {
 
     // Clear existing viewers
     imageGrid.innerHTML = '';
-    
+
     imageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
     imageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
@@ -1683,10 +1689,10 @@ function createImageViewer() {
 
     const viewerInstance = new ImageViewer(container);
     container.viewer = viewerInstance;
-    
+
     // Initialize toolbar buttons for the new viewer
     initializeToolbarButtons(container);
-    
+
     return viewerInstance;
 }
 
