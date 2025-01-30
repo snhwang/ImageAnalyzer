@@ -1471,12 +1471,12 @@ class ImageViewer {
         const newSlider = blendSlider.cloneNode(true);
         blendSlider.parentNode.replaceChild(newSlider, blendSlider);
 
-        newSlider.oninput = async (e) => {
+        newSlider.addEventListener('input', async (e) => {
             console.log('Slider value changed:', e.target.value);
             const newRatio = e.target.value / 100;
             blendValue.textContent = `${Math.round(newRatio * 100)}%`;
             await this.updateBlendedImage(newRatio);
-        };
+        });
 
         // Set the blend label
         this.setLabel(`Blend: ${this.baseViewer.getLabel()} + ${this.overlayViewer.getLabel()}`);
@@ -1533,9 +1533,9 @@ class ImageViewer {
             // Create the blended slice
             const blendedSlice = new Float32Array(baseSlice.length);
 
-            // Blend pixel values
+            // Blend pixel values using correct ratio
             for (let i = 0; i < blendedSlice.length; i++) {
-                blendedSlice[i] = (1 - blendRatio) * baseSlice[i] + blendRatio * overlaySlice[i];
+                blendedSlice[i] = (blendRatio) * baseSlice[i] + (1 - blendRatio) * overlaySlice[i];
             }
 
             // Convert the blended slice to base64
