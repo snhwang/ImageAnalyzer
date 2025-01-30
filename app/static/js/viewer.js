@@ -1504,17 +1504,9 @@ class ImageViewer {
             // Create the blended slice
             const blendedSlice = new Float32Array(baseSlice.length);
             
-            // Blend using the original intensity values
+            // Direct linear blending of pixel values
             for (let i = 0; i < blendedSlice.length; i++) {
-                // Normalize each value to [0,1] range using their respective min/max
-                const normalizedBase = (baseSlice[i] - baseMin) / (baseMax - baseMin);
-                const normalizedOverlay = (overlaySlice[i] - overlayMin) / (overlayMax - overlayMin);
-                
-                // Blend the normalized values
-                const blendedNormalized = (1 - blendRatio) * normalizedBase + blendRatio * normalizedOverlay;
-                
-                // Store the blended value
-                blendedSlice[i] = blendedNormalized;
+                blendedSlice[i] = (1 - blendRatio) * baseSlice[i] + blendRatio * overlaySlice[i];
             }
             
             // Convert the blended slice to base64
@@ -1539,8 +1531,8 @@ class ImageViewer {
             data: blendedSlices,
             metadata: {
                 dimensions: [this.baseViewer.width, this.baseViewer.height],
-                min_value: 0,
-                max_value: 1,
+                min_value: Math.min(baseMin, overlayMin),
+                max_value: Math.max(baseMax, overlayMax),
                 voxel_dimensions: [
                     this.baseViewer.voxelWidth,
                     this.baseViewer.voxelHeight,
