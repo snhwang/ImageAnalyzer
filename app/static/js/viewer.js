@@ -1557,6 +1557,9 @@ class ImageViewer {
         this.minVal = Math.min(baseMin, overlayMin);
         this.maxVal = Math.max(baseMax, overlayMax);
         this.totalSlices = blendedSlices.length;
+        this.voxelWidth = this.baseViewer.voxelWidth;
+        this.voxelHeight = this.baseViewer.voxelHeight;
+        this.voxelDepth = this.baseViewer.voxelDepth;
 
         // Force display update
         await this.updateSlice();
