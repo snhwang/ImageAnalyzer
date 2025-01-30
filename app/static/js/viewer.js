@@ -1483,10 +1483,16 @@ class ImageViewer {
         blendSlider.parentNode.replaceChild(newSlider, blendSlider);
 
         newSlider.addEventListener('input', async (e) => {
-            console.log('Slider value changed:', e.target.value);
-            const newRatio = e.target.value / 100;
+            if (!this.isBlendMode) return;
+            const newRatio = parseFloat(e.target.value) / 100;
+            console.log('Slider value changed:', newRatio);
             blendValue.textContent = `${Math.round(newRatio * 100)}%`;
+            // Store current slice to maintain position
+            const currentSlice = this.currentSlice;
             await this.updateBlendedImage(newRatio);
+            // Restore slice position after blend
+            this.currentSlice = currentSlice;
+            await this.updateSlice();
         });
 
         // Set the blend label
@@ -1496,6 +1502,10 @@ class ImageViewer {
     }
 
     async updateBlendedImage(blendRatio) {
+        if (!this.isBlendMode || !this.baseViewer || !this.overlayViewer) {
+            console.error('Cannot update blend - not in blend mode or missing viewers');
+            return;
+        }
         console.log('Updating blend with ratio:', blendRatio);
 
         // Get global min/max values for both images
