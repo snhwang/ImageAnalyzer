@@ -1471,6 +1471,7 @@ class ImageViewer {
             const newRatio = e.target.value / 100;
             blendValue.textContent = `${Math.round(newRatio * 100)}%`;
             await this.updateBlendedImage(newRatio);
+            this.updateSlice();
         };
 
         // Set the blend label
