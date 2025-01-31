@@ -13,5 +13,14 @@
     "@babylonjs/core": "^7.44.0",
     "@babylonjs/gui": "^7.44.0",
     "@babylonjs/loaders": "^7.44.0"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/snhwang/ImageAnalyzer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/snhwang/ImageAnalyzer/issues"
+  },
+  "homepage": "https://github.com/snhwang/ImageAnalyzer#readme"
 }

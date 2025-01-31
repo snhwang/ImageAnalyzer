@@ -163,6 +163,7 @@
 .blend-slider {
     flex: 1;
     height: 5px;
+    appearance: none;
     -webkit-appearance: none;
     background: rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -173,6 +174,7 @@
 
 .blend-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 15px;
     height: 15px;
     background: white;
