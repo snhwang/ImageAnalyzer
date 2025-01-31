@@ -749,6 +749,16 @@
                                     <span class="base-image-label"></span> ↔ <span class="overlay-image-label"></span>
                                 </div>
                             </div>
+                            <div class="difference-legend" style="display: none;">
+                                <div class="legend-item">
+                                    <div class="legend-color increase"></div>
+                                    <span class="legend-label">Increased Values</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color decrease"></div>
+                                    <span class="legend-label">Decreased Values</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="image-info">
                             Window: C: 0 W: 0 | Slice: 0/0
@@ -932,6 +942,16 @@
                             <span class="base-image-label"></span> ↔ <span class="overlay-image-label"></span>
                         </div>
                     </div>
+                    <div class="difference-legend" style="display: none;">
+                        <div class="legend-item">
+                            <div class="legend-color increase"></div>
+                            <span class="legend-label">Increased Values</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color decrease"></div>
+                            <span class="legend-label">Decreased Values</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="image-info">Window: C: 0 W: 0 | Slice: 0/0</div>
                 <input
@@ -943,33 +963,38 @@
             </div>
         </template>
 
-        <!-- Add this after the other modal dialogs -->
+        <!-- Blend Images Modal -->
         <div id="blendImagesModal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Blend Images</h2>
+                    <h2>Image Comparison</h2>
                     <span class="close">&times;</span>
                 </div>
                 <div class="modal-body">
-                    <div class="image-selection">
-                        <div class="image-select-group">
-                            <label for="baseImage">Base Image:</label>
-                            <select id="baseImage" class="image-select"></select>
-                        </div>
-                        <div class="image-select-group">
-                            <label for="overlayImage">Overlay Image:</label>
-                            <select id="overlayImage" class="image-select"></select>
-                        </div>
+                    <div class="form-group">
+                        <label for="baseImage">Base Image:</label>
+                        <select id="baseImage" class="form-control"></select>
                     </div>
-                    <div class="blend-controls">
+                    <div class="form-group">
+                        <label for="overlayImage">Comparison Image:</label>
+                        <select id="overlayImage" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="comparisonMode">Comparison Mode:</label>
+                        <select id="comparisonMode" class="form-control">
+                            <option value="blend">Alpha Blend</option>
+                            <option value="difference">Difference Map</option>
+                        </select>
+                    </div>
+                    <div id="blendControls">
                         <label for="blendSlider">Blend Ratio:</label>
-                        <input type="range" id="blendSlider" min="0" max="100" value="50">
+                        <input type="range" id="blendSlider" min="0" max="100" value="50" class="form-control">
                         <span id="blendValue">50%</span>
                     </div>
-                    <div class="modal-buttons">
-                        <button id="applyBlend" class="btn">Apply Blend</button>
-                        <button id="cancelBlend" class="btn">Cancel</button>
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="applyBlend" class="btn btn-primary">Apply</button>
+                    <button id="cancelBlend" class="btn btn-secondary">Cancel</button>
                 </div>
             </div>
         </div>

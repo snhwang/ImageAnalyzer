@@ -112,26 +112,26 @@ class ImageViewer {
     setupEventListeners() {
         if (this.uploadBtn) {
             this.uploadBtn.onclick = () => {
-                console.log("Upload button clicked");
+            console.log("Upload button clicked");
                 if (this.fileInput) this.fileInput.click();
             };
         }
 
         if (this.fileInput) {
             this.fileInput.onchange = (e) => {
-                console.log("File input changed");
-                const file = e.target.files[0];
-                if (file) {
-                    this.uploadFile(file);
-                }
+            console.log("File input changed");
+            const file = e.target.files[0];
+            if (file) {
+                this.uploadFile(file);
+            }
             };
         }
 
         if (this.windowLevelBtn) {
             this.windowLevelBtn.addEventListener("click", () => {
-                console.log("Window level button clicked");
-                this.toggleWindowLevelMode();
-            });
+            console.log("Window level button clicked");
+            this.toggleWindowLevelMode();
+        });
         }
 
         this.optimizeWindowBtn?.addEventListener("click", () => {
@@ -326,14 +326,14 @@ class ImageViewer {
 
         this.canvas2D.addEventListener("mouseup", () => {
             if (this.isDragging) {
-                this.isDragging = false;
+            this.isDragging = false;
                 this.canvas2D.style.cursor = this.windowLevelBtn?.classList.contains("active") ? "crosshair" : "default";
             }
         });
 
         this.canvas2D.addEventListener("mouseleave", () => {
             if (this.isDragging) {
-                this.isDragging = false;
+            this.isDragging = false;
                 this.canvas2D.style.cursor = this.windowLevelBtn?.classList.contains("active") ? "crosshair" : "default";
             }
         });
@@ -415,8 +415,8 @@ class ImageViewer {
             }
 
             if (this.imageData) {
-                this.resizeCanvases();
-                this.updateSlice();
+            this.resizeCanvases();
+            this.updateSlice();
             }
         }
 
@@ -440,8 +440,8 @@ class ImageViewer {
 
                 // If activating window/level, deactivate optimize window
                 if (isActive && this.optimizeWindowBtn) {
-                    this.optimizeWindowBtn.classList.remove("active");
-                    this.roiCanvas.style.pointerEvents = "none";
+            this.optimizeWindowBtn.classList.remove("active");
+            this.roiCanvas.style.pointerEvents = "none";
                 }
             }
         }
@@ -457,7 +457,7 @@ class ImageViewer {
             // If activating optimize window, deactivate window/level
             if (isActive && this.windowLevelBtn) {
                 this.windowLevelBtn.classList.remove("active");
-                this.canvas2D.style.cursor = "default";
+            this.canvas2D.style.cursor = "default";
             }
 
             // Update ROI canvas interaction based on active state
@@ -556,28 +556,28 @@ class ImageViewer {
 
         console.log(`Drawing image at (${x}, ${y}) with scale ${displayScale}`);
 
-        if (this.rotation !== 0) {
-            this.ctx2D.save();
+            if (this.rotation !== 0) {
+                this.ctx2D.save();
             this.ctx2D.translate(this.canvas2D.width / 2, this.canvas2D.height / 2);
-            this.ctx2D.rotate((this.rotation * Math.PI) / 180);
+                this.ctx2D.rotate((this.rotation * Math.PI) / 180);
             this.ctx2D.translate(-this.canvas2D.width / 2, -this.canvas2D.height / 2);
         }
 
         // Draw the image
-        this.ctx2D.drawImage(
-            tempCanvas,
-            x,
-            y,
+            this.ctx2D.drawImage(
+                tempCanvas,
+                x,
+                y,
             this.width * displayScale,
             this.height * displayScale
-        );
+            );
 
-        if (this.rotation !== 0) {
-            this.ctx2D.restore();
-        }
+            if (this.rotation !== 0) {
+                this.ctx2D.restore();
+            }
 
-        const infoElement = this.container.querySelector(".image-info");
-        if (infoElement) {
+            const infoElement = this.container.querySelector(".image-info");
+            if (infoElement) {
             infoElement.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices} | Voxel Size: ${this.voxelWidth.toFixed(2)} × ${this.voxelHeight.toFixed(2)} × ${this.voxelDepth.toFixed(2)} mm`;
         }
 
@@ -991,8 +991,8 @@ class ImageViewer {
         // Preserve current slice if in blend mode, otherwise reset to 0
         if (!result.isBlendMode) {
             this.currentSlice = 0;
-            this.windowWidth = (this.maxVal - this.minVal) / 2;
-            this.windowCenter = this.minVal + this.windowWidth;
+        this.windowWidth = (this.maxVal - this.minVal) / 2;
+        this.windowCenter = this.minVal + this.windowWidth;
         }
 
         // Use 2D canvas by default for initial load
@@ -1365,10 +1365,12 @@ class ImageViewer {
     }
 
     showBlendDialog() {
-        console.log("Opening blend dialog");
+        console.log("Opening comparison dialog");
         const modal = document.getElementById("blendImagesModal");
         const baseSelect = document.getElementById("baseImage");
         const overlaySelect = document.getElementById("overlayImage");
+        const modeSelect = document.getElementById("comparisonMode");
+        const blendControls = document.getElementById("blendControls");
         const blendSlider = document.getElementById("blendSlider");
         const blendValue = document.getElementById("blendValue");
         const applyBtn = document.getElementById("applyBlend");
@@ -1377,7 +1379,7 @@ class ImageViewer {
 
         // Clear previous options
         baseSelect.innerHTML = '<option value="">Select base image...</option>';
-        overlaySelect.innerHTML = '<option value="">Select overlay image...</option>';
+        overlaySelect.innerHTML = '<option value="">Select comparison image...</option>';
 
         // Get all viewers with loaded images
         const viewers = Array.from(document.querySelectorAll(".image-window"))
@@ -1391,9 +1393,9 @@ class ImageViewer {
         console.log(`Found ${viewers.length} viewers with images`);
 
         if (viewers.length < 2) {
-            alert("Please load at least two images before attempting to blend");
-            return;
-        }
+            alert("Please load at least two images before attempting to compare");
+                return;
+            }
 
         // Add options for each viewer
         viewers.forEach(({index, label}) => {
@@ -1410,6 +1412,12 @@ class ImageViewer {
             overlaySelect.appendChild(overlayOption);
         });
 
+        // Handle comparison mode change
+        modeSelect.onchange = () => {
+            const isBlendMode = modeSelect.value === 'blend';
+            blendControls.style.display = isBlendMode ? 'block' : 'none';
+        };
+
         // Update blend value display
         blendSlider.oninput = () => {
             blendValue.textContent = `${blendSlider.value}%`;
@@ -1421,10 +1429,14 @@ class ImageViewer {
             const overlayViewer = viewers[overlaySelect.value]?.viewer;
 
             if (sourceViewer && overlayViewer) {
-                await this.blendImages(sourceViewer, overlayViewer, blendSlider.value / 100);
+                if (modeSelect.value === 'blend') {
+                    await this.blendImages(sourceViewer, overlayViewer, blendSlider.value / 100);
+            } else {
+                    await this.createDifferenceMap(sourceViewer, overlayViewer);
+                }
                 modal.style.display = "none";
             } else {
-                alert("Please select both base and overlay images");
+                alert("Please select both base and comparison images");
             }
         };
 
@@ -1443,6 +1455,9 @@ class ImageViewer {
 
         // Show the modal
         modal.style.display = "block";
+        
+        // Set initial state of blend controls based on selected mode
+        modeSelect.dispatchEvent(new Event('change'));
     }
 
     async blendImages(baseViewer, overlayViewer, blendRatio) {
@@ -1618,6 +1633,475 @@ class ImageViewer {
         this.windowWidth = currentWindowWidth;
         this.updateSlice();
     }
+
+    async createDifferenceMap(baseViewer, overlayViewer) {
+        console.log("Creating difference map visualization");
+
+        // Store original updateSlice method before overriding
+        this._originalUpdateSlice = this.updateSlice;
+
+        // Set comparison mode state
+        this.isComparisonMode = true;
+        this.isDifferenceMode = true;
+        this.isBlendMode = false;
+        this.baseViewer = baseViewer;
+        this.overlayViewer = overlayViewer;
+
+        // Initialize threshold values
+        this.minThreshold = 0.05;  // 5%
+        this.maxThreshold = 0.20;  // 20%
+
+        // Show and set up comparison controls
+        const comparisonControls = this.imageContainer.querySelector('.blend-controls-container');
+        if (comparisonControls) {
+            // Hide blend controls for difference map
+            const blendControls = comparisonControls.querySelector('.blend-slider-group');
+            if (blendControls) {
+                blendControls.style.display = 'none';
+            }
+
+            // Create and show threshold controls
+            let thresholdControls = this.imageContainer.querySelector('.threshold-controls');
+            if (!thresholdControls) {
+                thresholdControls = document.createElement('div');
+                thresholdControls.className = 'threshold-controls';
+                thresholdControls.innerHTML = `
+                    <div class="threshold-group">
+                        <label>Minimum Threshold</label>
+                        <input type="range" class="threshold-slider" id="minThreshold" 
+                               min="0" max="50" value="5" step="1">
+                        <span class="threshold-value">5%</span>
+                    </div>
+                    <div class="threshold-group">
+                        <label>Maximum Threshold</label>
+                        <input type="range" class="threshold-slider" id="maxThreshold" 
+                               min="0" max="100" value="20" step="1">
+                        <span class="threshold-value">20%</span>
+                    </div>
+                `;
+                this.imageContainer.appendChild(thresholdControls);
+
+                // Add event listeners for threshold sliders
+                const minSlider = thresholdControls.querySelector('#minThreshold');
+                const maxSlider = thresholdControls.querySelector('#maxThreshold');
+                const minValue = minSlider.nextElementSibling;
+                const maxValue = maxSlider.nextElementSibling;
+
+                minSlider.addEventListener('input', async (e) => {
+                    const value = parseInt(e.target.value);
+                    minValue.textContent = `${value}%`;
+                    this.minThreshold = value / 100;
+                    if (this.minThreshold >= this.maxThreshold) {
+                        maxSlider.value = value + 1;
+                        maxValue.textContent = `${value + 1}%`;
+                        this.maxThreshold = (value + 1) / 100;
+                    }
+                    await this.updateSlice();
+                });
+
+                maxSlider.addEventListener('input', async (e) => {
+                    const value = parseInt(e.target.value);
+                    maxValue.textContent = `${value}%`;
+                    this.maxThreshold = value / 100;
+                    if (this.maxThreshold <= this.minThreshold) {
+                        minSlider.value = value - 1;
+                        minValue.textContent = `${value - 1}%`;
+                        this.minThreshold = (value - 1) / 100;
+                    }
+                    await this.updateSlice();
+                });
+            }
+            thresholdControls.classList.add('visible');
+
+            // Show the difference legend with colored text
+            const legend = this.imageContainer.querySelector('.difference-legend');
+            if (legend) {
+                legend.innerHTML = `
+                    <div class="legend-item">
+                        <div class="legend-color increase"></div>
+                        <span class="legend-label increase">Increased Values</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color decrease"></div>
+                        <span class="legend-label decrease">Decreased Values</span>
+                    </div>
+                `;
+                legend.style.display = 'block';
+            }
+
+            // Update labels
+            const baseLabel = comparisonControls.querySelector('.base-image-label');
+            const overlayLabel = comparisonControls.querySelector('.overlay-image-label');
+            if (baseLabel) baseLabel.textContent = baseViewer.getLabel() || 'Base Image';
+            if (overlayLabel) overlayLabel.textContent = overlayViewer.getLabel() || 'Comparison Image';
+
+            // Show controls with proper styling
+            comparisonControls.style.display = 'block';
+            comparisonControls.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            comparisonControls.style.color = 'white';
+            comparisonControls.classList.add('visible');
+        }
+
+        // Set the comparison label
+        this.setLabel(`Difference: ${baseViewer.getLabel()} vs ${overlayViewer.getLabel()}`);
+
+        await this.updateDifferenceMap();
+    }
+
+    async updateDifferenceMap() {
+        if (!this.isComparisonMode || !this.baseViewer || !this.overlayViewer) {
+            console.error('Cannot update difference map - missing viewers');
+                return;
+            }
+
+            try {
+            // Clear the pixel cache
+            this.pixelCache.clear();
+
+            // Store current state
+            const currentSlice = this.currentSlice;
+            const currentWindowCenter = this.windowCenter;
+            const currentWindowWidth = this.windowWidth;
+
+            // Process each slice
+            const differenceSlices = [];
+            const totalSlices = Math.min(this.baseViewer.totalSlices, this.overlayViewer.totalSlices);
+
+            // Calculate the maximum possible difference for normalization
+            const maxPossibleDiff = Math.max(
+                Math.abs(this.baseViewer.maxVal - this.overlayViewer.minVal),
+                Math.abs(this.overlayViewer.maxVal - this.baseViewer.minVal)
+            );
+
+            for (let slice = 0; slice < totalSlices; slice++) {
+                console.log(`Processing difference for slice ${slice + 1}/${totalSlices}`);
+
+                // Get slice data
+                let baseSlice = await this.baseViewer.loadSliceData(slice);
+                let overlaySlice = await this.overlayViewer.loadSliceData(slice);
+
+                // Create the difference slice
+                const differenceSlice = new Float32Array(baseSlice.length);
+
+                // Calculate differences and normalize
+                for (let i = 0; i < differenceSlice.length; i++) {
+                    const diff = overlaySlice[i] - baseSlice[i];
+                    differenceSlice[i] = diff / maxPossibleDiff; // Normalize to [-1, 1] range
+                }
+
+                // Convert to base64 for storage
+                const buffer = new ArrayBuffer(differenceSlice.length * 4);
+                const view = new DataView(buffer);
+                for (let i = 0; i < differenceSlice.length; i++) {
+                    view.setFloat32(i * 4, differenceSlice[i], true);
+                }
+                const base64Slice = this.arrayBufferToBase64(buffer);
+                differenceSlices.push(base64Slice);
+            }
+
+            // Create result object to maintain state
+            const result = {
+                data: differenceSlices,
+                    metadata: {
+                    dimensions: [this.baseViewer.width, this.baseViewer.height],
+                    min_value: -1,
+                    max_value: 1,
+                    voxel_dimensions: [
+                        this.baseViewer.voxelWidth,
+                        this.baseViewer.voxelHeight,
+                        this.baseViewer.voxelDepth
+                    ]
+                },
+                isDifferenceMode: true,
+                baseViewer: this.baseViewer,
+                overlayViewer: this.overlayViewer
+            };
+
+            // Update the image using loadImageData to ensure consistent state management
+            this.loadImageData(result);
+
+            // Override updateSlice for difference map display
+            const originalUpdateSlice = this.updateSlice;
+            this.updateSlice = async () => {
+                // Get the base image data
+                const baseSlice = await this.baseViewer.loadSliceData(this.currentSlice);
+                const diffSlice = await this.loadSliceData(this.currentSlice);
+
+                // Create a temporary canvas for the base image
+                const baseCanvas = document.createElement('canvas');
+                baseCanvas.width = this.width;
+                baseCanvas.height = this.height;
+                const baseCtx = baseCanvas.getContext('2d');
+                const baseImageData = baseCtx.createImageData(this.width, this.height);
+
+                // Create grayscale base image
+                for (let i = 0; i < baseSlice.length; i++) {
+                    const value = baseSlice[i];
+                    const normalizedValue = Math.round(((value - this.baseViewer.minVal) / 
+                        (this.baseViewer.maxVal - this.baseViewer.minVal)) * 255);
+                    const index = i * 4;
+                    baseImageData.data[index] = normalizedValue;
+                    baseImageData.data[index + 1] = normalizedValue;
+                    baseImageData.data[index + 2] = normalizedValue;
+                    baseImageData.data[index + 3] = 255;
+                }
+                baseCtx.putImageData(baseImageData, 0, 0);
+
+                // Create difference overlay
+                const diffCanvas = document.createElement('canvas');
+                diffCanvas.width = this.width;
+                diffCanvas.height = this.height;
+                const diffCtx = diffCanvas.getContext('2d');
+                const diffImageData = diffCtx.createImageData(this.width, this.height);
+
+                // Apply color mapping with transparency
+                for (let i = 0; i < diffSlice.length; i++) {
+                    const value = diffSlice[i];
+                    const index = i * 4;
+
+                    if (Math.abs(value) < 0.05) {
+                        diffImageData.data[index + 3] = 0;
+                    } else if (value < 0) {
+                        const intensity = Math.min(Math.abs(value), 1);
+                        diffImageData.data[index] = 0;
+                        diffImageData.data[index + 1] = 0;
+                        diffImageData.data[index + 2] = Math.round(255 * intensity);
+                        diffImageData.data[index + 3] = Math.round(128 * intensity);
+            } else {
+                        const intensity = Math.min(value, 1);
+                        diffImageData.data[index] = Math.round(255 * intensity);
+                        diffImageData.data[index + 1] = 0;
+                        diffImageData.data[index + 2] = 0;
+                        diffImageData.data[index + 3] = Math.round(128 * intensity);
+                    }
+                }
+                diffCtx.putImageData(diffImageData, 0, 0);
+
+                // Clear main canvas
+                this.ctx2D.clearRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+
+                // Calculate display scale and position
+                const displayScale = Math.min(
+                    this.canvas2D.width / this.width,
+                    this.canvas2D.height / this.height
+                );
+                const x = (this.canvas2D.width - this.width * displayScale) / 2;
+                const y = (this.canvas2D.height - this.height * displayScale) / 2;
+
+                // Draw base image
+                this.ctx2D.drawImage(
+                    baseCanvas,
+                    x, y,
+                    this.width * displayScale,
+                    this.height * displayScale
+                );
+
+                // Draw difference overlay
+                this.ctx2D.globalCompositeOperation = 'source-over';
+                this.ctx2D.drawImage(
+                    diffCanvas,
+                    x, y,
+                    this.width * displayScale,
+                    this.height * displayScale
+                );
+
+                // Get the current slice data for both images to compare intensities
+                const baseSliceData = await this.baseViewer.loadSliceData(this.currentSlice);
+                const overlaySliceData = await this.overlayViewer.loadSliceData(this.currentSlice);
+
+                // Calculate normalized intensity threshold (5%)
+                const baseRange = this.baseViewer.maxVal - this.baseViewer.minVal;
+                const thresholdRange = this.maxThreshold - this.minThreshold;
+
+                // Draw red voxels for significant positive differences
+                this.ctx2D.globalCompositeOperation = 'source-over';
+                const voxelSize = displayScale;  // Size of each voxel in display coordinates
+
+                for (let i = 0; i < baseSliceData.length; i++) {
+                    const baseVal = (baseSliceData[i] - this.baseViewer.minVal) / baseRange;
+                    const overlayVal = (overlaySliceData[i] - this.overlayViewer.minVal) / 
+                                     (this.overlayViewer.maxVal - this.overlayViewer.minVal);
+                    
+                    const diff = overlayVal - baseVal;
+                    if (diff > this.minThreshold) {  // Positive differences (red)
+                        // Calculate intensity based on difference
+                        let intensity = Math.min((diff - this.minThreshold) / thresholdRange, 1.0);
+                        
+                        // Calculate voxel position
+                        const row = Math.floor(i / this.width);
+                        const col = i % this.width;
+                        
+                        // Convert to canvas coordinates
+                        const pixelX = x + col * displayScale;
+                        const pixelY = y + row * displayScale;
+                        
+                        // Draw the red voxel with calculated intensity
+                        this.ctx2D.fillStyle = `rgba(255, 0, 0, ${intensity * 0.7})`; // Max opacity 0.7
+                        this.ctx2D.fillRect(pixelX, pixelY, voxelSize, voxelSize);
+                    } else if (diff < -this.minThreshold) {  // Negative differences (blue)
+                        // Calculate intensity based on negative difference
+                        let intensity = Math.min((-diff - this.minThreshold) / thresholdRange, 1.0);
+                        
+                        // Calculate voxel position
+                        const row = Math.floor(i / this.width);
+                        const col = i % this.width;
+                        
+                        // Convert to canvas coordinates
+                        const pixelX = x + col * displayScale;
+                        const pixelY = y + row * displayScale;
+                        
+                        // Draw the blue voxel with calculated intensity
+                        this.ctx2D.fillStyle = `rgba(0, 0, 255, ${intensity * 0.7})`; // Max opacity 0.7
+                        this.ctx2D.fillRect(pixelX, pixelY, voxelSize, voxelSize);
+                    }
+                }
+
+                // Update image info
+                const imageInfo = this.imageContainer.querySelector('.image-info');
+                if (imageInfo) {
+                    imageInfo.style.color = 'white';
+                    imageInfo.textContent = `Window: C: ${Math.round(this.windowCenter)} W: ${Math.round(this.windowWidth)} | Slice: ${this.currentSlice + 1}/${this.totalSlices} | Difference Map`;
+                }
+            };
+
+            // Restore state
+            this.currentSlice = Math.min(currentSlice, this.totalSlices - 1);
+            this.windowCenter = currentWindowCenter;
+            this.windowWidth = currentWindowWidth;
+
+            // Update display
+            await this.updateSlice();
+
+        } catch (error) {
+            console.error('Error in updateDifferenceMap:', error);
+            this.cleanupDifferenceMap();
+            throw error;
+        }
+    }
+
+    cleanupDifferenceMap() {
+        // Reset flags
+        this.isDifferenceMode = false;
+        this.isComparisonMode = false;
+
+        // Clear difference data
+        this.differenceData = null;
+
+        // Hide controls and legend
+        const comparisonControls = this.imageContainer.querySelector('.blend-controls-container');
+        const thresholdControls = this.imageContainer.querySelector('.threshold-controls');
+        const legend = this.imageContainer.querySelector('.difference-legend');
+
+        if (comparisonControls) {
+            comparisonControls.style.display = 'none';
+            comparisonControls.classList.remove('visible');
+        }
+
+        if (thresholdControls) {
+            thresholdControls.style.display = 'none';
+            thresholdControls.classList.remove('visible');
+        }
+
+        if (legend) {
+            legend.style.display = 'none';
+        }
+
+        // Reset image info text color
+        const imageInfo = this.imageContainer.querySelector('.image-info');
+        if (imageInfo) {
+            imageInfo.style.color = '';
+        }
+
+        // Restore original updateSlice method if it exists
+        if (this._originalUpdateSlice) {
+            this.updateSlice = this._originalUpdateSlice;
+            this._originalUpdateSlice = null;
+        }
+    }
+
+    // Helper function to convert array buffer to base64
+    arrayBufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        const chunkSize = 0x8000;
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.slice(i, i + chunkSize);
+            binary += String.fromCharCode.apply(null, chunk);
+        }
+        return btoa(binary);
+    }
+
+    showCompareDialog() {
+        console.log("Opening comparison dialog");
+        const modal = document.getElementById("compareImagesModal");
+        const baseSelect = document.getElementById("compareBaseImage");
+        const overlaySelect = document.getElementById("compareOverlayImage");
+        const applyBtn = document.getElementById("applyCompare");
+        const cancelBtn = document.getElementById("cancelCompare");
+        const closeBtn = modal.querySelector(".close");
+
+        // Clear previous options
+        baseSelect.innerHTML = '<option value="">Select base image...</option>';
+        overlaySelect.innerHTML = '<option value="">Select comparison image...</option>';
+
+        // Get all viewers with loaded images
+        const viewers = Array.from(document.querySelectorAll(".image-window"))
+            .map((container, index) => ({
+                index,
+                label: container.viewer?.getLabel() || `Image ${index + 1}`,
+                viewer: container.viewer
+            }))
+            .filter(viewer => viewer.viewer && viewer.viewer.imageData);
+
+        if (viewers.length < 2) {
+            alert("Please load at least two images before attempting to compare");
+            return;
+        }
+
+        // Add options for each viewer
+        viewers.forEach(({index, label}) => {
+            const baseOption = document.createElement('option');
+            const overlayOption = document.createElement('option');
+
+            baseOption.value = index;
+            overlayOption.value = index;
+
+            baseOption.textContent = label;
+            overlayOption.textContent = label;
+
+            baseSelect.appendChild(baseOption);
+            overlaySelect.appendChild(overlayOption);
+        });
+
+        // Handle apply button click
+        applyBtn.onclick = async () => {
+            const baseViewer = viewers[baseSelect.value]?.viewer;
+            const overlayViewer = viewers[overlaySelect.value]?.viewer;
+
+            if (baseViewer && overlayViewer) {
+                await this.createDifferenceMap(baseViewer, overlayViewer);
+                modal.style.display = "none";
+            } else {
+                alert("Please select both base and comparison images");
+            }
+        };
+
+        // Handle cancel and close
+        const closeModal = () => {
+            modal.style.display = "none";
+        };
+
+        cancelBtn.onclick = closeModal;
+        closeBtn.onclick = closeModal;
+        window.onclick = (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+
+        // Show the modal
+        modal.style.display = "block";
+    }
 }
 
 function initializeGridLayout() {
@@ -1789,4 +2273,5 @@ document
     .getElementById("gridLayout")
     ?.addEventListener("change", updateGridLayout);
 
+window.ImageViewer = ImageViewer;
 window.ImageViewer = ImageViewer;

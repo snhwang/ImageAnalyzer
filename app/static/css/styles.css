@@ -16,7 +16,7 @@
     margin: 15% auto;
     padding: 20px;
     border: 1px solid #888;
-    width: 80%;
+    width: 90%;
     max-width: 500px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -137,15 +137,15 @@
     bottom: 40px;
     left: 50%;
     transform: translateX(-50%);
-    background-color: rgba(30, 64, 124, 0.9);
-    padding: 10px 15px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px 20px;
     border-radius: 8px;
     color: white;
     z-index: 1000;
     width: 90%;
     max-width: 300px;
-    display: none;  /* Hidden by default */
-    pointer-events: auto !important;  /* Ensure controls are interactive */
+    display: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .blend-controls-container.visible {
@@ -199,14 +199,192 @@
 }
 
 .blend-info {
-    font-size: 0.8em;
+    font-size: 14px;
     text-align: center;
-    opacity: 0.9;
-    margin-top: 5px;
+    margin-top: 8px;
     color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .blend-info span {
     font-weight: bold;
+    color: #ffffff;
+    margin: 0 5px;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+#blendControls {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    border: 1px solid transparent;
+}
+
+.btn-primary {
+    background-color: #007bff;
     color: white;
+    border-color: #007bff;
+}
+
+.btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+/* Difference map legend */
+.difference-legend {
+    position: absolute;
+    bottom: 60px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    display: none;
+    z-index: 1000;
+    font-size: 14px;
+}
+
+.difference-legend.visible {
+    display: block;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin: 8px 0;
+}
+
+.legend-color {
+    width: 24px;
+    height: 24px;
+    margin-right: 12px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.legend-color.increase {
+    background-color: rgba(255, 0, 0, 0.7);
+}
+
+.legend-color.decrease {
+    background-color: rgba(0, 0, 255, 0.7);
+}
+
+.legend-label.increase {
+    color: #ff4444;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.legend-label.decrease {
+    color: #4444ff;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.threshold-controls {
+    position: absolute;
+    bottom: 160px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    display: none;
+    z-index: 1000;
+    width: 200px;
+}
+
+.threshold-controls.visible {
+    display: block;
+}
+
+.threshold-group {
+    margin-bottom: 10px;
+}
+
+.threshold-group label {
+    display: block;
+    color: white;
+    margin-bottom: 5px;
+    font-size: 12px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.threshold-slider {
+    width: 100%;
+    height: 5px;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    outline: none;
+}
+
+.threshold-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.threshold-slider::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.threshold-value {
+    color: white;
+    font-size: 12px;
+    margin-left: 10px;
+    display: inline-block;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 } 
